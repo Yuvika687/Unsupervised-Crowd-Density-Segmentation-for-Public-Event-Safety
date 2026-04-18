@@ -1,0 +1,15 @@
+torch
+torchvision
+opencv-python
+scipy
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+umap-learn
+xgboost
+shap
+tqdm
+Pillow
+tabulate 
