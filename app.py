@@ -1555,39 +1555,7 @@ with tab1:
             safety_img, _zone_stats = build_overlay(
                 _img_rgb, labels, GRID, opacity)
 
-            # ── Threat score (computed immediately from _zone_stats) ──
-            # Zone-based terms are the primary driver.
-            # Crowd count adds a small modifier (capped at 15)
-            # so it never overwhelms zones.
-            _crit_term = _zone_stats.get("Critical", 0) * 40
-            _high_term = _zone_stats.get("High", 0) * 20
-            _med_term  = _zone_stats.get("Medium", 0) * 5
-            _count_term = min(15, _crowd_count / 10)
-            _threat_score = min(100, int(
-                _crit_term + _high_term + _med_term + _count_term
-            ))
-            print(f"DEBUG zone_stats={_zone_stats} crit={_crit_term} high={_high_term} med={_med_term} count_term={_count_term} threat={_threat_score}")
-
-            if _threat_score < 25:
-                _threat_label = "MINIMAL"
-                _threat_color = "#10B981"
-                _threat_bar   = "#10B981"
-                _threat_rec = "All zones nominal. No action required."
-            elif _threat_score < 50:
-                _threat_label = "ELEVATED"
-                _threat_color = "#F59E0B"
-                _threat_bar   = "#F59E0B"
-                _threat_rec = "Increased density detected. Deploy monitoring."
-            elif _threat_score < 75:
-                _threat_label = "HIGH THREAT"
-                _threat_color = "#EF4444"
-                _threat_bar   = "#EF4444"
-                _threat_rec = "Crowd pressure rising. Activate response team."
-            else:
-                _threat_label = "CRITICAL EMERGENCY"
-                _threat_color = "#FF1744"
-                _threat_bar   = "#FF1744"
-                _threat_rec = "IMMEDIATE INTERVENTION REQUIRED. Evacuate sectors."
+            # (threat score is calculated at the gauge render site below)
 
             density_overlay = build_density_overlay(
                 _img_rgb, _density_full, opacity)
@@ -1821,22 +1789,52 @@ with tab1:
 
             # ══════════════════════════════════════════════════
             # FEATURE 1 — THREAT LEVEL GAUGE
-            # (threat score already computed after build_overlay)
+            # Nuclear fix: recalculate everything fresh from
+            # _zone_stats RIGHT HERE at render time.
             # ══════════════════════════════════════════════════
+            _gauge_value = min(100, int(
+                _zone_stats.get("Critical", 0) * 40 +
+                _zone_stats.get("High", 0) * 20 +
+                _zone_stats.get("Medium", 0) * 5 +
+                min(15, _crowd_count / 10)
+            ))
+
+            if _gauge_value < 25:
+                _g_label = "MINIMAL"
+                _g_color = "#10B981"
+                _g_rec = "All zones nominal. No action required."
+            elif _gauge_value < 50:
+                _g_label = "ELEVATED"
+                _g_color = "#F59E0B"
+                _g_rec = "Increased density detected. Deploy monitoring."
+            elif _gauge_value < 75:
+                _g_label = "HIGH THREAT"
+                _g_color = "#EF4444"
+                _g_rec = "Crowd pressure rising. Activate response team."
+            else:
+                _g_label = "CRITICAL EMERGENCY"
+                _g_color = "#FF1744"
+                _g_rec = "IMMEDIATE INTERVENTION REQUIRED. Evacuate sectors."
+
+            print(f"[GAUGE DEBUG] method={method}")
+            print(f"[GAUGE DEBUG] _zone_stats={_zone_stats}")
+            print(f"[GAUGE DEBUG] _gauge_value={_gauge_value}")
+            print(f"[GAUGE DEBUG] _crowd_count={_crowd_count}")
+            print(f"[GAUGE DEBUG] _g_label={_g_label}")
 
             fig_gauge = go.Figure(go.Indicator(
                 mode="gauge+number",
-                value=_threat_score,
+                value=_gauge_value,
                 number=dict(font=dict(size=40, color="#FFFFFF",
                                       family="JetBrains Mono, monospace"),
                             suffix="%"),
-                title=dict(text=f"THREAT LEVEL: {_threat_label}",
-                           font=dict(size=14, color=_threat_color,
+                title=dict(text=f"THREAT LEVEL: {_g_label}",
+                           font=dict(size=14, color=_g_color,
                                      family="Inter, sans-serif")),
                 gauge=dict(
                     axis=dict(range=[0, 100], tickcolor="#64748B",
                               tickfont=dict(color="#64748B", size=10)),
-                    bar=dict(color=_threat_bar, thickness=0.3),
+                    bar=dict(color=_g_color, thickness=0.3),
                     bgcolor="#1B2B42",
                     borderwidth=0,
                     steps=[
@@ -1845,8 +1843,8 @@ with tab1:
                         dict(range=[50, 75],  color="#2A0D00"),
                         dict(range=[75, 100], color="#2A0007"),
                     ],
-                    threshold=dict(line=dict(color=_threat_color, width=3),
-                                   thickness=0.8, value=_threat_score),
+                    threshold=dict(line=dict(color=_g_color, width=3),
+                                   thickness=0.8, value=_gauge_value),
                 ),
             ))
             fig_gauge.update_layout(
@@ -1860,8 +1858,8 @@ with tab1:
 
             st.markdown(f"""
             <div style="text-align:center;padding:4px 0 12px 0">
-            <p style="color:{_threat_color};font-size:13px;font-weight:700;margin:0;
-            letter-spacing:0.5px">{_threat_rec}</p>
+            <p style="color:{_g_color};font-size:13px;font-weight:700;margin:0;
+            letter-spacing:0.5px">{_g_rec}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -2100,8 +2098,8 @@ with tab1:
                     "model": "DM-Count (LWCC)",
                     "weights": _weights_used,
                     "crowd_count": _crowd_count,
-                    "threat_level": _threat_label,
-                    "threat_score": round(_threat_score, 2),
+                    "threat_level": _g_label,
+                    "threat_score": round(_gauge_value, 2),
                     "zone_stats": {
                         "Low": _zone_stats["Low"],
                         "Medium": _zone_stats["Medium"],
@@ -2110,7 +2108,7 @@ with tab1:
                     },
                     "confidence_pct": _confidence_pct,
                     "image_dimensions": f"{w}x{h}",
-                    "recommendation": _threat_rec,
+                    "recommendation": _g_rec,
                 }
                 _report_json = json.dumps(_report, indent=2)
                 _report_fname = f"safecrowd_report_{_now.strftime('%Y%m%d_%H%M%S')}.json"
