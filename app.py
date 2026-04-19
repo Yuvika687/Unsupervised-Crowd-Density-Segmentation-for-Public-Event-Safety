@@ -1556,13 +1556,17 @@ with tab1:
                 _img_rgb, labels, GRID, opacity)
 
             # ── Threat score (computed immediately from _zone_stats) ──
+            # Zone-based terms are the primary driver.
+            # Crowd count adds a small modifier (capped at 15)
+            # so it never overwhelms zones.
+            _crit_term = _zone_stats.get("Critical", 0) * 40
+            _high_term = _zone_stats.get("High", 0) * 20
+            _med_term  = _zone_stats.get("Medium", 0) * 5
+            _count_term = min(15, _crowd_count / 10)
             _threat_score = min(100, int(
-                (_zone_stats.get("Critical", 0) * 40 +
-                 _zone_stats.get("High", 0)     * 20 +
-                 _zone_stats.get("Medium", 0)   * 5  +
-                 (_crowd_count / 10))
+                _crit_term + _high_term + _med_term + _count_term
             ))
-            print(f"DEBUG zone_stats={_zone_stats} threat={_threat_score}")
+            print(f"DEBUG zone_stats={_zone_stats} crit={_crit_term} high={_high_term} med={_med_term} count_term={_count_term} threat={_threat_score}")
 
             if _threat_score < 25:
                 _threat_label = "MINIMAL"
