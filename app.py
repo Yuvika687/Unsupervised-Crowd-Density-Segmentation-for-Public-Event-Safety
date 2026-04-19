@@ -639,9 +639,16 @@ def predict_density_lwcc(img_rgb_array):
         density_shb_arr = np.array(density_shb, dtype=np.float32)
         if density_shb_arr.ndim > 2:
             density_shb_arr = density_shb_arr.squeeze()
-        nonzero_ratio = np.count_nonzero(density_shb_arr) / max(density_shb_arr.size, 1)
+        threshold = density_shb_arr.max() * 0.01
+        nonzero_ratio = (density_shb_arr > threshold).sum() / max(density_shb_arr.size, 1)
 
-        if count_shb < 80 and nonzero_ratio > 0.25:
+        print(f"[TILED DEBUG] count_shb={count_shb:.1f}")
+        print(f"[TILED DEBUG] density max={density_shb_arr.max():.6f}")
+        print(f"[TILED DEBUG] threshold={threshold:.6f}")
+        print(f"[TILED DEBUG] nonzero_ratio={nonzero_ratio:.3f}")
+        print(f"[TILED DEBUG] fallback_trigger={count_shb < 150 and nonzero_ratio > 0.15}")
+
+        if count_shb < 150 and nonzero_ratio > 0.15:
             # Image is likely undercounted — run tiled inference
             mid_h, mid_w = h // 2, w // 2
             quadrants = [
@@ -857,27 +864,70 @@ def labels_from_kmeans(fs, model):
 def labels_from_xgb(fs, model):
     preds = model.predict(fs)
     names = ["Low", "Medium", "High", "Critical"]
-    return [names[int(p)] for p in preds]
+
+    # Get unique predicted classes and sort them
+    # Map lowest class value → Low, highest → Critical
+    unique_classes = sorted(model.classes_)
+    class_to_name = {}
+    for i, cls in enumerate(unique_classes):
+        class_to_name[cls] = names[
+            min(i, len(names)-1)]
+
+    return [class_to_name[int(p)] for p in preds]
 
 
 def labels_from_gmm(fs, model):
     raw = model.predict(fs)
     probs = model.predict_proba(fs)
 
-    # Sort clusters by their CENTER mean (index 0 =
-    # mean density feature) not by assigned points mean
-    # This is stable even for sparse images
-    center_means = model.means_[:, 0]
-    order = np.argsort(center_means)
+    # Strategy: align GMM clusters to KMeans
+    # by finding which GMM cluster has the
+    # most overlap with each density quartile
 
-    names = ["Low", "Medium", "High", "Critical"]
-    # Map sorted cluster index to zone name
-    cmap = {}
-    for rank, cluster_idx in enumerate(order):
-        if rank < len(names):
-            cmap[cluster_idx] = names[rank]
+    # Get density values (feature 0 = mean density)
+    densities = fs[:, 0]
+
+    # Divide into 4 quartiles by density value
+    q25 = np.percentile(densities, 25)
+    q50 = np.percentile(densities, 50)
+    q75 = np.percentile(densities, 75)
+
+    # For each cluster, find its median density
+    n_components = model.n_components
+    cluster_medians = {}
+    for c in range(n_components):
+        mask = (raw == c)
+        if mask.sum() > 0:
+            cluster_medians[c] = np.median(
+                densities[mask])
         else:
-            cmap[cluster_idx] = "Critical"
+            cluster_medians[c] = 0.0
+
+    # Sort clusters by median density
+    sorted_by_density = sorted(
+        range(n_components),
+        key=lambda c: cluster_medians[c]
+    )
+
+    # For sparse images where all densities
+    # are near 0, most zones should be Low
+    # Check if this is a sparse scene:
+    # If 75th percentile density < 0.05,
+    # it's sparse — assign most to Low
+    names = ["Low", "Medium", "High", "Critical"]
+
+    if q75 < 0.05:
+        # SPARSE SCENE: all clusters map to low-medium
+        sparse_names = ["Low", "Low", "Medium", "Medium"]
+        cmap = {}
+        for rank, c in enumerate(sorted_by_density):
+            cmap[c] = sparse_names[
+                min(rank, len(sparse_names)-1)]
+    else:
+        # DENSE SCENE: full 4-level mapping
+        cmap = {}
+        for rank, c in enumerate(sorted_by_density):
+            cmap[c] = names[min(rank, len(names)-1)]
 
     labels = [cmap[l] for l in raw]
     conf = float(probs.max(axis=1).mean())
@@ -1504,6 +1554,37 @@ with tab1:
 
             safety_img, _zone_stats = build_overlay(
                 _img_rgb, labels, GRID, opacity)
+
+            # ── Threat score (computed immediately from _zone_stats) ──
+            _threat_score = min(100, int(
+                (_zone_stats.get("Critical", 0) * 40 +
+                 _zone_stats.get("High", 0)     * 20 +
+                 _zone_stats.get("Medium", 0)   * 5  +
+                 (_crowd_count / 10))
+            ))
+            print(f"DEBUG zone_stats={_zone_stats} threat={_threat_score}")
+
+            if _threat_score < 25:
+                _threat_label = "MINIMAL"
+                _threat_color = "#10B981"
+                _threat_bar   = "#10B981"
+                _threat_rec = "All zones nominal. No action required."
+            elif _threat_score < 50:
+                _threat_label = "ELEVATED"
+                _threat_color = "#F59E0B"
+                _threat_bar   = "#F59E0B"
+                _threat_rec = "Increased density detected. Deploy monitoring."
+            elif _threat_score < 75:
+                _threat_label = "HIGH THREAT"
+                _threat_color = "#EF4444"
+                _threat_bar   = "#EF4444"
+                _threat_rec = "Crowd pressure rising. Activate response team."
+            else:
+                _threat_label = "CRITICAL EMERGENCY"
+                _threat_color = "#FF1744"
+                _threat_bar   = "#FF1744"
+                _threat_rec = "IMMEDIATE INTERVENTION REQUIRED. Evacuate sectors."
+
             density_overlay = build_density_overlay(
                 _img_rgb, _density_full, opacity)
 
@@ -1736,34 +1817,8 @@ with tab1:
 
             # ══════════════════════════════════════════════════
             # FEATURE 1 — THREAT LEVEL GAUGE
+            # (threat score already computed after build_overlay)
             # ══════════════════════════════════════════════════
-            _threat_score = min(100, int(
-                (_zone_stats["Critical"] * 40 +
-                 _zone_stats["High"]     * 20 +
-                 _zone_stats["Medium"]   * 5  +
-                 (_crowd_count / 10))
-            ))
-
-            if _threat_score < 25:
-                _threat_label = "MINIMAL"
-                _threat_color = "#10B981"
-                _threat_bar   = "#10B981"
-                _threat_rec = "All zones nominal. No action required."
-            elif _threat_score < 50:
-                _threat_label = "ELEVATED"
-                _threat_color = "#F59E0B"
-                _threat_bar   = "#F59E0B"
-                _threat_rec = "Increased density detected. Deploy monitoring."
-            elif _threat_score < 75:
-                _threat_label = "HIGH THREAT"
-                _threat_color = "#EF4444"
-                _threat_bar   = "#EF4444"
-                _threat_rec = "Crowd pressure rising. Activate response team."
-            else:
-                _threat_label = "CRITICAL EMERGENCY"
-                _threat_color = "#FF1744"
-                _threat_bar   = "#FF1744"
-                _threat_rec = "IMMEDIATE INTERVENTION REQUIRED. Evacuate sectors."
 
             fig_gauge = go.Figure(go.Indicator(
                 mode="gauge+number",
