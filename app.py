@@ -1761,7 +1761,7 @@ with tab1:
             _count_low  = max(0, int(_crowd_count - _mae))
             _count_high = int(_crowd_count + _mae)
 
-            m1, m2, m3, m4 = st.columns(4)
+            m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
                 st.components.v1.html(f"""
                 <div style="background:#0C1220;border:1px solid #1B2B42;
@@ -1785,7 +1785,8 @@ with tab1:
                 """, height=130)
             m2.metric("🔴 Critical Zones", _zone_stats["Critical"])
             m3.metric("🟠 High Zones", _zone_stats["High"])
-            m4.metric("🟢 Safe Zones", _zone_stats["Low"] + _zone_stats["Medium"])
+            m4.metric("🟡 Medium Zones", _zone_stats["Medium"])
+            m5.metric("🟢 Safe Zones", _zone_stats["Low"])
 
             # ══════════════════════════════════════════════════
             # FEATURE 1 — THREAT LEVEL GAUGE
@@ -1795,7 +1796,7 @@ with tab1:
             _gauge_value = min(100, int(
                 _zone_stats.get("Critical", 0) * 40 +
                 _zone_stats.get("High", 0) * 20 +
-                _zone_stats.get("Medium", 0) * 5 +
+                _zone_stats.get("Medium", 0) * 1 +
                 min(15, _crowd_count / 10)
             ))
 
