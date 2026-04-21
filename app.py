@@ -677,8 +677,8 @@ def predict_density_lwcc(img_rgb_array):
                 finally:
                     os.unlink(q_path)
 
-            # Apply 0.85 overlap correction factor
-            count = tiled_count * 0.80
+            # No overlap in quadrant slicing, so multiplier is 1.0 (Correction removed)
+            count = tiled_count * 1.0
 
             # Reassemble density map from quadrant density maps
             # Resize each quadrant density to its original spatial size
@@ -798,18 +798,41 @@ def predict_density_raw(model, img_bgr):
 
 
 def extract_features(density_map, grid=GRID):
-    h, w   = density_map.shape
+    """
+    Split density map into grid×grid patches and compute 8 features each.
+    Matches segment_density.py exactly for model compatibility.
+    """
+    h, w = density_map.shape
     ph, pw = h // grid, w // grid
-    feats  = []
+    features = []
+
     for i in range(grid):
         for j in range(grid):
-            p = density_map[i*ph:(i+1)*ph, j*pw:(j+1)*pw]
-            feats.append([
-                p.mean(), p.max(), p.std(),
-                (p > p.mean()).sum() / p.size,
-                i / (grid - 1), j / (grid - 1),
+            patch = density_map[i * ph : (i + 1) * ph, j * pw : (j + 1) * pw]
+            
+            # Basic stats
+            m = patch.mean()
+            s = patch.std()
+            
+            # Advanced markers: Clumpiness (CV) and Structure (Gradient)
+            cv = s / (m + 1e-7)
+            
+            gx = cv2.Sobel(patch, cv2.CV_32F, 1, 0, ksize=3)
+            gy = cv2.Sobel(patch, cv2.CV_32F, 0, 1, ksize=3)
+            grad_mag = np.sqrt(gx**2 + gy**2).max()
+
+            features.append([
+                m,
+                patch.max(),
+                s,
+                cv,
+                grad_mag,
+                (patch > m).sum() / (patch.size + 1e-7),
+                i / (grid - 1),
+                j / (grid - 1),
             ])
-    return np.array(feats)
+
+    return np.array(features)
 
 
 def get_label(mean_val):
@@ -880,43 +903,19 @@ def labels_from_gmm(fs, model):
     raw = model.predict(fs)
     probs = model.predict_proba(fs)
 
-    # Strategy: align GMM clusters to KMeans
-    # by finding which GMM cluster has the
-    # most overlap with each density quartile
-
-    # Get density values (feature 0 = mean density)
-    densities = fs[:, 0]
-
-    # Divide into 4 quartiles by density value
-    q25 = np.percentile(densities, 25)
-    q50 = np.percentile(densities, 50)
-    q75 = np.percentile(densities, 75)
-
-    # For each cluster, find its median density
-    n_components = model.n_components
-    cluster_medians = {}
-    for c in range(n_components):
-        mask = (raw == c)
-        if mask.sum() > 0:
-            cluster_medians[c] = np.median(
-                densities[mask])
-        else:
-            cluster_medians[c] = 0.0
-
-    # Sort clusters by median density
-    sorted_by_density = sorted(
-        range(n_components),
-        key=lambda c: cluster_medians[c]
-    )
+    # Strategy: sort clusters by mean density (feature 0)
+    # This ensure cluster labels are mapped consistently to High/Low
+    means = model.means_[:, 0]
+    sorted_by_density = np.argsort(means)
 
     # For sparse images where all densities
     # are near 0, most zones should be Low
-    # Check if this is a sparse scene:
-    # If 75th percentile density < 0.05,
-    # it's sparse — assign most to Low
+    # Use density range to detect sparse scenes
+    # (scaled features: range < 1.0 means minimal variation)
+    density_range = densities.max() - densities.min()
     names = ["Low", "Medium", "High", "Critical"]
 
-    if q75 < 0.05:
+    if density_range < 1.0:
         # SPARSE SCENE: all clusters map to low-medium
         sparse_names = ["Low", "Low", "Medium", "Medium"]
         cmap = {}
@@ -930,7 +929,19 @@ def labels_from_gmm(fs, model):
             cmap[c] = names[min(rank, len(names)-1)]
 
     labels = [cmap[l] for l in raw]
-    conf = float(probs.max(axis=1).mean())
+
+    # Compute meaningful confidence:
+    # Use margin between top-1 and top-2 probabilities
+    # This reflects how *decisively* GMM separates zones
+    n_unique_clusters = len(set(raw))
+    if n_unique_clusters <= 1:
+        # GMM can't differentiate — low confidence
+        conf = max(0.25, float(probs.max(axis=1).mean()) * 0.4)
+    else:
+        # Margin-based confidence: how far apart top-2 probs are
+        sorted_probs = np.sort(probs, axis=1)[:, ::-1]
+        margins = sorted_probs[:, 0] - sorted_probs[:, 1]
+        conf = float(margins.mean())
     return labels, conf
 
 
@@ -1070,14 +1081,21 @@ font-weight:600">ShanghaiTech B</span>
 padding:10px 16px;background:#0C1220">
 <span style="color:#64748B;font-size:12px;font-weight:500">MAE</span>
 <span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">4.92 <span style="color:#64748B;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
+font-weight:700">5.80 <span style="color:#64748B;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
 padding:10px 16px;background:#101827">
+<span style="color:#64748B;font-size:12px;font-weight:500">Overall</span>
+<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">80.9% <span style="color:#64748B;font-weight:400;font-size:10px">accuracy (498 imgs)</span></span>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;
+padding:10px 16px;background:#0C1220">
 <span style="color:#64748B;font-size:12px;font-weight:500">XGB</span>
 <span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">99.91% <span style="color:#64748B;font-weight:400;font-size:10px">accuracy</span></span>
+font-weight:700">99.30% <span style="color:#64748B;font-weight:400;font-size:10px">zone classification</span></span>
 </div>
 
 </div>
@@ -1151,9 +1169,9 @@ if _last_count_ticker is not None:
         f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">STATUS:</span> '
         f'<span style="color:#10B981">{_status_txt}</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">MAE:</span> '
-        f'<span style="color:#94A3B8">4.92</span>'
+        f'<span style="color:#94A3B8">5.80</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">ACCURACY:</span> '
-        f'<span style="color:#94A3B8">91.7%</span>'
+        f'<span style="color:#94A3B8">80.9%</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 else:
@@ -2254,6 +2272,16 @@ with tab2:
         xgb_img, xgb_stats = build_overlay(_img_rgb, xgb_labels, GRID, opacity)
         gmm_img, gmm_stats = build_overlay(_img_rgb, gmm_labels, GRID, opacity)
 
+        # ── Dynamic per-image accuracy (agreement with KMeans) ──
+        _n_patches = len(km_labels)
+        _xgb_agree = sum(1 for a, b in zip(km_labels, xgb_labels) if a == b)
+        _xgb_acc_pct = (_xgb_agree / _n_patches * 100) if _n_patches > 0 else 0.0
+        _gmm_agree = sum(1 for a, b in zip(km_labels, gmm_labels) if a == b)
+        _gmm_agree_pct = (_gmm_agree / _n_patches * 100) if _n_patches > 0 else 0.0
+        print(f"[ACC DEBUG] XGBoost agreement: {_xgb_acc_pct:.1f}% ({_xgb_agree}/{_n_patches})")
+        print(f"[ACC DEBUG] GMM agreement: {_gmm_agree_pct:.1f}% ({_gmm_agree}/{_n_patches})")
+        print(f"[ACC DEBUG] GMM confidence: {gmm_conf*100:.1f}%")
+
         # ── ⟺ Interactive Comparison — Drag-to-Compare Slider ──
         def _img_to_b64(img_rgb):
             _, buf = cv2.imencode('.jpg',
@@ -2463,13 +2491,13 @@ with tab2:
             st.image(xgb_img, use_container_width=True,
                      caption="Gradient boosted trees")
             st.markdown(
-                '<span style="display:inline-block;padding:6px 16px;'
-                'border-radius:20px;font-size:12px;font-weight:600;'
-                'background:rgba(16,185,129,0.1);color:#6EE7B7;'
-                'border:1px solid rgba(16,185,129,0.25);'
-                'font-family:\'JetBrains Mono\',monospace;'
-                'font-variant-numeric:tabular-nums">'
-                'Accuracy: 99.91%</span>',
+                f'<span style="display:inline-block;padding:6px 16px;'
+                f'border-radius:20px;font-size:12px;font-weight:600;'
+                f'background:rgba(16,185,129,0.1);color:#6EE7B7;'
+                f'border:1px solid rgba(16,185,129,0.25);'
+                f'font-family:\'JetBrains Mono\',monospace;'
+                f'font-variant-numeric:tabular-nums">'
+                f'Accuracy: {_xgb_acc_pct:.1f}%</span>',
                 unsafe_allow_html=True)
             st.caption("Learned from KMeans labels — gradient boosted trees")
             for z in ["Low", "Medium", "High", "Critical"]:
@@ -2505,7 +2533,8 @@ with tab2:
                 f'border:1px solid rgba(124,58,237,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
-                f'Confidence: {gmm_conf*100:.1f}%</span>',
+                f'Accuracy: {_gmm_agree_pct:.1f}%'
+                f' · Conf: {gmm_conf*100:.1f}%</span>',
                 unsafe_allow_html=True)
             st.caption("Soft clustering — probability-based zone assignment")
             for z in ["Low", "Medium", "High", "Critical"]:
