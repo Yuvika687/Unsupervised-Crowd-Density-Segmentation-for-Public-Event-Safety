@@ -90,17 +90,23 @@ def predict_adaptive(img_path, model_shb, model_sha):
     1. Run SHB first (sparse-optimized)
     2. If count >= threshold, re-run with SHA (dense-optimized)
     """
-    count_shb = LWCC.get_count(
+    count_shb, density_shb = LWCC.get_count(
         img_path, model_name="DM-Count", model_weights="SHB",
-        model=model_shb, resize_img=True)
+        model=model_shb, return_density=True, resize_img=True)
 
     if count_shb >= SCENE_THRESHOLD and model_sha is not None:
-        count_sha = LWCC.get_count(
+        count_sha, density_sha = LWCC.get_count(
             img_path, model_name="DM-Count", model_weights="SHA",
-            model=model_sha, resize_img=False)
-        return float(count_sha), "SHA"
+            model=model_sha, return_density=True, resize_img=False)
+        return float(count_sha), density_sha, "SHA"
     else:
-        return float(count_shb), "SHB"
+        return float(count_shb), density_shb, "SHB"
+
+
+# NOTE: apply_calibration is NOT used for the LWCC path.
+# DM-Count's raw output IS the system output — no calibration needed.
+# The old calibration files (calibration_*.json) were fitted for the
+# legacy VGG-16 model and would DEGRADE DM-Count accuracy.
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -136,11 +142,11 @@ def evaluate():
             if gt is None or gt == 0:
                 continue
             img_path = os.path.join(TEST_B_IMG, fname)
-            pred, weights = predict_adaptive(img_path, model_shb, model_sha)
-            records.append((gt, pred, "PartB", weights))
+            raw, density, weights = predict_adaptive(img_path, model_shb, model_sha)
+            records.append((gt, raw, "PartB", weights))
             if (i + 1) % 20 == 0:
                 print(f"    {i+1}/{len(files)}  "
-                      f"(last: GT={gt}, Pred={pred:.1f}, {weights})")
+                      f"(last: GT={gt}, Pred={raw:.1f}, {weights})")
 
     # Part A (dense)
     if os.path.isdir(TEST_A_IMG):
@@ -151,11 +157,11 @@ def evaluate():
             if gt is None or gt == 0:
                 continue
             img_path = os.path.join(TEST_A_IMG, fname)
-            pred, weights = predict_adaptive(img_path, model_shb, model_sha)
-            records.append((gt, pred, "PartA", weights))
+            raw, density, weights = predict_adaptive(img_path, model_shb, model_sha)
+            records.append((gt, raw, "PartA", weights))
             if (i + 1) % 20 == 0:
                 print(f"    {i+1}/{len(files)}  "
-                      f"(last: GT={gt}, Pred={pred:.1f}, {weights})")
+                      f"(last: GT={gt}, Pred={raw:.1f}, {weights})")
 
     if not records:
         print("  ERROR: No images evaluated. Check data paths.")
@@ -178,8 +184,7 @@ def evaluate():
 
     def accuracy(p, g):
         mean_gt = np.mean(g)
-        if mean_gt < 1e-6:
-            return 0.0
+        if mean_gt < 1e-6: return 0.0
         return max(0.0, 100.0 - (mae(p, g) / mean_gt) * 100.0)
 
     # ── Bucket-wise table ──
