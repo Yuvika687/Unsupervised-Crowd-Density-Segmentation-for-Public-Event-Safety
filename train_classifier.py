@@ -15,6 +15,7 @@ Outputs:
 """
 
 import os
+import cv2
 import numpy as np
 import joblib
 from sklearn.cluster import KMeans
@@ -36,17 +37,36 @@ GRID = 8
 
 
 def extract_patch_features(density_map, grid=GRID):
+    """
+    Standardizes feature extraction to 8 features.
+    Matches segment_density.py and app.py.
+    """
     h, w   = density_map.shape
     ph, pw = h // grid, w // grid
     features = []
     for i in range(grid):
         for j in range(grid):
-            patch = density_map[i*ph:(i+1)*ph, j*pw:(j+1)*pw]
+            patch = density_map[i * ph : (i + 1) * ph, j * pw : (j + 1) * pw]
+            
+            # Base stats
+            m = patch.mean()
+            s = patch.std()
+            
+            # Derived metrics for complex crowd structures
+            cv = s / (m + 1e-7)
+            
+            # Sobel gradients for texture density
+            gx = cv2.Sobel(patch, cv2.CV_32F, 1, 0, ksize=3)
+            gy = cv2.Sobel(patch, cv2.CV_32F, 0, 1, ksize=3)
+            grad_mag = np.sqrt(gx**2 + gy**2).max()
+
             features.append([
-                patch.mean(),
+                m,
                 patch.max(),
-                patch.std(),
-                (patch > patch.mean()).sum() / patch.size,
+                s,
+                cv,
+                grad_mag,
+                (patch > m).sum() / (patch.size + 1e-7),
                 i / (grid - 1),
                 j / (grid - 1),
             ])
