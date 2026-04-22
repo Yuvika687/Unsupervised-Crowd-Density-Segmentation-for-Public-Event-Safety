@@ -912,6 +912,7 @@ def labels_from_gmm(fs, model):
     # are near 0, most zones should be Low
     # Use density range to detect sparse scenes
     # (scaled features: range < 1.0 means minimal variation)
+    densities = fs[:, 0]
     density_range = densities.max() - densities.min()
     names = ["Low", "Medium", "High", "Critical"]
 
@@ -2981,7 +2982,7 @@ with tab5:
     <h2 style="color:#EFF6FF;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">🗂️ Batch Analysis</h2>
     <p style="color:#94A3B8;margin:6px 0 0;font-size:13px;line-height:1.5">
-    Multi-frame crowd density analysis · Simulates CCTV temporal monitoring</p>
+    Multi-frame crowd density analysis · Full zone classification per image</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
     padding:5px 14px;border-radius:20px;font-size:10px;font-weight:600;
@@ -3021,29 +3022,52 @@ with tab5:
                 )
 
                 raw_bytes = np.asarray(bytearray(bf.read()), dtype=np.uint8)
-                bf.seek(0)  # reset for potential re-read
+                bf.seek(0)
                 _b_img_bgr = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
                 _b_img_rgb = cv2.cvtColor(_b_img_bgr, cv2.COLOR_BGR2RGB)
+                _b_h, _b_w = _b_img_rgb.shape[:2]
 
                 if LWCC_AVAILABLE and lwcc_shb is not None:
                     _b_count, _b_density = predict_density_lwcc(_b_img_rgb)
                 else:
                     _b_density_raw = predict_density_raw(cnn, _b_img_bgr)
-                    _b_h, _b_w = _b_img_rgb.shape[:2]
                     _b_density = cv2.resize(_b_density_raw, (_b_w, _b_h))
                     _b_count = apply_calibration(float(_b_density_raw.sum()), "small")
 
-                # Determine threat level
-                if _b_count < 30:
+                # ── Real zone classification (same pipeline as Live Analysis) ──
+                _b_feats = extract_features(_b_density)
+                _b_feats_sc = scaler.transform(_b_feats) if scaler else _b_feats
+
+                if method == "XGBoost" and xgb:
+                    _b_labels = labels_from_xgb(_b_feats_sc, xgb)
+                elif method == "GMM" and gmm:
+                    _b_labels, _ = labels_from_gmm(_b_feats_sc, gmm)
+                else:
+                    _b_labels = [get_label(float(f[0])) for f in _b_feats]
+
+                _b_safety_img, _b_zone_stats = build_overlay(
+                    _b_img_rgb, _b_labels, GRID, opacity)
+                _b_density_overlay = build_density_overlay(
+                    _b_img_rgb, _b_density, opacity)
+
+                # Threat score (same formula as live gauge)
+                _b_threat_score = min(100, int(
+                    _b_zone_stats.get("Critical", 0) * 40 +
+                    _b_zone_stats.get("High", 0) * 20 +
+                    _b_zone_stats.get("Medium", 0) * 1 +
+                    min(15, _b_count / 10)
+                ))
+
+                if _b_threat_score < 25:
                     _b_threat = "MINIMAL"
-                elif _b_count < 80:
+                elif _b_threat_score < 50:
                     _b_threat = "ELEVATED"
-                elif _b_count < 200:
+                elif _b_threat_score < 75:
                     _b_threat = "HIGH"
                 else:
                     _b_threat = "CRITICAL"
 
-                # Determine confidence
+                # Confidence
                 if _b_count < 80:
                     _b_conf = 95
                 elif _b_count < 200:
@@ -3055,23 +3079,113 @@ with tab5:
                     "name": bf.name,
                     "count": _b_count,
                     "threat": _b_threat,
+                    "threat_score": _b_threat_score,
                     "confidence": _b_conf,
+                    "zone_stats": _b_zone_stats,
                     "image": _b_img_rgb,
+                    "safety_img": _b_safety_img,
+                    "density_overlay": _b_density_overlay,
                 })
 
             progress_bar.progress(1.0, text="✅ Batch analysis complete!")
             time.sleep(0.5)
             progress_bar.empty()
 
-            # Store results in session state for persistence
             st.session_state["batch_results"] = batch_results
-
         # Display results if available
         if "batch_results" in st.session_state and st.session_state["batch_results"]:
             batch_results = st.session_state["batch_results"]
 
             # ══════════════════════════════════════════════════
-            # 1. SUMMARY TABLE
+            # 1. AGGREGATE ANALYTICS DASHBOARD
+            # ══════════════════════════════════════════════════
+            _total_frames = len(batch_results)
+            _avg_count = int(np.mean([r["count"] for r in batch_results]))
+            _max_count = max(r["count"] for r in batch_results)
+            _avg_threat = int(np.mean([r["threat_score"] for r in batch_results]))
+
+            st.markdown("""
+            <div style="background:#0C1220;border:1px solid #1B2B42;
+            border-radius:12px;padding:14px 18px 6px;margin:16px 0 12px;
+            border-top:2px solid #7C3AED">
+            <div style="color:#64748B;font-size:10px;font-weight:700;
+            letter-spacing:2px;text-transform:uppercase">
+            📊 AGGREGATE ANALYTICS</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            _ag1, _ag2, _ag3, _ag4 = st.columns(4)
+            _ag1.metric("🖼️ Total Frames", _total_frames)
+            _ag2.metric("👥 Avg Count", _avg_count)
+            _ag3.metric("🔺 Peak Count", _max_count)
+            _ag4.metric("⚡ Avg Threat", f"{_avg_threat}%")
+
+            # ── Aggregate zone distribution ──
+            _agg_zones = {"Low": 0, "Medium": 0, "High": 0, "Critical": 0}
+            for r in batch_results:
+                for k in _agg_zones:
+                    _agg_zones[k] += r["zone_stats"][k]
+
+            _threat_dist = {"MINIMAL": 0, "ELEVATED": 0, "HIGH": 0, "CRITICAL": 0}
+            for r in batch_results:
+                _threat_dist[r["threat"]] += 1
+
+            _agg_c1, _agg_c2 = st.columns(2)
+
+            with _agg_c1:
+                _fig_zone_dist = go.Figure(data=[go.Bar(
+                    x=list(_agg_zones.keys()),
+                    y=list(_agg_zones.values()),
+                    marker_color=["#10B981", "#F59E0B", "#EF4444", "#FF1744"],
+                    text=list(_agg_zones.values()),
+                    textposition='auto',
+                    textfont=dict(color="#EFF6FF", size=13,
+                                  family="JetBrains Mono, monospace"),
+                )])
+                _fig_zone_dist.update_layout(
+                    title=dict(text="Zone Distribution (All Frames)",
+                               font=dict(color="#94A3B8", size=13)),
+                    template="plotly_dark",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    height=280,
+                    margin=dict(l=40, r=20, t=40, b=40),
+                    xaxis=dict(tickfont=dict(color="#94A3B8", size=11)),
+                    yaxis=dict(tickfont=dict(color="#64748B", size=10),
+                               gridcolor="#1B2B42"),
+                    showlegend=False,
+                )
+                st.plotly_chart(_fig_zone_dist, use_container_width=True)
+
+            with _agg_c2:
+                _td_colors = {"MINIMAL": "#10B981", "ELEVATED": "#F59E0B",
+                              "HIGH": "#EF4444", "CRITICAL": "#FF1744"}
+                _td_labels = [k for k, v in _threat_dist.items() if v > 0]
+                _td_values = [v for v in _threat_dist.values() if v > 0]
+                _td_cols = [_td_colors[k] for k in _td_labels]
+
+                _fig_threat_dist = go.Figure(data=[go.Pie(
+                    labels=_td_labels, values=_td_values,
+                    marker=dict(colors=_td_cols,
+                                line=dict(color="#0C1220", width=2)),
+                    textinfo="label+value",
+                    textfont=dict(size=11, color="#EFF6FF",
+                                  family="Inter, sans-serif"),
+                    hole=0.45,
+                )])
+                _fig_threat_dist.update_layout(
+                    title=dict(text="Threat Level Distribution",
+                               font=dict(color="#94A3B8", size=13)),
+                    template="plotly_dark",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    height=280,
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    showlegend=False,
+                )
+                st.plotly_chart(_fig_threat_dist, use_container_width=True)
+            # ══════════════════════════════════════════════════
+            # 2. SUMMARY TABLE WITH ZONE COLUMNS
             # ══════════════════════════════════════════════════
             st.markdown("""
             <div style="background:#0C1220;border:1px solid #1B2B42;
@@ -3079,7 +3193,7 @@ with tab5:
             border-top:2px solid #7C3AED">
             <div style="color:#64748B;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
-            📊 BATCH RESULTS SUMMARY</div>
+            📋 DETAILED RESULTS TABLE</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -3090,18 +3204,26 @@ with tab5:
             font-family:'Inter',sans-serif">
             <thead>
             <tr style="background:#0A0F1A;border-bottom:2px solid #1B2B42">
-            <th style="padding:12px 16px;text-align:left;color:#64748B;
-            font-size:10px;font-weight:700;letter-spacing:2px;
+            <th style="padding:12px 14px;text-align:left;color:#64748B;
+            font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">IMAGE</th>
-            <th style="padding:12px 16px;text-align:center;color:#64748B;
-            font-size:10px;font-weight:700;letter-spacing:2px;
+            <th style="padding:12px 10px;text-align:center;color:#64748B;
+            font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">COUNT</th>
-            <th style="padding:12px 16px;text-align:center;color:#64748B;
-            font-size:10px;font-weight:700;letter-spacing:2px;
+            <th style="padding:12px 10px;text-align:center;color:#10B981;
+            font-size:10px;font-weight:700;letter-spacing:1.5px">LOW</th>
+            <th style="padding:12px 10px;text-align:center;color:#F59E0B;
+            font-size:10px;font-weight:700;letter-spacing:1.5px">MED</th>
+            <th style="padding:12px 10px;text-align:center;color:#EF4444;
+            font-size:10px;font-weight:700;letter-spacing:1.5px">HIGH</th>
+            <th style="padding:12px 10px;text-align:center;color:#FF1744;
+            font-size:10px;font-weight:700;letter-spacing:1.5px">CRIT</th>
+            <th style="padding:12px 10px;text-align:center;color:#64748B;
+            font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">THREAT</th>
-            <th style="padding:12px 16px;text-align:right;color:#64748B;
-            font-size:10px;font-weight:700;letter-spacing:2px;
-            text-transform:uppercase">CONFIDENCE</th>
+            <th style="padding:12px 10px;text-align:right;color:#64748B;
+            font-size:10px;font-weight:700;letter-spacing:1.5px;
+            text-transform:uppercase">SCORE</th>
             </tr>
             </thead>
             <tbody>
@@ -3117,32 +3239,134 @@ with tab5:
             for _bi, _br in enumerate(batch_results):
                 _row_bg = "#0C1220" if _bi % 2 == 0 else "#101827"
                 _btc, _btbg = _threat_colors.get(_br["threat"], ("#64748B", "rgba(100,116,139,0.12)"))
+                _zs = _br["zone_stats"]
 
                 _batch_table += f"""
                 <tr style="background:{_row_bg};border-bottom:1px solid #1B2B42">
-                <td style="padding:12px 16px;color:#94A3B8;font-size:13px;
+                <td style="padding:10px 14px;color:#94A3B8;font-size:12px;
                 font-family:'JetBrains Mono',monospace;font-weight:500">
                 {_br['name']}</td>
-                <td style="padding:12px 16px;text-align:center;
-                color:#EFF6FF;font-size:15px;font-weight:700;
+                <td style="padding:10px;text-align:center;
+                color:#EFF6FF;font-size:14px;font-weight:700;
                 font-family:'JetBrains Mono',monospace;
                 font-variant-numeric:tabular-nums">{_br['count']}</td>
-                <td style="padding:12px 16px;text-align:center">
-                <span style="display:inline-block;padding:4px 14px;
+                <td style="padding:10px;text-align:center;
+                color:#10B981;font-size:13px;font-weight:600;
+                font-family:'JetBrains Mono',monospace">{_zs['Low']}</td>
+                <td style="padding:10px;text-align:center;
+                color:#F59E0B;font-size:13px;font-weight:600;
+                font-family:'JetBrains Mono',monospace">{_zs['Medium']}</td>
+                <td style="padding:10px;text-align:center;
+                color:#EF4444;font-size:13px;font-weight:600;
+                font-family:'JetBrains Mono',monospace">{_zs['High']}</td>
+                <td style="padding:10px;text-align:center;
+                color:#FF1744;font-size:13px;font-weight:600;
+                font-family:'JetBrains Mono',monospace">{_zs['Critical']}</td>
+                <td style="padding:10px;text-align:center">
+                <span style="display:inline-block;padding:4px 12px;
                 border-radius:20px;font-size:10px;font-weight:700;
-                letter-spacing:1.2px;color:{_btc};background:{_btbg};
+                letter-spacing:1px;color:{_btc};background:{_btbg};
                 border:1px solid {_btc}30">{_br['threat']}</span></td>
-                <td style="padding:12px 16px;text-align:right;
+                <td style="padding:10px;text-align:right;
                 color:#06B6D4;font-size:13px;font-weight:600;
-                font-family:'JetBrains Mono',monospace">{_br['confidence']}%</td>
+                font-family:'JetBrains Mono',monospace">{_br['threat_score']}%</td>
                 </tr>
                 """
 
             _batch_table += "</tbody></table></div>"
             st.markdown(_batch_table, unsafe_allow_html=True)
-
             # ══════════════════════════════════════════════════
-            # 2. PEAK FRAME HIGHLIGHT
+            # 3. PER-IMAGE EXPANDABLE DETAIL CARDS
+            # ══════════════════════════════════════════════════
+            st.markdown("""
+            <div style="background:#0C1220;border:1px solid #1B2B42;
+            border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
+            border-top:2px solid #06B6D4">
+            <div style="color:#64748B;font-size:10px;font-weight:700;
+            letter-spacing:2px;text-transform:uppercase">
+            🔍 PER-IMAGE DETAILS</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            for _di, _dr in enumerate(batch_results):
+                _d_zs = _dr["zone_stats"]
+                _d_ts = _dr["threat_score"]
+                _d_tc, _ = _threat_colors.get(_dr["threat"], ("#64748B", ""))
+
+                with st.expander(f"📷 {_dr['name']}  —  {_dr['count']} persons  ·  {_dr['threat']}"):
+                    _d_c1, _d_c2 = st.columns(2)
+                    with _d_c1:
+                        st.markdown(f"""
+                        <div style="color:#06B6D4;font-size:10px;font-weight:700;
+                        letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
+                        SAFETY ZONE MAP — {method.upper()}</div>
+                        """, unsafe_allow_html=True)
+                        st.image(_dr["safety_img"], use_container_width=True)
+                    with _d_c2:
+                        st.markdown("""
+                        <div style="color:#06B6D4;font-size:10px;font-weight:700;
+                        letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
+                        DENSITY HEATMAP</div>
+                        """, unsafe_allow_html=True)
+                        st.image(_dr["density_overlay"], use_container_width=True)
+
+                    # Zone stats row
+                    _d_z1, _d_z2, _d_z3, _d_z4 = st.columns(4)
+                    _d_zone_data = [
+                        ("🟢 LOW", _d_zs["Low"], "#10B981"),
+                        ("🟡 MEDIUM", _d_zs["Medium"], "#F59E0B"),
+                        ("🟠 HIGH", _d_zs["High"], "#EF4444"),
+                        ("🔴 CRITICAL", _d_zs["Critical"], "#FF1744"),
+                    ]
+                    for _d_col, (_d_lbl, _d_val, _d_clr) in zip(
+                            [_d_z1, _d_z2, _d_z3, _d_z4], _d_zone_data):
+                        with _d_col:
+                            st.markdown(f"""
+                            <div style="background:#0C1220;border:1px solid #1B2B42;
+                            border-radius:10px;padding:14px;text-align:center;
+                            border-top:2px solid {_d_clr}">
+                            <div style="font-size:10px;color:#64748B;font-weight:700;
+                            letter-spacing:1.2px;margin-bottom:4px">{_d_lbl}</div>
+                            <div style="font-size:28px;font-weight:900;color:{_d_clr};
+                            font-family:'JetBrains Mono',monospace">{_d_val}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    # Compact threat gauge
+                    _d_gauge = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=_d_ts,
+                        number=dict(font=dict(size=28, color="#EFF6FF",
+                                              family="JetBrains Mono, monospace"),
+                                    suffix="%"),
+                        title=dict(text=f"THREAT: {_dr['threat']}",
+                                   font=dict(size=12, color=_d_tc,
+                                             family="Inter, sans-serif")),
+                        gauge=dict(
+                            axis=dict(range=[0, 100], tickcolor="#64748B",
+                                      tickfont=dict(color="#64748B", size=9)),
+                            bar=dict(color=_d_tc, thickness=0.3),
+                            bgcolor="#1B2B42", borderwidth=0,
+                            steps=[
+                                dict(range=[0, 25], color="#0C2A1A"),
+                                dict(range=[25, 50], color="#2A1F00"),
+                                dict(range=[50, 75], color="#2A0D00"),
+                                dict(range=[75, 100], color="#2A0007"),
+                            ],
+                            threshold=dict(line=dict(color=_d_tc, width=2),
+                                           thickness=0.75, value=_d_ts),
+                        ),
+                    ))
+                    _d_gauge.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        height=180,
+                        margin=dict(l=30, r=30, t=45, b=5),
+                        font=dict(family="Inter, sans-serif"),
+                    )
+                    st.plotly_chart(_d_gauge, use_container_width=True)
+            # ══════════════════════════════════════════════════
+            # 4. PEAK FRAME HIGHLIGHT
             # ══════════════════════════════════════════════════
             _peak_result = max(batch_results, key=lambda x: x["count"])
 
@@ -3160,11 +3384,16 @@ with tab5:
             </div>
             """, unsafe_allow_html=True)
 
-            st.image(_peak_result["image"], use_container_width=True,
-                     caption=f"Peak frame: {_peak_result['name']} — {_peak_result['count']} persons detected")
+            _pk_c1, _pk_c2 = st.columns(2)
+            with _pk_c1:
+                st.image(_peak_result["safety_img"], use_container_width=True,
+                         caption=f"Safety Map — {_peak_result['name']}")
+            with _pk_c2:
+                st.image(_peak_result["density_overlay"], use_container_width=True,
+                         caption=f"Density Heatmap — {_peak_result['name']}")
 
             # ══════════════════════════════════════════════════
-            # 3. BATCH TIMELINE CHART
+            # 5. BATCH TIMELINE CHART
             # ══════════════════════════════════════════════════
             st.markdown("""
             <div style="background:#0C1220;border:1px solid #1B2B42;
@@ -3179,6 +3408,7 @@ with tab5:
             _batch_counts = [r["count"] for r in batch_results]
             _batch_names = [r["name"] for r in batch_results]
             _batch_nums = list(range(1, len(batch_results) + 1))
+            _batch_threats = [r["threat_score"] for r in batch_results]
 
             _batch_dot_colors = []
             for _bc in _batch_counts:
@@ -3192,8 +3422,8 @@ with tab5:
                     _batch_dot_colors.append("#FF1744")
 
             _batch_hover = [
-                f"<b>{n}</b><br>Count: <b>{c}</b>"
-                for n, c in zip(_batch_names, _batch_counts)
+                f"<b>{n}</b><br>Count: <b>{c}</b><br>Threat: <b>{t}%</b>"
+                for n, c, t in zip(_batch_names, _batch_counts, _batch_threats)
             ]
 
             _fig_batch = go.Figure()
@@ -3225,6 +3455,18 @@ with tab5:
                 showlegend=False,
             ))
 
+            # Capacity threshold line
+            _fig_batch.add_hline(
+                y=venue_capacity,
+                line_dash="dash",
+                line_color="#EF4444",
+                line_width=1.5,
+                annotation_text=f"Capacity: {venue_capacity}",
+                annotation_position="top right",
+                annotation_font=dict(color="#EF4444", size=10,
+                                     family="JetBrains Mono, monospace"),
+            )
+
             _fig_batch.update_layout(
                 template='plotly_dark',
                 paper_bgcolor='rgba(0,0,0,0)',
@@ -3251,20 +3493,27 @@ with tab5:
             st.plotly_chart(_fig_batch, use_container_width=True)
 
             # ══════════════════════════════════════════════════
-            # 4. DOWNLOAD BATCH REPORT
+            # 6. DOWNLOAD BATCH REPORT
             # ══════════════════════════════════════════════════
             _batch_report = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "method": method,
+                "venue_capacity": venue_capacity,
                 "total_frames": len(batch_results),
                 "peak_count": _peak_result["count"],
                 "peak_frame": _peak_result["name"],
-                "average_count": int(np.mean(_batch_counts)),
+                "average_count": _avg_count,
+                "average_threat_score": _avg_threat,
+                "aggregate_zones": _agg_zones,
+                "threat_distribution": _threat_dist,
                 "frames": [
                     {
                         "name": r["name"],
                         "count": r["count"],
                         "threat": r["threat"],
+                        "threat_score": r["threat_score"],
                         "confidence": r["confidence"],
+                        "zone_stats": r["zone_stats"],
                     }
                     for r in batch_results
                 ],
@@ -3301,40 +3550,49 @@ with tab5:
 
         <p style="color:#64748B;font-size:14px;max-width:440px;
         margin:14px auto 0;line-height:1.8">
-        Upload multiple crowd images to simulate CCTV multi-frame analysis.
-        Get aggregate statistics, peak detection, and a downloadable report.</p>
+        Upload multiple crowd images for full zone classification per frame.
+        Get aggregate statistics, per-image overlays, and a downloadable report.</p>
 
         <div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
         max-width:300px"></div>
 
         <div style="display:flex;justify-content:center;gap:16px;
-        flex-wrap:wrap;max-width:500px;margin:0 auto">
+        flex-wrap:wrap;max-width:600px;margin:0 auto">
 
         <div style="background:#0C1220;border:1px solid #1B2B42;
         border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:140px;text-align:center">
+        flex:1;min-width:120px;text-align:center">
         <div style="font-size:24px;margin-bottom:8px">📊</div>
-        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Summary Table</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">Count & threat per frame</div>
+        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Zone Stats</div>
+        <div style="color:#64748B;font-size:10px;margin-top:4px">Per-image classification</div>
         </div>
 
         <div style="background:#0C1220;border:1px solid #1B2B42;
         border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:140px;text-align:center">
+        flex:1;min-width:120px;text-align:center">
+        <div style="font-size:24px;margin-bottom:8px">🗺️</div>
+        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Safety Maps</div>
+        <div style="color:#64748B;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
+        </div>
+
+        <div style="background:#0C1220;border:1px solid #1B2B42;
+        border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
+        flex:1;min-width:120px;text-align:center">
         <div style="font-size:24px;margin-bottom:8px">📈</div>
-        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Timeline Chart</div>
+        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Timeline</div>
         <div style="color:#64748B;font-size:10px;margin-top:4px">Density across frames</div>
         </div>
 
         <div style="background:#0C1220;border:1px solid #1B2B42;
         border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:140px;text-align:center">
+        flex:1;min-width:120px;text-align:center">
         <div style="font-size:24px;margin-bottom:8px">📥</div>
         <div style="color:#EFF6FF;font-size:12px;font-weight:600">JSON Report</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">Downloadable results</div>
+        <div style="color:#64748B;font-size:10px;margin-top:4px">Full zone-level data</div>
         </div>
 
         </div>
 
         </div>
         """, unsafe_allow_html=True)
+
