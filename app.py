@@ -2896,42 +2896,42 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="text-align:center;padding:80px 20px 70px;
-        animation:floatUp 0.6s ease;
-        background:radial-gradient(ellipse 500px 250px at center 100px,
-        rgba(6,182,212,0.06), transparent)">
+<div style="text-align:center;padding:80px 20px 70px;
+animation:floatUp 0.6s ease;
+background:radial-gradient(ellipse 500px 250px at center 100px,
+rgba(6,182,212,0.06), transparent)">
 
-        <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-        filter:drop-shadow(0 4px 20px rgba(6,182,212,0.25))">📡</div>
+<div style="font-size:56px;margin-bottom:20px;opacity:0.6;
+filter:drop-shadow(0 4px 20px rgba(6,182,212,0.25))">📡</div>
 
-        <div style="font-size:11px;font-weight:700;color:#06B6D4;
-        letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
-        OPERATIONS TIMELINE</div>
+<div style="font-size:11px;font-weight:700;color:#06B6D4;
+letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
+OPERATIONS TIMELINE</div>
 
-        <h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
-        letter-spacing:-0.02em">No Scans Yet</h2>
+<h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
+letter-spacing:-0.02em">No Scans Yet</h2>
 
-        <p style="color:#64748B;font-size:14px;max-width:440px;
-        margin:14px auto 0;line-height:1.8">
-        Analyse images in the <span style="color:#3B82F6;
-        font-weight:600">Live Analysis</span> tab to populate
-        the operations timeline with threat data.</p>
+<p style="color:#64748B;font-size:14px;max-width:440px;
+margin:14px auto 0;line-height:1.8">
+Analyse images in the <span style="color:#3B82F6;
+font-weight:600">Live Analysis</span> tab to populate
+the operations timeline with threat data.</p>
 
-        <div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
-        max-width:300px"></div>
+<div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
+max-width:300px"></div>
 
-        <div style="display:inline-flex;align-items:center;gap:8px;
-        padding:8px 20px;border-radius:20px;
-        background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2)">
-        <span style="display:inline-block;width:6px;height:6px;
-        border-radius:50%;background:#3B4A63"></span>
-        <span style="color:#64748B;font-size:11px;font-weight:500;
-        font-family:'JetBrains Mono',monospace;letter-spacing:1px">
-        AWAITING FIRST SCAN</span>
-        </div>
+<div style="display:inline-flex;align-items:center;gap:8px;
+padding:8px 20px;border-radius:20px;
+background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2)">
+<span style="display:inline-block;width:6px;height:6px;
+border-radius:50%;background:#3B4A63"></span>
+<span style="color:#64748B;font-size:11px;font-weight:500;
+font-family:'JetBrains Mono',monospace;letter-spacing:1px">
+AWAITING FIRST SCAN</span>
+</div>
 
-        </div>
-        """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2940,29 +2940,29 @@ with tab3:
 
 with tab4:
     st.markdown("""
-    <div style="text-align:center;padding:80px 20px 70px;
-    animation:floatUp 0.6s ease;
-    background:radial-gradient(ellipse 500px 250px at center 100px,
-    rgba(37,99,235,0.06), transparent)">
+<div style="text-align:center;padding:80px 20px 70px;
+animation:floatUp 0.6s ease;
+background:radial-gradient(ellipse 500px 250px at center 100px,
+rgba(37,99,235,0.06), transparent)">
 
-    <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-    filter:drop-shadow(0 4px 20px rgba(37,99,235,0.25))">📱</div>
+<div style="font-size:56px;margin-bottom:20px;opacity:0.6;
+filter:drop-shadow(0 4px 20px rgba(37,99,235,0.25))">📱</div>
 
-    <div style="font-size:11px;font-weight:700;color:#2563EB;
-    letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
-    LIVE CAPTURE</div>
+<div style="font-size:11px;font-weight:700;color:#2563EB;
+letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
+LIVE CAPTURE</div>
 
-    <h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
-    letter-spacing:-0.02em">Coming Soon</h2>
+<h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
+letter-spacing:-0.02em">Coming Soon</h2>
 
-    <p style="color:#64748B;font-size:14px;max-width:440px;
-    margin:14px auto 0;line-height:1.8">
-    Real-time camera feed analysis will be available in a future update.
-    Use the <span style="color:#3B82F6;font-weight:600">Live Analysis</span> tab
-    for image-based analysis.</p>
+<p style="color:#64748B;font-size:14px;max-width:440px;
+margin:14px auto 0;line-height:1.8">
+Real-time camera feed analysis will be available in a future update.
+Use the <span style="color:#3B82F6;font-weight:600">Live Analysis</span> tab
+for image-based analysis.</p>
 
-    </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -3533,66 +3533,66 @@ with tab5:
     else:
         # Empty state for batch
         st.markdown("""
-        <div style="text-align:center;padding:80px 20px 70px;
-        animation:floatUp 0.6s ease;
-        background:radial-gradient(ellipse 500px 250px at center 100px,
-        rgba(124,58,237,0.06), transparent)">
+<div style="text-align:center;padding:80px 20px 70px;
+animation:floatUp 0.6s ease;
+background:radial-gradient(ellipse 500px 250px at center 100px,
+rgba(124,58,237,0.06), transparent)">
 
-        <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-        filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🗂️</div>
+<div style="font-size:56px;margin-bottom:20px;opacity:0.6;
+filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🗂️</div>
 
-        <div style="font-size:11px;font-weight:700;color:#7C3AED;
-        letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
-        BATCH ANALYSIS</div>
+<div style="font-size:11px;font-weight:700;color:#7C3AED;
+letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
+BATCH ANALYSIS</div>
 
-        <h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
-        letter-spacing:-0.02em">Upload Multiple Images</h2>
+<h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
+letter-spacing:-0.02em">Upload Multiple Images</h2>
 
-        <p style="color:#64748B;font-size:14px;max-width:440px;
-        margin:14px auto 0;line-height:1.8">
-        Upload multiple crowd images for full zone classification per frame.
-        Get aggregate statistics, per-image overlays, and a downloadable report.</p>
+<p style="color:#64748B;font-size:14px;max-width:440px;
+margin:14px auto 0;line-height:1.8">
+Upload multiple crowd images for full zone classification per frame.
+Get aggregate statistics, per-image overlays, and a downloadable report.</p>
 
-        <div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
-        max-width:300px"></div>
+<div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
+max-width:300px"></div>
 
-        <div style="display:flex;justify-content:center;gap:16px;
-        flex-wrap:wrap;max-width:600px;margin:0 auto">
+<div style="display:flex;justify-content:center;gap:16px;
+flex-wrap:wrap;max-width:600px;margin:0 auto">
 
-        <div style="background:#0C1220;border:1px solid #1B2B42;
-        border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:120px;text-align:center">
-        <div style="font-size:24px;margin-bottom:8px">📊</div>
-        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Zone Stats</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">Per-image classification</div>
-        </div>
+<div style="background:#0C1220;border:1px solid #1B2B42;
+border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
+flex:1;min-width:120px;text-align:center">
+<div style="font-size:24px;margin-bottom:8px">📊</div>
+<div style="color:#EFF6FF;font-size:12px;font-weight:600">Zone Stats</div>
+<div style="color:#64748B;font-size:10px;margin-top:4px">Per-image classification</div>
+</div>
 
-        <div style="background:#0C1220;border:1px solid #1B2B42;
-        border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:120px;text-align:center">
-        <div style="font-size:24px;margin-bottom:8px">🗺️</div>
-        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Safety Maps</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
-        </div>
+<div style="background:#0C1220;border:1px solid #1B2B42;
+border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
+flex:1;min-width:120px;text-align:center">
+<div style="font-size:24px;margin-bottom:8px">🗺️</div>
+<div style="color:#EFF6FF;font-size:12px;font-weight:600">Safety Maps</div>
+<div style="color:#64748B;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
+</div>
 
-        <div style="background:#0C1220;border:1px solid #1B2B42;
-        border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:120px;text-align:center">
-        <div style="font-size:24px;margin-bottom:8px">📈</div>
-        <div style="color:#EFF6FF;font-size:12px;font-weight:600">Timeline</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">Density across frames</div>
-        </div>
+<div style="background:#0C1220;border:1px solid #1B2B42;
+border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
+flex:1;min-width:120px;text-align:center">
+<div style="font-size:24px;margin-bottom:8px">📈</div>
+<div style="color:#EFF6FF;font-size:12px;font-weight:600">Timeline</div>
+<div style="color:#64748B;font-size:10px;margin-top:4px">Density across frames</div>
+</div>
 
-        <div style="background:#0C1220;border:1px solid #1B2B42;
-        border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
-        flex:1;min-width:120px;text-align:center">
-        <div style="font-size:24px;margin-bottom:8px">📥</div>
-        <div style="color:#EFF6FF;font-size:12px;font-weight:600">JSON Report</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">Full zone-level data</div>
-        </div>
+<div style="background:#0C1220;border:1px solid #1B2B42;
+border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
+flex:1;min-width:120px;text-align:center">
+<div style="font-size:24px;margin-bottom:8px">📥</div>
+<div style="color:#EFF6FF;font-size:12px;font-weight:600">JSON Report</div>
+<div style="color:#64748B;font-size:10px;margin-top:4px">Full zone-level data</div>
+</div>
 
-        </div>
+</div>
 
-        </div>
-        """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
