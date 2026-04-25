@@ -956,6 +956,52 @@ def safe_silhouette(X, labels):
         return 0.25
 
 
+def compute_dynamic_confidence(features_sc, method, km_model, xgb_model, gmm_model, crowd_count):
+    """
+    Compute a dynamic confidence score (0-100) based on actual model outputs
+    instead of hardcoded count-based thresholds.
+
+    Combines:
+    - Base confidence from DM-Count model weights selection
+    - Zone classification confidence (silhouette / XGBoost proba / GMM margins)
+    - Scene complexity penalty (very dense scenes are harder)
+    """
+    # Base confidence from DM-Count weights
+    if crowd_count < 80:
+        base_conf = 95  # SHB, optimized for sparse
+    elif crowd_count < 200:
+        base_conf = 87  # SHA
+    else:
+        base_conf = 82  # Ensemble
+
+    # Zone classification confidence
+    zone_conf = 0.0
+    try:
+        if method == "XGBoost" and xgb_model is not None and hasattr(xgb_model, 'predict_proba'):
+            probas = xgb_model.predict_proba(features_sc)
+            sorted_probas = np.sort(probas, axis=1)[:, ::-1]
+            margins = sorted_probas[:, 0] - sorted_probas[:, 1] if sorted_probas.shape[1] > 1 else sorted_probas[:, 0]
+            zone_conf = float(margins.mean()) * 100
+        elif method == "GMM" and gmm_model is not None:
+            probas = gmm_model.predict_proba(features_sc)
+            sorted_probas = np.sort(probas, axis=1)[:, ::-1]
+            margins = sorted_probas[:, 0] - sorted_probas[:, 1] if sorted_probas.shape[1] > 1 else sorted_probas[:, 0]
+            zone_conf = float(margins.mean()) * 100
+        elif km_model is not None:
+            labels = km_model.predict(features_sc)
+            zone_conf = safe_silhouette(features_sc, labels) * 100
+        else:
+            zone_conf = 50.0
+    except Exception:
+        zone_conf = 50.0
+
+    # Blend: 70% base (counting), 30% zone classification
+    blended = (base_conf * 0.7) + (min(zone_conf, 100) * 0.3)
+
+    # Clamp to reasonable range
+    return max(40, min(99, int(round(blended))))
+
+
 def risk_grid(density_map, grid=GRID):
     h, w   = density_map.shape
     ph, pw = h // grid, w // grid
@@ -1089,7 +1135,7 @@ font-weight:700">5.80 <span style="color:#64748B;font-weight:400;font-size:10px"
 padding:10px 16px;background:#101827">
 <span style="color:#64748B;font-size:12px;font-weight:500">Overall</span>
 <span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">80.9% <span style="color:#64748B;font-weight:400;font-size:10px">accuracy (498 imgs)</span></span>
+font-weight:700">~81% <span style="color:#64748B;font-weight:400;font-size:10px">accuracy · eval set (498 imgs)</span></span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
@@ -1172,7 +1218,7 @@ if _last_count_ticker is not None:
         f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">MAE:</span> '
         f'<span style="color:#94A3B8">5.80</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">ACCURACY:</span> '
-        f'<span style="color:#94A3B8">80.9%</span>'
+        f'<span style="color:#94A3B8">~81% (eval)</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 else:
@@ -1589,14 +1635,13 @@ with tab1:
                 st.session_state["history"] = st.session_state["history"][-5:]
 
             # ── Analysis Complete banner ───────────────────────
+            _banner_conf = compute_dynamic_confidence(
+                _features_sc, method, km, xgb, gmm, _crowd_count)
             if _crowd_count < 80:
-                _banner_conf = 95
                 _banner_model = "DM-Count SHB"
             elif _crowd_count < 200:
-                _banner_conf = 87
                 _banner_model = "DM-Count SHA"
             else:
-                _banner_conf = 82
                 _banner_model = "DM-Count Ensemble (SHA+SHB)"
 
             st.components.v1.html(f"""
@@ -1727,14 +1772,13 @@ with tab1:
             # ══════════════════════════════════════════════════
             # FEATURE 4 — ANALYSIS CONFIDENCE CARD
             # ══════════════════════════════════════════════════
+            _confidence_pct = compute_dynamic_confidence(
+                _features_sc, method, km, xgb, gmm, _crowd_count)
             if _crowd_count < 80:
-                _confidence_pct = 95
                 _model_badge = "DM-Count · SHB"
             elif _crowd_count < 200:
-                _confidence_pct = 87
                 _model_badge = "DM-Count · SHA"
             else:
-                _confidence_pct = 82
                 _model_badge = "DM-Count · Ensemble"
 
             st.markdown(f"""
@@ -2498,7 +2542,7 @@ with tab2:
                 f'border:1px solid rgba(16,185,129,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
-                f'Accuracy: {_xgb_acc_pct:.1f}%</span>',
+                f'Agreement: {_xgb_acc_pct:.1f}%</span>',
                 unsafe_allow_html=True)
             st.caption("Learned from KMeans labels — gradient boosted trees")
             for z in ["Low", "Medium", "High", "Critical"]:
@@ -2534,7 +2578,7 @@ with tab2:
                 f'border:1px solid rgba(124,58,237,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
-                f'Accuracy: {_gmm_agree_pct:.1f}%'
+                f'Agreement: {_gmm_agree_pct:.1f}%'
                 f' · Conf: {gmm_conf*100:.1f}%</span>',
                 unsafe_allow_html=True)
             st.caption("Soft clustering — probability-based zone assignment")
@@ -3014,6 +3058,7 @@ with tab5:
 
             batch_results = []
             progress_bar = st.progress(0, text="Processing batch...")
+            _batch_total_start = time.time()
 
             for idx, bf in enumerate(batch_files):
                 progress_bar.progress(
@@ -3021,6 +3066,7 @@ with tab5:
                     text=f"Analyzing {bf.name} ({idx+1}/{len(batch_files)})..."
                 )
 
+                _b_t0 = time.time()
                 raw_bytes = np.asarray(bytearray(bf.read()), dtype=np.uint8)
                 bf.seek(0)
                 _b_img_bgr = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
@@ -3067,13 +3113,18 @@ with tab5:
                 else:
                     _b_threat = "CRITICAL"
 
-                # Confidence
-                if _b_count < 80:
-                    _b_conf = 95
-                elif _b_count < 200:
-                    _b_conf = 87
-                else:
-                    _b_conf = 82
+                # Dynamic confidence (uses actual model outputs)
+                _b_conf = compute_dynamic_confidence(
+                    _b_feats_sc, method, km, xgb, gmm, _b_count)
+
+                _b_elapsed = time.time() - _b_t0
+
+                # Compress images to JPEG base64 for memory efficiency (~10x smaller)
+                def _compress_img_b64(img_arr, quality=80):
+                    _, buf = cv2.imencode('.jpg',
+                        cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR),
+                        [cv2.IMWRITE_JPEG_QUALITY, quality])
+                    return base64.b64encode(buf).decode()
 
                 batch_results.append({
                     "name": bf.name,
@@ -3082,13 +3133,20 @@ with tab5:
                     "threat_score": _b_threat_score,
                     "confidence": _b_conf,
                     "zone_stats": _b_zone_stats,
-                    "image": _b_img_rgb,
-                    "safety_img": _b_safety_img,
-                    "density_overlay": _b_density_overlay,
+                    "safety_img_b64": _compress_img_b64(_b_safety_img),
+                    "density_overlay_b64": _compress_img_b64(_b_density_overlay),
+                    "time_s": round(_b_elapsed, 2),
                 })
 
-            progress_bar.progress(1.0, text="✅ Batch analysis complete!")
-            time.sleep(0.5)
+                # Update progress with timing info
+                progress_bar.progress(
+                    (idx + 1) / len(batch_files),
+                    text=f"✓ {bf.name} — {_b_count} persons · {_b_elapsed:.1f}s ({idx+1}/{len(batch_files)})"
+                )
+
+            _batch_total_elapsed = time.time() - _batch_total_start
+            progress_bar.progress(1.0, text=f"✅ Batch complete! {len(batch_files)} images in {_batch_total_elapsed:.1f}s")
+            time.sleep(0.8)
             progress_bar.empty()
 
             st.session_state["batch_results"] = batch_results
@@ -3114,11 +3172,13 @@ with tab5:
             </div>
             """, unsafe_allow_html=True)
 
-            _ag1, _ag2, _ag3, _ag4 = st.columns(4)
+            _ag1, _ag2, _ag3, _ag4, _ag5 = st.columns(5)
             _ag1.metric("🖼️ Total Frames", _total_frames)
             _ag2.metric("👥 Avg Count", _avg_count)
             _ag3.metric("🔺 Peak Count", _max_count)
             _ag4.metric("⚡ Avg Threat", f"{_avg_threat}%")
+            _avg_conf = int(np.mean([r["confidence"] for r in batch_results]))
+            _ag5.metric("🎯 Avg Confidence", f"{_avg_conf}%")
 
             # ── Aggregate zone distribution ──
             _agg_zones = {"Low": 0, "Medium": 0, "High": 0, "Critical": 0}
@@ -3221,9 +3281,15 @@ with tab5:
             <th style="padding:12px 10px;text-align:center;color:#64748B;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">THREAT</th>
-            <th style="padding:12px 10px;text-align:right;color:#64748B;
+            <th style="padding:12px 10px;text-align:center;color:#64748B;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">SCORE</th>
+            <th style="padding:12px 10px;text-align:center;color:#06B6D4;
+            font-size:10px;font-weight:700;letter-spacing:1.5px;
+            text-transform:uppercase">CONF</th>
+            <th style="padding:12px 10px;text-align:right;color:#64748B;
+            font-size:10px;font-weight:700;letter-spacing:1.5px;
+            text-transform:uppercase">TIME</th>
             </tr>
             </thead>
             <tbody>
@@ -3267,9 +3333,15 @@ with tab5:
                 border-radius:20px;font-size:10px;font-weight:700;
                 letter-spacing:1px;color:{_btc};background:{_btbg};
                 border:1px solid {_btc}30">{_br['threat']}</span></td>
-                <td style="padding:10px;text-align:right;
+                <td style="padding:10px;text-align:center;
                 color:#06B6D4;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_br['threat_score']}%</td>
+                <td style="padding:10px;text-align:center;
+                color:#A78BFA;font-size:12px;font-weight:600;
+                font-family:'JetBrains Mono',monospace">{_br['confidence']}%</td>
+                <td style="padding:10px;text-align:right;
+                color:#64748B;font-size:12px;font-weight:500;
+                font-family:'JetBrains Mono',monospace">{_br.get('time_s', '—')}s</td>
                 </tr>
                 """
 
@@ -3293,7 +3365,7 @@ with tab5:
                 _d_ts = _dr["threat_score"]
                 _d_tc, _ = _threat_colors.get(_dr["threat"], ("#64748B", ""))
 
-                with st.expander(f"📷 {_dr['name']}  —  {_dr['count']} persons  ·  {_dr['threat']}"):
+                with st.expander(f"📷 {_dr['name']}  —  {_dr['count']} persons  ·  {_dr['threat']}  ·  {_dr['confidence']}% conf  ·  {_dr.get('time_s', '—')}s"):
                     _d_c1, _d_c2 = st.columns(2)
                     with _d_c1:
                         st.markdown(f"""
@@ -3301,14 +3373,16 @@ with tab5:
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                         SAFETY ZONE MAP — {method.upper()}</div>
                         """, unsafe_allow_html=True)
-                        st.image(_dr["safety_img"], use_container_width=True)
+                        _d_safety_bytes = base64.b64decode(_dr["safety_img_b64"])
+                        st.image(_d_safety_bytes, use_container_width=True)
                     with _d_c2:
                         st.markdown("""
                         <div style="color:#06B6D4;font-size:10px;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                         DENSITY HEATMAP</div>
                         """, unsafe_allow_html=True)
-                        st.image(_dr["density_overlay"], use_container_width=True)
+                        _d_density_bytes = base64.b64decode(_dr["density_overlay_b64"])
+                        st.image(_d_density_bytes, use_container_width=True)
 
                     # Zone stats row
                     _d_z1, _d_z2, _d_z3, _d_z4 = st.columns(4)
@@ -3386,10 +3460,12 @@ with tab5:
 
             _pk_c1, _pk_c2 = st.columns(2)
             with _pk_c1:
-                st.image(_peak_result["safety_img"], use_container_width=True,
+                _pk_safety_bytes = base64.b64decode(_peak_result["safety_img_b64"])
+                st.image(_pk_safety_bytes, use_container_width=True,
                          caption=f"Safety Map — {_peak_result['name']}")
             with _pk_c2:
-                st.image(_peak_result["density_overlay"], use_container_width=True,
+                _pk_density_bytes = base64.b64decode(_peak_result["density_overlay_b64"])
+                st.image(_pk_density_bytes, use_container_width=True,
                          caption=f"Density Heatmap — {_peak_result['name']}")
 
             # ══════════════════════════════════════════════════
@@ -3411,12 +3487,12 @@ with tab5:
             _batch_threats = [r["threat_score"] for r in batch_results]
 
             _batch_dot_colors = []
-            for _bc in _batch_counts:
-                if _bc < 30:
+            for _bt in _batch_threats:
+                if _bt < 25:
                     _batch_dot_colors.append("#10B981")
-                elif _bc < 80:
+                elif _bt < 50:
                     _batch_dot_colors.append("#F59E0B")
-                elif _bc < 200:
+                elif _bt < 75:
                     _batch_dot_colors.append("#EF4444")
                 else:
                     _batch_dot_colors.append("#FF1744")
