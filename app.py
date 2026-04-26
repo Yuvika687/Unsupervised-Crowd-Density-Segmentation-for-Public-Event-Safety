@@ -600,7 +600,7 @@ def apply_calibration(raw_sum: float, mode: str) -> int:
 # ═══════════════════════════════════════════════════════════════
 
 SCENE_ADAPTIVE_THRESHOLD_LOW  = 80   # SHB → SHA switch
-SCENE_ADAPTIVE_THRESHOLD_HIGH = 200  # ensemble zone
+SCENE_ADAPTIVE_THRESHOLD_HIGH = 100  # ensemble zone
 
 
 def predict_density_lwcc(img_rgb_array):
@@ -677,8 +677,8 @@ def predict_density_lwcc(img_rgb_array):
                 finally:
                     os.unlink(q_path)
 
-            # No overlap in quadrant slicing, so multiplier is 1.0 (Correction removed)
-            count = tiled_count * 1.0
+            # Slight overlap correction for tiled inference
+            count_tiled = tiled_count * 0.90
 
             # Reassemble density map from quadrant density maps
             # Resize each quadrant density to its original spatial size
@@ -694,6 +694,8 @@ def predict_density_lwcc(img_rgb_array):
             top_row = np.concatenate([d_tl, d_tr], axis=1)
             bot_row = np.concatenate([d_bl, d_br], axis=1)
             density_raw = np.concatenate([top_row, bot_row], axis=0)
+
+            count = count_tiled
 
         elif count_shb < SCENE_ADAPTIVE_THRESHOLD_LOW:
             # SPARSE: trust SHB directly
@@ -712,18 +714,19 @@ def predict_density_lwcc(img_rgb_array):
                                    dtype=np.float32)
 
         else:
-            # VERY DENSE (200+): ensemble SHB + SHA
-            # weighted average — SHA gets more weight
+            # VERY DENSE (100+): ensemble tiled + SHA
+            # weighted average — tiled gets more weight
             # for dense scenes
-            count_sha, density_sha = LWCC.get_count(
+            count_sha_full, density_sha = LWCC.get_count(
                 tmp_path, model_name="DM-Count",
                 model_weights="SHA", model=lwcc_sha,
                 return_density=True, resize_img=False)
 
-            count_sha = float(count_sha)
+            count_sha_full = float(count_sha_full)
 
-            # SHA weighted 70%, SHB 30% for dense
-            count = (count_sha * 0.7) + (count_shb * 0.3)
+            # Tiled 75%, SHA full 25% for dense
+            count_tiled = tiled_count * 0.90 if 'tiled_count' in dir() else count_shb
+            count = (count_tiled * 0.75) + (count_sha_full * 0.25)
 
             # Ensemble density maps
             d_shb = np.array(density_shb, dtype=np.float32)
@@ -735,7 +738,7 @@ def predict_density_lwcc(img_rgb_array):
             d_shb_r = cv2.resize(d_shb, (target_w, target_h))
             d_sha_r = cv2.resize(d_sha, (target_w, target_h))
 
-            density_raw = (d_sha_r * 0.7) + (d_shb_r * 0.3)
+            density_raw = (d_sha_r * 0.75) + (d_shb_r * 0.25)
 
     finally:
         os.unlink(tmp_path)
@@ -832,14 +835,19 @@ def extract_features(density_map, grid=GRID):
                 j / (grid - 1),
             ])
 
-    return np.array(features)
+    feats = np.array(features)
+    # Normalize mean density (column 0) to 0-1 range relative to image max
+    # This makes KMeans, XGBoost, and GMM work on the same relative scale
+    if feats[:, 0].max() > 0:
+        feats[:, 0] = feats[:, 0] / feats[:, 0].max()
+    return feats
 
 
 def get_label(mean_val):
-    if   mean_val < 0.01: return "Low"
-    elif mean_val < 0.05: return "Medium"
-    elif mean_val < 0.15: return "High"
-    else:                 return "Critical"
+    if   mean_val < 0.002: return "Low"
+    elif mean_val < 0.008: return "Medium"
+    elif mean_val < 0.020: return "High"
+    else:                  return "Critical"
 
 
 def build_overlay(img_rgb, labels_list, grid=GRID, opacity=0.45):
@@ -1070,10 +1078,10 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
         st.markdown("""
 | Zone | Density threshold |
 |------|------------------|
-| 🟢 Low | mean < 0.01 |
-| 🟡 Medium | mean < 0.05 |
-| 🟠 High | mean < 0.15 |
-| 🔴 Critical | mean ≥ 0.15 |
+| 🟢 Low | mean < 0.002 |
+| 🟡 Medium | mean < 0.008 |
+| 🟠 High | mean < 0.020 |
+| 🔴 Critical | mean ≥ 0.020 |
         """)
 
     # ── Divider ──
