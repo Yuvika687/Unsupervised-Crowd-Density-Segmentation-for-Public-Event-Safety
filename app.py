@@ -812,14 +812,14 @@ def extract_features(density_map, grid=GRID):
     for i in range(grid):
         for j in range(grid):
             patch = density_map[i * ph : (i + 1) * ph, j * pw : (j + 1) * pw]
-            
+
             # Basic stats
             m = patch.mean()
             s = patch.std()
-            
+
             # Advanced markers: Clumpiness (CV) and Structure (Gradient)
             cv = s / (m + 1e-7)
-            
+
             gx = cv2.Sobel(patch, cv2.CV_32F, 1, 0, ksize=3)
             gy = cv2.Sobel(patch, cv2.CV_32F, 0, 1, ksize=3)
             grad_mag = np.sqrt(gx**2 + gy**2).max()
@@ -835,19 +835,14 @@ def extract_features(density_map, grid=GRID):
                 j / (grid - 1),
             ])
 
-    feats = np.array(features)
-    # Normalize mean density (column 0) to 0-1 range relative to image max
-    # This makes KMeans, XGBoost, and GMM work on the same relative scale
-    if feats[:, 0].max() > 0:
-        feats[:, 0] = feats[:, 0] / feats[:, 0].max()
-    return feats
+    return np.array(features)
 
 
 def get_label(mean_val):
-    if   mean_val < 0.002: return "Low"
-    elif mean_val < 0.008: return "Medium"
-    elif mean_val < 0.020: return "High"
-    else:                  return "Critical"
+    if   mean_val < 0.1:  return "Low"
+    elif mean_val < 0.3:  return "Medium"
+    elif mean_val < 0.6:  return "High"
+    else:                 return "Critical"
 
 
 def build_overlay(img_rgb, labels_list, grid=GRID, opacity=0.45):
@@ -873,7 +868,8 @@ def build_overlay(img_rgb, labels_list, grid=GRID, opacity=0.45):
     return blended, stats
 
 
-def build_density_overlay(img_rgb, density_map, opacity=0.5):
+def build_density_overlay(img_rgb, density_map, opacity=0.5,
+                          expected_count=0):
     smoothed = gaussian_filter(density_map.astype(np.float64), sigma=8)
     if smoothed.max() > 0:
         norm = ((smoothed / smoothed.max()) * 255).astype(np.uint8)
@@ -881,7 +877,178 @@ def build_density_overlay(img_rgb, density_map, opacity=0.5):
         norm = np.zeros_like(smoothed, dtype=np.uint8)
     jet     = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
     jet_rgb = cv2.cvtColor(jet, cv2.COLOR_BGR2RGB)
-    return cv2.addWeighted(jet_rgb, opacity, img_rgb, 1-opacity, 0)
+    blended = cv2.addWeighted(jet_rgb, opacity, img_rgb, 1-opacity, 0)
+
+    # Draw head dots on the heatmap too
+    peaks = _find_density_peaks(density_map, expected_count)
+    h = blended.shape[0]
+    for (py, px, _val) in peaks:
+        depth_ratio = py / max(h, 1)  # 0=top(far), 1=bottom(near)
+        r = max(2, int(3 + depth_ratio * 3))
+        cv2.circle(blended, (px, py), r, (0, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(blended, (px, py), r + 2, (0, 255, 255), 1, cv2.LINE_AA)
+    return blended
+
+
+def _find_density_peaks(density_map, expected_count=0):
+    """
+    Place head-position dots by sampling from the density map.
+
+    DM-Count produces smooth density fields (not per-head peaks),
+    so we treat the density map as a probability distribution and
+    sample `expected_count` head positions from it.
+
+    Uses minimum-distance enforcement so dots don't pile up.
+    Returns list of (row, col, density_value) sorted by density descending.
+    """
+    h, w = density_map.shape
+    smoothed = gaussian_filter(density_map.astype(np.float64), sigma=2)
+
+    if smoothed.max() <= 1e-6 or expected_count <= 0:
+        return []
+
+    target = int(round(expected_count))
+
+    # ── Compute minimum spacing between dots ──
+    avg_spacing = np.sqrt(h * w / max(target, 1))
+    min_dist_sq = max(3, int(avg_spacing * 0.25)) ** 2  # squared for fast checks
+
+    # ── Build probability distribution from density map ──
+    prob = smoothed.copy()
+    prob[prob < 0] = 0
+    total = prob.sum()
+    if total <= 1e-6:
+        return []
+    prob_flat = prob.ravel() / total
+
+    # ── Sample positions weighted by density ──
+    # Over-sample 3x to have enough candidates after distance filtering
+    n_sample = min(target * 3, prob_flat.size)
+    rng = np.random.RandomState(42)  # deterministic for same image
+    indices = rng.choice(prob_flat.size, size=n_sample, replace=False,
+                         p=prob_flat)
+
+    # Convert flat indices to (row, col) and sort by density descending
+    candidates = []
+    for idx in indices:
+        r, c = divmod(int(idx), w)
+        val = float(smoothed[r, c])
+        candidates.append((r, c, val))
+    candidates.sort(key=lambda p: p[2], reverse=True)
+
+    # ── Greedy selection with minimum distance enforcement ──
+    selected = []
+    occupied = np.zeros((h, w), dtype=bool)
+    min_dist_px = max(3, int(np.sqrt(min_dist_sq)))
+
+    for (r, c, val) in candidates:
+        if len(selected) >= target:
+            break
+        # Check if too close to any existing dot
+        r_lo = max(0, r - min_dist_px)
+        r_hi = min(h, r + min_dist_px + 1)
+        c_lo = max(0, c - min_dist_px)
+        c_hi = min(w, c + min_dist_px + 1)
+        if occupied[r_lo:r_hi, c_lo:c_hi].any():
+            continue
+        selected.append((r, c, val))
+        occupied[r_lo:r_hi, c_lo:c_hi] = True
+
+    # ── If still short, do a second pass with tighter spacing ──
+    if len(selected) < target * 0.8:
+        min_dist_px2 = max(2, min_dist_px // 2)
+        occupied2 = np.zeros((h, w), dtype=bool)
+        for (r, c, _) in selected:
+            r_lo = max(0, r - min_dist_px2)
+            r_hi = min(h, r + min_dist_px2 + 1)
+            c_lo = max(0, c - min_dist_px2)
+            c_hi = min(w, c + min_dist_px2 + 1)
+            occupied2[r_lo:r_hi, c_lo:c_hi] = True
+
+        # Sample more candidates
+        n_extra = min(target * 5, prob_flat.size)
+        extra_indices = rng.choice(prob_flat.size, size=n_extra,
+                                   replace=False, p=prob_flat)
+        for idx in extra_indices:
+            if len(selected) >= target:
+                break
+            r, c = divmod(int(idx), w)
+            val = float(smoothed[r, c])
+            r_lo = max(0, r - min_dist_px2)
+            r_hi = min(h, r + min_dist_px2 + 1)
+            c_lo = max(0, c - min_dist_px2)
+            c_hi = min(w, c + min_dist_px2 + 1)
+            if occupied2[r_lo:r_hi, c_lo:c_hi].any():
+                continue
+            selected.append((r, c, val))
+            occupied2[r_lo:r_hi, c_lo:c_hi] = True
+
+    return selected
+
+
+def build_headdot_overlay(img_rgb, density_map, expected_count=0):
+    """
+    Draw depth-aware numbered dots on detected heads.
+
+    - Dots sized by vertical position (perspective depth):
+      bottom of image = close to camera = bigger dots
+      top of image = far from camera = smaller dots
+    - Sorted nearest-first (bottom→top) and numbered
+    - Cyan dots with glow effect for visibility
+    """
+    peaks = _find_density_peaks(density_map, expected_count)
+    overlay = img_rgb.copy()
+    h, w = overlay.shape[:2]
+
+    if not peaks:
+        return overlay, 0
+
+    # Sort by Y descending (nearest/bottom first, farthest/top last)
+    peaks_sorted = sorted(peaks, key=lambda p: p[0], reverse=True)
+
+    for idx, (py, px, val) in enumerate(peaks_sorted):
+        # Depth-aware dot sizing
+        # depth_ratio: 0.0 = top (far), 1.0 = bottom (near)
+        depth_ratio = py / max(h, 1)
+
+        # Dot radius scales with depth: 3px (far) to 8px (near)
+        r_inner = max(2, int(3 + depth_ratio * 5))
+        r_outer = r_inner + 3
+
+        # Brightness scales with confidence (density value)
+        max_val = peaks_sorted[0][2] if peaks_sorted else 1.0
+        brightness = 0.5 + 0.5 * (val / max(max_val, 1e-6))
+
+        # Color: cyan core, with brightness modulation
+        b_chan = int(255 * brightness)
+        g_chan = int(255 * brightness)
+        dot_color = (0, g_chan, b_chan)
+        glow_color = (0, int(200 * brightness), int(255 * brightness))
+
+        # Outer glow ring
+        cv2.circle(overlay, (px, py), r_outer, glow_color, 1, cv2.LINE_AA)
+        # Inner filled dot
+        cv2.circle(overlay, (px, py), r_inner, dot_color, -1, cv2.LINE_AA)
+
+        # Number label for first 200 dots (legibility limit)
+        if len(peaks_sorted) <= 200:
+            num_str = str(idx + 1)
+            font_scale = max(0.25, 0.2 + depth_ratio * 0.2)
+            cv2.putText(overlay, num_str,
+                        (px + r_inner + 2, py + 3),
+                        cv2.FONT_HERSHEY_SIMPLEX, font_scale,
+                        (255, 255, 255), 1, cv2.LINE_AA)
+
+    # Summary label in corner
+    label_text = f"{len(peaks_sorted)} heads detected"
+    tw = len(label_text) * 11 + 16
+    cv2.rectangle(overlay, (8, h - 40), (tw, h - 8), (6, 10, 18), -1)
+    cv2.rectangle(overlay, (8, h - 40), (tw, h - 8), (0, 200, 255), 1)
+    cv2.putText(overlay, label_text, (14, h - 18),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (0, 255, 255), 1, cv2.LINE_AA)
+
+    return overlay, len(peaks_sorted)
 
 
 def labels_from_kmeans(fs, model):
@@ -1078,10 +1245,10 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
         st.markdown("""
 | Zone | Density threshold |
 |------|------------------|
-| 🟢 Low | mean < 0.002 |
-| 🟡 Medium | mean < 0.008 |
-| 🟠 High | mean < 0.020 |
-| 🔴 Critical | mean ≥ 0.020 |
+| 🟢 Low | mean < 0.10 |
+| 🟡 Medium | mean < 0.30 |
+| 🟠 High | mean < 0.60 |
+| 🔴 Critical | mean ≥ 0.60 |
         """)
 
     # ── Divider ──
@@ -1361,7 +1528,8 @@ with tab1:
             elif method == "GMM" and gmm:
                 _p_labels, _ = labels_from_gmm(_p_feats_sc, gmm)
             else:
-                _p_labels = [get_label(float(f[0])) for f in _p_feats]
+                _p_labels = labels_from_kmeans(_p_feats_sc, km) \
+                    if km else [get_label(float(f[0])) for f in _p_feats]
 
             _p_safety_img, _p_zone_stats = build_overlay(
                 _img_rgb, _p_labels, GRID, opacity)
@@ -1623,7 +1791,8 @@ with tab1:
             elif method == "GMM" and gmm:
                 labels, _ = labels_from_gmm(_features_sc, gmm)
             else:
-                labels = [get_label(float(f[0])) for f in feats]
+                labels = labels_from_kmeans(_features_sc, km) \
+                    if km else [get_label(float(f[0])) for f in feats]
 
             safety_img, _zone_stats = build_overlay(
                 _img_rgb, labels, GRID, opacity)
@@ -1631,7 +1800,13 @@ with tab1:
             # (threat score is calculated at the gauge render site below)
 
             density_overlay = build_density_overlay(
-                _img_rgb, _density_full, opacity)
+                _img_rgb, _density_full, opacity,
+                expected_count=_crowd_count)
+
+            # Head-dot overlay: dots on each detected head
+            headdot_overlay, _dot_count = build_headdot_overlay(
+                _img_rgb, _density_full,
+                expected_count=_crowd_count)
 
             # save to history
             thumb = cv2.resize(_img_rgb, (80, 80))
@@ -1724,6 +1899,7 @@ with tab1:
                 return base64.b64encode(_buf).decode()
 
             _orig_b64    = _to_panel_b64(_img_rgb)
+            _headdot_b64 = _to_panel_b64(headdot_overlay)
             _density_b64 = _to_panel_b64(density_overlay)
             _safety_b64  = _to_panel_b64(safety_img)
 
@@ -1734,13 +1910,13 @@ with tab1:
                 border-radius:12px;overflow:hidden;
                 box-shadow:0 2px 12px rgba(0,0,0,0.3)">
                 <div style="background:#0A1628;padding:10px 16px;
-                border-top:3px solid #475569">
-                <span style="color:#475569;font-size:10px;text-transform:uppercase;
-                letter-spacing:2px;font-weight:600">ORIGINAL IMAGE</span></div>
-                <img src="data:image/jpeg;base64,{_orig_b64}"
+                border-top:3px solid #06B6D4">
+                <span style="color:#06B6D4;font-size:10px;text-transform:uppercase;
+                letter-spacing:2px;font-weight:600">HEAD DETECTION — {_dot_count} DOTS</span></div>
+                <img src="data:image/jpeg;base64,{_headdot_b64}"
                 style="width:100%;display:block">
                 <div style="padding:8px 16px;background:#080E1A;
-                color:#475569;font-size:11px">Input · {w}×{h}</div>
+                color:#475569;font-size:11px">Each cyan dot = 1 detected person · {w}×{h}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c2:
@@ -3097,12 +3273,14 @@ with tab5:
                 elif method == "GMM" and gmm:
                     _b_labels, _ = labels_from_gmm(_b_feats_sc, gmm)
                 else:
-                    _b_labels = [get_label(float(f[0])) for f in _b_feats]
+                    _b_labels = labels_from_kmeans(_b_feats_sc, km) \
+                        if km else [get_label(float(f[0])) for f in _b_feats]
 
                 _b_safety_img, _b_zone_stats = build_overlay(
                     _b_img_rgb, _b_labels, GRID, opacity)
                 _b_density_overlay = build_density_overlay(
-                    _b_img_rgb, _b_density, opacity)
+                    _b_img_rgb, _b_density, opacity,
+                    expected_count=_b_count)
 
                 # Threat score (same formula as live gauge)
                 _b_threat_score = min(100, int(
