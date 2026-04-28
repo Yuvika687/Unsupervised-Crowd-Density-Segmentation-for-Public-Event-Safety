@@ -1056,7 +1056,22 @@ def labels_from_kmeans(fs, model):
     order = np.argsort(model.cluster_centers_[:, 0])
     lmap  = {order[i]: ["Low", "Medium", "High", "Critical"][i]
              for i in range(4)}
-    return [lmap[l] for l in raw]
+    labels = [lmap[l] for l in raw]
+
+    # Post-process: if actual density is very low,
+    # cap the label at Medium regardless of cluster
+    result = []
+    for i, label in enumerate(labels):
+        actual_density = fs[i, 0]  # mean density
+        if actual_density < 0.3 and label == "Critical":
+            result.append("Medium")
+        elif actual_density < 0.15 and label == "High":
+            result.append("Medium")
+        elif actual_density < 0.05 and label == "Medium":
+            result.append("Low")
+        else:
+            result.append(label)
+    return result
 
 
 def labels_from_xgb(fs, model):
@@ -1890,6 +1905,32 @@ with tab1:
             </style>
             </div>
             """, height=110)
+
+            # ── Portrait / close-up detection ─────────────────
+            h, w = _img_rgb.shape[:2]
+            _aspect_ratio = w / h
+            _density_coverage = (_density_full > _density_full.max() * 0.1).sum() / _density_full.size
+
+            # If density is concentrated in small area
+            # AND count is very low relative to image size
+            # it's likely a close-up not a crowd
+            _is_portrait = (
+                _crowd_count < 10 and
+                _density_coverage < 0.15
+            )
+
+            if _is_portrait:
+                st.markdown("""
+<div style="background:rgba(245,158,11,0.1);
+border:1px solid #F59E0B;border-left:4px solid #F59E0B;
+border-radius:10px;padding:14px 20px;margin:8px 0;
+color:#FCD34D;font-size:13px;font-weight:600">
+⚠️ PORTRAIT/CLOSE-UP DETECTED — 
+DM-Count is optimized for crowd scenes 
+(20+ people, overhead or eye-level view). 
+Results may be less accurate for close-up photos.
+</div>
+""", unsafe_allow_html=True)
 
             # ── Row 1: 3 image panels ─────────────────────────
             def _to_panel_b64(img_arr):
