@@ -8,6 +8,8 @@ Saves 3 calibration files:
   models/calibration_large.json   ← Part A       (300+ people)
 
 Usage:  python3 calibrate.py
+
+Note: Ensure models directory exists before running.
 """
 
 import os
