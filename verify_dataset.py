@@ -18,3 +18,5 @@ for folder, count in expected.items():
     gts = len([f for f in os.listdir(gt_dir) if f.endswith(".mat")])
 
     print(folder, ":", imgs, "images,", gts, "ground truth files")
+
+print("Dataset verification complete.")
