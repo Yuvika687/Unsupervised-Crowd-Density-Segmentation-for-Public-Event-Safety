@@ -5,6 +5,7 @@ Real-time crowd density analysis for public safety.
 Powered by DM-Count · KMeans · XGBoost · DBSCAN
 
 Launch:  python3 -m streamlit run app.py
+Note: Requires Python 3.9+
 """
 
 import streamlit as st
