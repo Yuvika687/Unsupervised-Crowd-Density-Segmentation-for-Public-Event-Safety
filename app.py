@@ -493,6 +493,11 @@ ZONE_HEX = {"Low": "#10B981", "Medium": "#F59E0B",
 ZONE_RGB = {"Low": (16, 185, 129), "Medium": (245, 158, 11),
              "High": (239, 68, 68), "Critical": (255, 23, 68)}
 
+# ── OpenCV Face Detector (fallback for portraits) ──
+face_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades +
+    'haarcascade_frontalface_default.xml')
+
 # ═══════════════════════════════════════════════════════════════
 # MODEL DEFINITION (untouched)
 # ═══════════════════════════════════════════════════════════════
