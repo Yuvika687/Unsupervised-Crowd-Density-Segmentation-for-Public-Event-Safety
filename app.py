@@ -1080,8 +1080,8 @@ def labels_from_xgb(fs, model):
     unique_classes = sorted(model.classes_)
     class_to_name = {}
     for i, cls in enumerate(unique_classes):
-        class_to_name[cls] = names[
-            min(i, len(names)-1)]
+        class_to_name[cls] = ["Low","Medium",
+            "High","Critical"][min(i,3)]
 
     return [class_to_name[int(p)] for p in preds]
 
