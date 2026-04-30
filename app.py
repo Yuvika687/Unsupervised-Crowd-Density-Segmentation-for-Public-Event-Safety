@@ -1848,10 +1848,83 @@ with tab1:
             if len(st.session_state["history"]) > 5:
                 st.session_state["history"] = st.session_state["history"][-5:]
 
+            # ── Portrait / close-up detection ─────────────────
+            h, w = _img_rgb.shape[:2]
+            _aspect_ratio = w / h
+            _density_coverage = (_density_full > _density_full.max() * 0.1).sum() / _density_full.size
+
+            # If density is concentrated in small area
+            # AND count is very low relative to image size
+            # it's likely a close-up not a crowd
+            _is_portrait = (
+                _crowd_count < 10 and
+                _density_coverage < 0.15
+            )
+
+            _used_face_detector = False
+
+            if _is_portrait:
+                # ── OpenCV face detection fallback ─────────────
+                _gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+                _faces = face_cascade.detectMultiScale(
+                    _gray, scaleFactor=1.1,
+                    minNeighbors=5, minSize=(30, 30))
+                _face_count = len(_faces)
+
+                if _face_count > _crowd_count:
+                    _crowd_count = _face_count
+
+                # Build face-rectangle overlay instead of head dots
+                _face_overlay = _img_rgb.copy()
+                for (fx, fy, fw, fh) in _faces:
+                    cv2.rectangle(_face_overlay,
+                                 (fx, fy),
+                                 (fx + fw, fy + fh),
+                                 (0, 255, 255), 2, cv2.LINE_AA)
+                    # Small label above each face
+                    cv2.putText(_face_overlay, "Face",
+                                (fx, fy - 6),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                                (0, 255, 255), 1, cv2.LINE_AA)
+
+                # Summary label
+                _fh, _fw = _face_overlay.shape[:2]
+                _fl_text = f"{_face_count} face(s) detected"
+                _fl_tw = len(_fl_text) * 11 + 16
+                cv2.rectangle(_face_overlay,
+                              (8, _fh - 40), (_fl_tw, _fh - 8),
+                              (6, 10, 18), -1)
+                cv2.rectangle(_face_overlay,
+                              (8, _fh - 40), (_fl_tw, _fh - 8),
+                              (0, 200, 255), 1)
+                cv2.putText(_face_overlay, _fl_text,
+                            (14, _fh - 18),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                            (0, 255, 255), 1, cv2.LINE_AA)
+
+                # Replace head-dot overlay & counts
+                headdot_overlay = _face_overlay
+                _dot_count = _face_count
+                _used_face_detector = True
+
+                st.markdown("""
+<div style="background:rgba(245,158,11,0.1);
+border:1px solid #F59E0B;border-left:4px solid #F59E0B;
+border-radius:10px;padding:14px 20px;margin:8px 0;
+color:#FCD34D;font-size:13px;font-weight:600">
+⚠️ PORTRAIT/CLOSE-UP DETECTED — 
+Switched to <b>OpenCV Face Detector</b>. 
+DM-Count is optimized for crowd scenes 
+(20+ people, overhead or eye-level view).
+</div>
+""", unsafe_allow_html=True)
+
             # ── Analysis Complete banner ───────────────────────
             _banner_conf = compute_dynamic_confidence(
                 _features_sc, method, km, xgb, gmm, _crowd_count)
-            if _crowd_count < 80:
+            if _used_face_detector:
+                _banner_model = "OpenCV Face Detector"
+            elif _crowd_count < 80:
                 _banner_model = "DM-Count SHB"
             elif _crowd_count < 200:
                 _banner_model = "DM-Count SHA"
@@ -1921,32 +1994,6 @@ with tab1:
             </style>
             </div>
             """, height=110)
-
-            # ── Portrait / close-up detection ─────────────────
-            h, w = _img_rgb.shape[:2]
-            _aspect_ratio = w / h
-            _density_coverage = (_density_full > _density_full.max() * 0.1).sum() / _density_full.size
-
-            # If density is concentrated in small area
-            # AND count is very low relative to image size
-            # it's likely a close-up not a crowd
-            _is_portrait = (
-                _crowd_count < 10 and
-                _density_coverage < 0.15
-            )
-
-            if _is_portrait:
-                st.markdown("""
-<div style="background:rgba(245,158,11,0.1);
-border:1px solid #F59E0B;border-left:4px solid #F59E0B;
-border-radius:10px;padding:14px 20px;margin:8px 0;
-color:#FCD34D;font-size:13px;font-weight:600">
-⚠️ PORTRAIT/CLOSE-UP DETECTED — 
-DM-Count is optimized for crowd scenes 
-(20+ people, overhead or eye-level view). 
-Results may be less accurate for close-up photos.
-</div>
-""", unsafe_allow_html=True)
 
             # ── Row 1: 3 image panels ─────────────────────────
             def _to_panel_b64(img_arr):
