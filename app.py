@@ -1083,7 +1083,21 @@ def labels_from_xgb(fs, model):
         class_to_name[cls] = ["Low","Medium",
             "High","Critical"][min(i,3)]
 
-    return [class_to_name[int(p)] for p in preds]
+    labels = [class_to_name[int(p)] for p in preds]
+
+    # Cap labels based on actual density
+    result = []
+    for i, label in enumerate(labels):
+        d = fs[i, 0]
+        if d < 0.3 and label == "Critical":
+            result.append("Medium")
+        elif d < 0.15 and label == "High":
+            result.append("Medium")
+        elif d < 0.05 and label == "Medium":
+            result.append("Low")
+        else:
+            result.append(label)
+    return result
 
 
 def labels_from_gmm(fs, model):
