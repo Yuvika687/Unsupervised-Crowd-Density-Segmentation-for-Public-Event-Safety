@@ -1077,10 +1077,6 @@ def labels_from_kmeans(fs, model):
 
 def labels_from_xgb(fs, model):
     preds = model.predict(fs)
-    names = ["Low", "Medium", "High", "Critical"]
-
-    # Get unique predicted classes and sort them
-    # Map lowest class value → Low, highest → Critical
     unique_classes = sorted(model.classes_)
     class_to_name = {}
     for i, cls in enumerate(unique_classes):
