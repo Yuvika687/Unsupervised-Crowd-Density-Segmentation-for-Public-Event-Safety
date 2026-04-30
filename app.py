@@ -2007,6 +2007,18 @@ DM-Count is optimized for crowd scenes
             _density_b64 = _to_panel_b64(density_overlay)
             _safety_b64  = _to_panel_b64(safety_img)
 
+            # Dynamic panel labels for portrait vs crowd mode
+            _panel1_title = (
+                f"FACE DETECTION — {_dot_count} FACES"
+                if _used_face_detector
+                else f"HEAD DETECTION — {_dot_count} DOTS"
+            )
+            _panel1_sub = (
+                f"Each cyan rectangle = 1 detected face · {w}×{h}"
+                if _used_face_detector
+                else f"Each cyan dot = 1 detected person · {w}×{h}"
+            )
+
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.markdown(f"""
@@ -2016,11 +2028,11 @@ DM-Count is optimized for crowd scenes
                 <div style="background:#0A1628;padding:10px 16px;
                 border-top:3px solid #06B6D4">
                 <span style="color:#06B6D4;font-size:10px;text-transform:uppercase;
-                letter-spacing:2px;font-weight:600">HEAD DETECTION — {_dot_count} DOTS</span></div>
+                letter-spacing:2px;font-weight:600">{_panel1_title}</span></div>
                 <img src="data:image/jpeg;base64,{_headdot_b64}"
                 style="width:100%;display:block">
                 <div style="padding:8px 16px;background:#080E1A;
-                color:#475569;font-size:11px">Each cyan dot = 1 detected person · {w}×{h}</div>
+                color:#475569;font-size:11px">{_panel1_sub}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c2:
