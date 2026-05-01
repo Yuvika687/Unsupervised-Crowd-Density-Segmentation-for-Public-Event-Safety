@@ -24,6 +24,7 @@ import io
 import time
 import base64
 import os
+import gc
 import json
 import tempfile
 from datetime import datetime
@@ -82,24 +83,24 @@ st.set_page_config(
 st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-/* ══════════ CSS VARIABLES ══════════ */
+/* ══════════ CSS VARIABLES — Mission Control Light ══════════ */
 :root {
-    --bg:       #060A12;
-    --surface:  #0C1220;
-    --card:     #101827;
-    --border:   #1B2B42;
-    --border-h: #263D5A;
-    --accent:   #2563EB;
-    --accent-g: #3B82F6;
-    --cyan:     #06B6D4;
+    --bg:       #F0F4FF;
+    --surface:  #FFFFFF;
+    --card:     #F8FAFF;
+    --border:   #C7D2FE;
+    --border-h: #A5B4FC;
+    --accent:   #4F46E5;
+    --accent-g: #6366F1;
+    --cyan:     #0891B2;
     --purple:   #7C3AED;
-    --green:    #10B981;
-    --amber:    #F59E0B;
-    --red:      #EF4444;
-    --critical: #FF1744;
-    --text:     #EFF6FF;
-    --muted:    #64748B;
-    --dimmed:   #3B4A63;
+    --green:    #059669;
+    --amber:    #D97706;
+    --red:      #DC2626;
+    --critical: #B91C1C;
+    --text:     #1E1B4B;
+    --muted:    #6B7280;
+    --dimmed:   #9CA3AF;
 }
 
 /* ══════════ BASE ══════════ */
@@ -114,9 +115,9 @@ st.markdown("""<style>
     width: 100vw; height: 100vh;
     background-image:
         radial-gradient(circle at 20% 50%,
-            rgba(37,99,235,0.06) 0%, transparent 50%),
+            rgba(79,70,229,0.06) 0%, transparent 50%),
         radial-gradient(circle at 80% 20%,
-            rgba(6,182,212,0.05) 0%, transparent 40%),
+            rgba(8,145,178,0.05) 0%, transparent 40%),
         radial-gradient(circle at 60% 80%,
             rgba(124,58,237,0.04) 0%, transparent 35%);
     animation: bgPulse 8s ease-in-out infinite alternate;
@@ -136,8 +137,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
 }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0C1624 0%, #060A12 100%) !important;
-    border-right: 1px solid var(--border) !important;
+    background: linear-gradient(180deg, #EEF2FF 0%, #F0F4FF 100%) !important;
+    border-right: 2px solid var(--border) !important;
     min-width: 310px !important;
     z-index: 10;
 }
@@ -150,7 +151,7 @@ section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stRadio label,
 section[data-testid="stSidebar"] .stSlider label {
-    color: #94A3B8 !important;
+    color: #4B5563 !important;
     font-weight: 500 !important;
     font-size: 13px !important;
 }
@@ -158,7 +159,7 @@ section[data-testid="stSidebar"] p {
     color: var(--muted) !important;
 }
 section[data-testid="stSidebar"] span {
-    color: #94A3B8 !important;
+    color: #4B5563 !important;
 }
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
     color: var(--muted) !important;
@@ -179,7 +180,7 @@ section[data-testid="stSidebar"] [data-testid="stSlider"] [data-baseweb="slider"
 section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"],
 section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label[aria-checked="true"] {
     color: var(--text) !important;
-    text-shadow: 0 0 8px rgba(37,99,235,0.4);
+    text-shadow: 0 0 8px rgba(79,70,229,0.4);
 }
 
 /* ══════════ METRIC CARDS ══════════ */
@@ -189,7 +190,7 @@ section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] lab
     padding: 22px 18px !important;
     border: 1px solid var(--border) !important;
     border-top: 2px solid var(--accent) !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+    box-shadow: 0 4px 20px rgba(79,70,229,0.08) !important;
     transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
 }
 [data-testid="stMetric"]:hover {
@@ -214,20 +215,20 @@ div[data-testid="stMetricLabel"] {
 
 /* ── Per-metric accent colors ── */
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(1) [data-testid="stMetric"] {
-    border-top: 2px solid #2563EB !important;
-    box-shadow: 0 4px 20px rgba(37,99,235,0.15) !important;
+    border-top: 3px solid #4F46E5 !important;
+    box-shadow: 0 4px 20px rgba(79,70,229,0.10) !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(2) [data-testid="stMetric"] {
-    border-top: 2px solid #FF1744 !important;
-    box-shadow: 0 4px 20px rgba(255,23,68,0.15) !important;
+    border-top: 3px solid #DC2626 !important;
+    box-shadow: 0 4px 20px rgba(220,38,38,0.10) !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(3) [data-testid="stMetric"] {
-    border-top: 2px solid #F59E0B !important;
-    box-shadow: 0 4px 20px rgba(245,158,11,0.15) !important;
+    border-top: 3px solid #D97706 !important;
+    box-shadow: 0 4px 20px rgba(217,119,6,0.10) !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(4) [data-testid="stMetric"] {
-    border-top: 2px solid #10B981 !important;
-    box-shadow: 0 4px 20px rgba(16,185,129,0.15) !important;
+    border-top: 3px solid #059669 !important;
+    box-shadow: 0 4px 20px rgba(5,150,105,0.10) !important;
 }
 
 /* ══════════ TABS — PILL NAV ══════════ */
@@ -251,13 +252,13 @@ div[data-testid="stMetricLabel"] {
 }
 .stTabs [data-baseweb="tab"]:hover {
     color: var(--text) !important;
-    background: rgba(37,99,235,0.08) !important;
+    background: rgba(79,70,229,0.08) !important;
 }
 .stTabs [aria-selected="true"] {
     color: #FFFFFF !important;
     background: var(--accent) !important;
     border-radius: 6px !important;
-    box-shadow: 0 2px 16px rgba(37,99,235,0.4) !important;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.4) !important;
 }
 .stTabs [aria-selected="true"]::after {
     content: '';
@@ -283,8 +284,8 @@ div[data-testid="stFileUploader"] {
 }
 div[data-testid="stFileUploader"]:hover {
     border-color: var(--accent) !important;
-    background: rgba(12,18,32,0.9) !important;
-    box-shadow: 0 0 24px rgba(37,99,235,0.1) !important;
+    background: #EEF2FF !important;
+    box-shadow: 0 0 24px rgba(79,70,229,0.1) !important;
 }
 div[data-testid="stFileUploader"] > div {
     padding: 8px 16px !important;
@@ -296,7 +297,7 @@ div[data-testid="stFileUploader"] label {
 
 /* ══════════ DOWNLOAD BUTTON ══════════ */
 [data-testid="stDownloadButton"] button {
-    background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
+    background: linear-gradient(135deg, #4F46E5, #4338CA) !important;
     color: white !important;
     border: none !important;
     border-radius: 8px !important;
@@ -304,12 +305,12 @@ div[data-testid="stFileUploader"] label {
     font-weight: 600 !important;
     font-size: 14px !important;
     letter-spacing: 0.02em !important;
-    box-shadow: 0 4px 16px rgba(37,99,235,0.3) !important;
+    box-shadow: 0 4px 16px rgba(79,70,229,0.3) !important;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1) !important;
 }
 [data-testid="stDownloadButton"] button:hover {
     filter: brightness(1.15) !important;
-    box-shadow: 0 6px 28px rgba(37,99,235,0.5) !important;
+    box-shadow: 0 6px 28px rgba(79,70,229,0.4) !important;
     transform: translateY(-1px) scale(1.02) !important;
 }
 
@@ -321,7 +322,7 @@ div[data-testid="stExpander"] {
 }
 div[data-testid="stExpander"] summary {
     font-weight: 600 !important;
-    color: #94A3B8 !important;
+    color: #4B5563 !important;
 }
 div[data-testid="stExpander"] summary:hover {
     color: var(--text) !important;
@@ -336,7 +337,7 @@ div[data-testid="stExpander"] summary:hover {
 
 /* ══════════ TYPOGRAPHY ══════════ */
 h1, h2, h3 { color: var(--text) !important; }
-p { color: #94A3B8; }
+p { color: #4B5563; }
 
 /* ══════════ HIDE STREAMLIT DEFAULTS ══════════ */
 #MainMenu { visibility: hidden; }
@@ -353,12 +354,12 @@ footer { visibility: hidden; }
     50% { opacity: 0.4; transform: scale(0.7); }
 }
 @keyframes criticalGlow {
-    0%, 100% { box-shadow: 0 0 8px rgba(255,23,68,0.15); }
-    50% { box-shadow: 0 0 32px rgba(255,23,68,0.4); }
+    0%, 100% { box-shadow: 0 0 8px rgba(185,28,28,0.12); }
+    50% { box-shadow: 0 0 24px rgba(185,28,28,0.25); }
 }
 @keyframes criticalBorderPulse {
-    0%, 100% { border-left-color: #FF1744; box-shadow: -4px 0 12px rgba(255,23,68,0.2); }
-    50% { border-left-color: #FF6B6B; box-shadow: -4px 0 30px rgba(255,23,68,0.55); }
+    0%, 100% { border-left-color: #DC2626; box-shadow: -4px 0 12px rgba(220,38,38,0.15); }
+    50% { border-left-color: #EF4444; box-shadow: -4px 0 20px rgba(220,38,38,0.35); }
 }
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -369,16 +370,16 @@ footer { visibility: hidden; }
     50% { opacity: 1; }
 }
 @keyframes liveDot {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
-    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(5,150,105,0.5); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(5,150,105,0); }
 }
 @keyframes floatUp {
     from { opacity: 0; transform: translateY(24px) scale(0.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes pillGlow {
-    0%, 100% { box-shadow: 0 0 8px rgba(37,99,235,0.15); }
-    50% { box-shadow: 0 0 20px rgba(37,99,235,0.3); }
+    0%, 100% { box-shadow: 0 0 8px rgba(79,70,229,0.12); }
+    50% { box-shadow: 0 0 20px rgba(79,70,229,0.22); }
 }
 @keyframes barFill {
     from { width: 0%; }
@@ -427,11 +428,11 @@ footer { visibility: hidden; }
 div[data-testid="stRadio"] > label {
     font-size: 13px !important;
     font-weight: 500 !important;
-    color: #94A3B8 !important;
+    color: #4B5563 !important;
 }
 [data-testid="stToggle"] label span {
     font-weight: 500 !important;
-    color: #94A3B8 !important;
+    color: #4B5563 !important;
 }
 
 /* ══════════ LINE CHART / VEGA ══════════ */
@@ -452,30 +453,30 @@ div[data-testid="stRadio"] > label {
 # ═══════════════════════════════════════════════════════════════
 
 st.markdown("""
-<div style="background:linear-gradient(135deg, #0C1220 0%, #060A12 100%);
-padding:28px 34px;border-radius:14px;border:1px solid #1B2B42;
-border-left:4px solid #2563EB;margin-bottom:28px;
-box-shadow:inset 4px 0 30px rgba(37,99,235,0.2), 0 6px 24px rgba(0,0,0,0.5);
+<div style="background:linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
+padding:28px 34px;border-radius:14px;border:1px solid #C7D2FE;
+border-left:4px solid #4F46E5;margin-bottom:28px;
+box-shadow:0 4px 24px rgba(79,70,229,0.12);
 animation:floatUp 0.5s ease;
 display:flex;align-items:center;justify-content:space-between;
 position:relative;z-index:2">
 <div>
-<h1 style="color:#EFF6FF;margin:0;font-size:28px;font-weight:800;
+<h1 style="color:#1E1B4B;margin:0;font-size:28px;font-weight:800;
 letter-spacing:-0.03em">🛡️ SafeCrowd Vision</h1>
-<p style="color:#94A3B8;margin:8px 0 0;font-size:13px;font-weight:400;
+<p style="color:#6B7280;margin:8px 0 0;font-size:13px;font-weight:400;
 letter-spacing:0.02em">Unsupervised Crowd Density Segmentation · Public Event Safety</p>
 </div>
 <div style="display:flex;align-items:center;gap:10px">
 <span style="display:inline-flex;align-items:center;gap:6px;
 padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;
-background:rgba(16,185,129,0.1);color:#10B981;
-border:1px solid rgba(16,185,129,0.2)">
+background:#F0FDF4;color:#059669;
+border:1px solid rgba(5,150,105,0.25)">
 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;
-background:#10B981;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
+background:#059669;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
 <span style="display:inline-flex;align-items:center;gap:6px;
 padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;
-background:rgba(6,182,212,0.1);color:#06B6D4;
-border:1px solid rgba(6,182,212,0.2)">
+background:#4F46E5;color:#FFFFFF;
+border:1px solid #4338CA">
 DM-Count Active</span>
 </div>
 </div>
@@ -992,6 +993,101 @@ def _find_density_peaks(density_map, expected_count=0):
     return selected
 
 
+def _sort_reading_order(peaks):
+    """
+    Sort detected head positions in reading order:
+    left-to-right, top-to-bottom with a row tolerance
+    so dots on the same visual row get the same Y rank.
+    """
+    if not peaks:
+        return peaks
+
+    # Sort by Y (row) first
+    pts = sorted(peaks, key=lambda p: p[0])
+
+    # Group into visual rows using a tolerance
+    row_tolerance = 20  # pixels
+    rows = []
+    current_row = [pts[0]]
+
+    for p in pts[1:]:
+        if abs(p[0] - current_row[0][0]) <= row_tolerance:
+            current_row.append(p)
+        else:
+            # Sort the completed row left-to-right by X
+            rows.append(sorted(current_row, key=lambda p: p[1]))
+            current_row = [p]
+    rows.append(sorted(current_row, key=lambda p: p[1]))
+
+    return [p for row in rows for p in row]
+
+
+def _filter_color_false_positives(peaks, img_rgb):
+    """
+    Remove density peaks that land on non-person colors
+    (bags, furniture, walls, floors) by sampling a small
+    region around each peak in the original RGB image.
+    """
+    h, w = img_rgb.shape[:2]
+    kept = []
+    patch_r = 7  # 15x15 region (7 pixels each side)
+
+    for (py, px, val) in peaks:
+        y0 = max(0, py - patch_r)
+        y1 = min(h, py + patch_r + 1)
+        x0 = max(0, px - patch_r)
+        x1 = min(w, px + patch_r + 1)
+        region = img_rgb[y0:y1, x0:x1]
+        if region.size == 0:
+            continue
+        r_avg = float(region[:, :, 0].mean())
+        g_avg = float(region[:, :, 1].mean())
+        b_avg = float(region[:, :, 2].mean())
+
+        # Skip predominantly red objects (bags, signs)
+        if r_avg > 150 and g_avg < 80 and b_avg < 80:
+            continue
+        # Skip predominantly green objects (plants, boards)
+        if g_avg > 150 and r_avg < 80:
+            continue
+        # Skip bright yellow objects (safety vests, bags)
+        if r_avg > 180 and g_avg > 180 and b_avg < 80:
+            continue
+        # Skip pure white walls/ceilings
+        if r_avg > 220 and g_avg > 220 and b_avg > 220:
+            continue
+        # Skip pure black floors/shadows
+        if r_avg < 30 and g_avg < 30 and b_avg < 30:
+            continue
+
+        kept.append((py, px, val))
+    return kept
+
+
+def _filter_nearby_peaks(peaks, min_dist=20):
+    """
+    Remove duplicate detections within min_dist pixels.
+    Keeps the highest-intensity peak in each cluster.
+    """
+    if not peaks:
+        return peaks
+
+    # Sort by density value descending (keep strongest)
+    sorted_peaks = sorted(peaks, key=lambda p: p[2], reverse=True)
+    min_dist_sq = min_dist * min_dist
+
+    kept = []
+    for (py, px, val) in sorted_peaks:
+        too_close = False
+        for (ky, kx, _) in kept:
+            if (py - ky) ** 2 + (px - kx) ** 2 < min_dist_sq:
+                too_close = True
+                break
+        if not too_close:
+            kept.append((py, px, val))
+    return kept
+
+
 def build_headdot_overlay(img_rgb, density_map, expected_count=0):
     """
     Draw depth-aware numbered dots on detected heads.
@@ -999,8 +1095,10 @@ def build_headdot_overlay(img_rgb, density_map, expected_count=0):
     - Dots sized by vertical position (perspective depth):
       bottom of image = close to camera = bigger dots
       top of image = far from camera = smaller dots
-    - Sorted nearest-first (bottom→top) and numbered
-    - Cyan dots with glow effect for visibility
+    - Numbered in reading order (left→right, top→bottom)
+    - Clean numbered pills with dark background circles
+    - Color-filtered to remove bags/objects/walls
+    - Minimum-distance filtered to remove duplicates
     """
     peaks = _find_density_peaks(density_map, expected_count)
     overlay = img_rgb.copy()
@@ -1009,8 +1107,17 @@ def build_headdot_overlay(img_rgb, density_map, expected_count=0):
     if not peaks:
         return overlay, 0
 
-    # Sort by Y descending (nearest/bottom first, farthest/top last)
-    peaks_sorted = sorted(peaks, key=lambda p: p[0], reverse=True)
+    # Filter 1: Remove non-person colors (bags, walls, floors)
+    peaks = _filter_color_false_positives(peaks, img_rgb)
+
+    # Filter 2: Remove duplicates within 20px
+    peaks = _filter_nearby_peaks(peaks, min_dist=20)
+
+    if not peaks:
+        return overlay, 0
+
+    # Sort in reading order: top-to-bottom, left-to-right
+    peaks_sorted = _sort_reading_order(peaks)
 
     for idx, (py, px, val) in enumerate(peaks_sorted):
         # Depth-aware dot sizing
@@ -1036,12 +1143,27 @@ def build_headdot_overlay(img_rgb, density_map, expected_count=0):
         # Inner filled dot
         cv2.circle(overlay, (px, py), r_inner, dot_color, -1, cv2.LINE_AA)
 
-        # Number label for first 200 dots (legibility limit)
+        # Numbered pill labels for first 200 dots (legibility limit)
         if len(peaks_sorted) <= 200:
             num_str = str(idx + 1)
-            font_scale = max(0.25, 0.2 + depth_ratio * 0.2)
+            font_scale = max(0.3, 0.25 + depth_ratio * 0.15)
+            (tw, th), _ = cv2.getTextSize(
+                num_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
+
+            # Dark pill background behind number
+            pill_x = px + r_inner + 3
+            pill_y = py - th // 2
+            pill_pad = 3
+            cv2.rectangle(overlay,
+                          (pill_x - pill_pad, pill_y - pill_pad - 1),
+                          (pill_x + tw + pill_pad, pill_y + th + pill_pad - 1),
+                          (10, 15, 30), -1, cv2.LINE_AA)
+            cv2.rectangle(overlay,
+                          (pill_x - pill_pad, pill_y - pill_pad - 1),
+                          (pill_x + tw + pill_pad, pill_y + th + pill_pad - 1),
+                          (0, 180, 220), 1, cv2.LINE_AA)
             cv2.putText(overlay, num_str,
-                        (px + r_inner + 2, py + 3),
+                        (pill_x, pill_y + th),
                         cv2.FONT_HERSHEY_SIMPLEX, font_scale,
                         (255, 255, 255), 1, cv2.LINE_AA)
 
@@ -1243,11 +1365,11 @@ with st.sidebar:
 <div style="padding:20px 4px 16px 4px">
 <div style="display:flex;align-items:center;gap:14px">
 <div style="font-size:32px;flex-shrink:0;
-filter:drop-shadow(0 2px 12px rgba(37,99,235,0.35))">🛡️</div>
+filter:drop-shadow(0 2px 12px rgba(79,70,229,0.35))">🛡️</div>
 <div>
-<div style="font-size:18px;font-weight:800;color:#EFF6FF;letter-spacing:-0.03em;
+<div style="font-size:18px;font-weight:800;color:#1E1B4B;letter-spacing:-0.03em;
 line-height:1.2">SafeCrowd Vision</div>
-<div style="font-size:10px;color:#06B6D4;letter-spacing:0.5px;font-weight:500;
+<div style="font-size:10px;color:#4F46E5;letter-spacing:0.5px;font-weight:500;
 margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
 </div>
 </div>
@@ -1255,7 +1377,7 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
 """, unsafe_allow_html=True)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #1B2B42;margin:8px 0 16px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:8px 0 16px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── Controls Section ──
@@ -1283,7 +1405,7 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
         """)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #1B2B42;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── VENUE SETTINGS Section ──
@@ -1303,7 +1425,7 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
     num_exits = st.slider("Number of exits", 1, 10, 2)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #1B2B42;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── Model Info Section ──
@@ -1312,50 +1434,50 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
 letter-spacing:1.8px;text-transform:uppercase;margin-bottom:12px;
 padding-left:2px">◈ MODEL INFO</div>
 
-<div style="background:#101827;border:1px solid #1B2B42;border-left:3px solid #06B6D4;
+<div style="background:#F8FAFF;border:1px solid #C7D2FE;border-left:3px solid #0891B2;
 border-radius:10px;padding:0;margin-bottom:0;overflow:hidden;
 box-shadow:0 2px 16px rgba(6,182,212,0.06)">
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#0C1220">
-<span style="color:#64748B;font-size:12px;font-weight:500">Model</span>
-<span style="color:#06B6D4;font-size:12px;font-family:'JetBrains Mono',monospace;
+padding:10px 16px;background:#EEF2FF">
+<span style="color:#4B5563;font-size:12px;font-weight:500">Model</span>
+<span style="color:#4F46E5;font-size:12px;font-family:'JetBrains Mono',monospace;
 font-weight:600">DM-Count (LWCC)</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#101827">
-<span style="color:#64748B;font-size:12px;font-weight:500">Dataset</span>
-<span style="color:#06B6D4;font-size:12px;font-family:'JetBrains Mono',monospace;
+padding:10px 16px;background:#F8FAFF">
+<span style="color:#4B5563;font-size:12px;font-weight:500">Dataset</span>
+<span style="color:#4F46E5;font-size:12px;font-family:'JetBrains Mono',monospace;
 font-weight:600">ShanghaiTech B</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#0C1220">
-<span style="color:#64748B;font-size:12px;font-weight:500">MAE</span>
-<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">5.80 <span style="color:#64748B;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
+padding:10px 16px;background:#EEF2FF">
+<span style="color:#4B5563;font-size:12px;font-weight:500">MAE</span>
+<span style="color:#059669;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">5.80 <span style="color:#4B5563;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#101827">
-<span style="color:#64748B;font-size:12px;font-weight:500">Overall</span>
-<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">~81% <span style="color:#64748B;font-weight:400;font-size:10px">accuracy · eval set (498 imgs)</span></span>
+padding:10px 16px;background:#F8FAFF">
+<span style="color:#4B5563;font-size:12px;font-weight:500">Overall</span>
+<span style="color:#059669;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">~81% <span style="color:#4B5563;font-weight:400;font-size:10px">accuracy · eval set (498 imgs)</span></span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#0C1220">
-<span style="color:#64748B;font-size:12px;font-weight:500">XGB</span>
-<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">99.30% <span style="color:#64748B;font-weight:400;font-size:10px">zone classification</span></span>
+padding:10px 16px;background:#EEF2FF">
+<span style="color:#4B5563;font-size:12px;font-weight:500">XGB</span>
+<span style="color:#059669;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">99.30% <span style="color:#4B5563;font-weight:400;font-size:10px">zone classification</span></span>
 </div>
 
 </div>
 """, unsafe_allow_html=True)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #1B2B42;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── SHARE ACCESS — QR Code ──
@@ -1375,26 +1497,26 @@ font-weight:700">99.30% <span style="color:#64748B;font-weight:400;font-size:10p
         _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
 
         st.markdown(f"""
-        <div style="background:#0C1220;border:1px solid #1B2B42;
+        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
         border-radius:12px;padding:16px;text-align:center">
         <img src="{_qr_url}" style="width:160px;height:160px;
         border-radius:8px">
-        <div style="color:#06B6D4;font-size:10px;
+        <div style="color:#4F46E5;font-size:10px;
         font-family:monospace;letter-spacing:1px;
         margin-top:10px;word-break:break-all">{ngrok_url}</div>
-        <div style="color:#64748B;font-size:10px;
+        <div style="color:#4B5563;font-size:10px;
         margin-top:6px">Scan to open on phone</div>
         </div>
         """, unsafe_allow_html=True)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #1B2B42;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── Footer ──
     st.markdown("""
 <div style="text-align:center;padding:4px 0 8px 0">
-<div style="color:#1B2B42;font-size:11px;font-weight:500;letter-spacing:0.3px;
+<div style="color:#C7D2FE;font-size:11px;font-weight:500;letter-spacing:0.3px;
 line-height:1.6">
 Powered by LWCC · PyTorch
 </div>
@@ -1411,36 +1533,36 @@ if _last_count_ticker is not None:
     _crit_ticker = 0  # will be approximate — actual stats come later
     _status_txt = "ACTIVE" if _last_count_ticker else "IDLE"
     _ticker_content = (
-        f'<span style="color:#FF1744;font-size:8px;animation:dotPulse 1s infinite">●</span>'
-        f'&nbsp;&nbsp;<span style="color:#06B6D4">SYSTEM ONLINE</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">MODEL:</span> '
-        f'<span style="color:#94A3B8">DM-Count SHB</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">ZONES MONITORED:</span> '
-        f'<span style="color:#94A3B8">64</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">LAST COUNT:</span> '
-        f'<span style="color:#EFF6FF">{_last_count_ticker} PERSONS</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">STATUS:</span> '
-        f'<span style="color:#10B981">{_status_txt}</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">MAE:</span> '
-        f'<span style="color:#94A3B8">5.80</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">ACCURACY:</span> '
-        f'<span style="color:#94A3B8">~81% (eval)</span>'
+        f'<span style="color:#B91C1C;font-size:8px;animation:dotPulse 1s infinite">●</span>'
+        f'&nbsp;&nbsp;<span style="color:#4F46E5">SYSTEM ONLINE</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">MODEL:</span> '
+        f'<span style="color:#6B7280">DM-Count SHB</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">ZONES MONITORED:</span> '
+        f'<span style="color:#6B7280">64</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">LAST COUNT:</span> '
+        f'<span style="color:#1E1B4B">{_last_count_ticker} PERSONS</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">STATUS:</span> '
+        f'<span style="color:#059669">{_status_txt}</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">MAE:</span> '
+        f'<span style="color:#6B7280">5.80</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">ACCURACY:</span> '
+        f'<span style="color:#6B7280">~81% (eval)</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 else:
     _ticker_content = (
-        '<span style="color:#06B6D4;font-size:8px;animation:dotPulse 1.5s infinite">●</span>'
-        '&nbsp;&nbsp;<span style="color:#06B6D4">AWAITING INPUT</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">SYSTEM READY</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">DM-Count</span>&nbsp;'
-        '<span style="color:#94A3B8">LOADED</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">64 ZONES ACTIVE</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">UPLOAD IMAGE TO BEGIN</span>'
+        '<span style="color:#4F46E5;font-size:8px;animation:dotPulse 1.5s infinite">●</span>'
+        '&nbsp;&nbsp;<span style="color:#4F46E5">AWAITING INPUT</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">SYSTEM READY</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">DM-Count</span>&nbsp;'
+        '<span style="color:#6B7280">LOADED</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">64 ZONES ACTIVE</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#6B7280">UPLOAD IMAGE TO BEGIN</span>'
         '&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 
 st.markdown(f"""
-<div style="background:#0C1220;border-bottom:1px solid #1B2B42;
+<div style="background:#FFFFFF;border-bottom:1px solid #C7D2FE;
 height:36px;overflow:hidden;display:flex;align-items:center;
 margin-bottom:8px;border-radius:8px">
 <div style="display:flex;white-space:nowrap;animation:tickerScroll 25s linear infinite;
@@ -1496,23 +1618,29 @@ with tab1:
     if uploaded:
         raw       = np.asarray(bytearray(uploaded.read()), dtype=np.uint8)
         img_hash  = hash(raw.tobytes())
-        img_bgr   = cv2.imdecode(raw, cv2.IMREAD_COLOR)
-        _img_rgb  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-        h, w      = _img_rgb.shape[:2]
+        try:
+            img_bgr   = cv2.imdecode(raw, cv2.IMREAD_COLOR)
+            if img_bgr is None:
+                raise ValueError("Image could not be decoded")
+            _img_rgb  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+            h, w      = _img_rgb.shape[:2]
+        except Exception as _decode_err:
+            st.error(f"⚠️ Could not read this image — the file may be corrupted or unsupported. ({_decode_err})")
+            st.stop()
 
         # Only run inference if new image
         if st.session_state.get("last_img_hash") != img_hash:
             # ── Scan animation — shows BEFORE inference ──
             status_box = st.empty()
             status_box.markdown("""
-            <div style="background:#0C1220;border:1px solid #2563EB;
+            <div style="background:#FFFFFF;border:1px solid #4F46E5;
             border-radius:12px;padding:24px;margin:12px 0;
-            border-left:4px solid #2563EB">
+            border-left:4px solid #4F46E5">
             <div style="display:flex;align-items:center;gap:12px">
             <div style="width:12px;height:12px;border-radius:50%;
-            background:#2563EB;animation:pulse 0.8s infinite">
+            background:#4F46E5;animation:pulse 0.8s infinite">
             </div>
-            <div style="color:#EFF6FF;font-family:monospace;
+            <div style="color:#1E1B4B;font-family:monospace;
             font-size:13px;letter-spacing:1px">
             ⬡ INITIALIZING DM-COUNT ENGINE...</div>
             </div>
@@ -1605,26 +1733,26 @@ with tab1:
 
             # ── TOP BAR ──
             st.markdown(f"""
-            <div style="background:linear-gradient(135deg, #0C1624 0%, #060A12 100%);
-            border:1px solid #1B2B42;border-radius:12px;padding:14px 24px;
+            <div style="background:linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
+            border:1px solid #C7D2FE;border-radius:12px;padding:14px 24px;
             display:flex;align-items:center;justify-content:space-between;
             margin-bottom:20px;box-shadow:0 4px 24px rgba(0,0,0,0.6)">
             <div style="display:flex;align-items:center;gap:12px">
-            <span style="font-size:24px;filter:drop-shadow(0 2px 12px rgba(37,99,235,0.4))">🛡️</span>
-            <span style="color:#EFF6FF;font-size:20px;font-weight:800;letter-spacing:-0.03em">SafeCrowd Vision</span>
+            <span style="font-size:24px;filter:drop-shadow(0 2px 12px rgba(79,70,229,0.4))">🛡️</span>
+            <span style="color:#1E1B4B;font-size:20px;font-weight:800;letter-spacing:-0.03em">SafeCrowd Vision</span>
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
-            background:rgba(37,99,235,0.15);color:#3B82F6;
-            border:1px solid rgba(37,99,235,0.3);
+            background:rgba(79,70,229,0.15);color:#3B82F6;
+            border:1px solid rgba(79,70,229,0.3);
             font-family:'JetBrains Mono',monospace">PRESENT MODE</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
-            background:rgba(16,185,129,0.1);color:#10B981;
+            background:#F0FDF4;color:#059669;
             border:1px solid rgba(16,185,129,0.2)">
             <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
-            background:#10B981;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
+            background:#059669;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
             </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1634,10 +1762,10 @@ with tab1:
 
             with _pc1:
                 st.markdown(f"""
-                <div style="background:#0C1220;border:1px solid #1B2B42;border-radius:12px;
-                padding:8px;border-top:3px solid #2563EB;
-                box-shadow:0 6px 32px rgba(37,99,235,0.15)">
-                <div style="color:#64748B;font-size:10px;font-weight:700;
+                <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:12px;
+                padding:8px;border-top:3px solid #4F46E5;
+                box-shadow:0 6px 32px rgba(79,70,229,0.15)">
+                <div style="color:#4B5563;font-size:10px;font-weight:700;
                 letter-spacing:2px;text-transform:uppercase;padding:8px 10px 6px">
                 SAFETY ZONE MAP — {method.upper()}</div>
                 </div>
@@ -1647,15 +1775,15 @@ with tab1:
             with _pc2:
                 # Giant crowd count
                 st.components.v1.html(f"""
-                <div style="background:#101827;border:1px solid #1B2B42;border-radius:12px;
-                border-top:3px solid #2563EB;padding:28px 20px;text-align:center;
-                box-shadow:0 6px 32px rgba(37,99,235,0.12)">
-                <div style="color:#64748B;font-size:10px;font-weight:700;
+                <div style="background:#F8FAFF;border:1px solid #C7D2FE;border-radius:12px;
+                border-top:3px solid #4F46E5;padding:28px 20px;text-align:center;
+                box-shadow:0 6px 32px rgba(79,70,229,0.12)">
+                <div style="color:#4B5563;font-size:10px;font-weight:700;
                 letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
                 PERSONS DETECTED</div>
-                <div id="present-count" style="font-size:80px;font-weight:900;color:#EFF6FF;
+                <div id="present-count" style="font-size:80px;font-weight:900;color:#1E1B4B;
                 font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;
-                line-height:1;text-shadow:0 0 40px rgba(37,99,235,0.3)">0</div>
+                line-height:1;text-shadow:0 0 40px rgba(79,70,229,0.3)">0</div>
                 </div>
                 <script>
                 (function() {{
@@ -1685,9 +1813,9 @@ with tab1:
                                          family="Inter, sans-serif")),
                     gauge=dict(
                         axis=dict(range=[0, 100], tickcolor="#64748B",
-                                  tickfont=dict(color="#64748B", size=9)),
+                                  tickfont=dict(color="#6B7280", size=9)),
                         bar=dict(color=_p_tc, thickness=0.35),
-                        bgcolor="#1B2B42", borderwidth=0,
+                        bgcolor="#C7D2FE", borderwidth=0,
                         steps=[
                             dict(range=[0, 25], color="rgba(16,185,129,0.15)"),
                             dict(range=[25, 50], color="rgba(245,158,11,0.15)"),
@@ -1710,40 +1838,40 @@ with tab1:
                 # 4 zone stats — glowing numbers
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
-                <div style="background:#0C1220;border:1px solid rgba(16,185,129,0.25);
+                <div style="background:#FFFFFF;border:1px solid rgba(16,185,129,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(16,185,129,0.08)">
-                <div style="font-size:10px;color:#64748B;font-weight:700;
+                <div style="font-size:10px;color:#4B5563;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟢 LOW</div>
-                <div style="font-size:32px;font-weight:900;color:#10B981;
+                <div style="font-size:32px;font-weight:900;color:#059669;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(16,185,129,0.4)">{_p_zone_stats['Low']}</div>
                 </div>
-                <div style="background:#0C1220;border:1px solid rgba(245,158,11,0.25);
+                <div style="background:#FFFFFF;border:1px solid rgba(245,158,11,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(245,158,11,0.08)">
-                <div style="font-size:10px;color:#64748B;font-weight:700;
+                <div style="font-size:10px;color:#4B5563;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟡 MEDIUM</div>
-                <div style="font-size:32px;font-weight:900;color:#F59E0B;
+                <div style="font-size:32px;font-weight:900;color:#D97706;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(245,158,11,0.4)">{_p_zone_stats['Medium']}</div>
                 </div>
-                <div style="background:#0C1220;border:1px solid rgba(239,68,68,0.25);
+                <div style="background:#FFFFFF;border:1px solid rgba(239,68,68,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(239,68,68,0.08)">
-                <div style="font-size:10px;color:#64748B;font-weight:700;
+                <div style="font-size:10px;color:#4B5563;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟠 HIGH</div>
-                <div style="font-size:32px;font-weight:900;color:#EF4444;
+                <div style="font-size:32px;font-weight:900;color:#DC2626;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(239,68,68,0.4)">{_p_zone_stats['High']}</div>
                 </div>
-                <div style="background:#0C1220;border:1px solid rgba(255,23,68,0.25);
+                <div style="background:#FFFFFF;border:1px solid rgba(255,23,68,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(255,23,68,0.1);
                 {'animation:criticalGlow 2s ease-in-out infinite;' if _p_zone_stats['Critical'] > 0 else ''}">
-                <div style="font-size:10px;color:#64748B;font-weight:700;
+                <div style="font-size:10px;color:#4B5563;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🔴 CRITICAL</div>
-                <div style="font-size:32px;font-weight:900;color:#FF1744;
+                <div style="font-size:32px;font-weight:900;color:#B91C1C;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(255,23,68,0.5)">{_p_zone_stats['Critical']}</div>
                 </div>
@@ -1770,7 +1898,7 @@ with tab1:
             else:
                 _p_wts = "Ensemble (SHA+SHB)"
             st.markdown(f"""
-            <div style="background:#0C1220;border:1px solid #1B2B42;border-radius:8px;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:8px;
             padding:10px 20px;display:flex;align-items:center;
             justify-content:space-between;margin-top:8px">
             <span style="color:#3B4A63;font-family:'JetBrains Mono',monospace;
@@ -1908,10 +2036,10 @@ with tab1:
                 _used_face_detector = True
 
                 st.markdown("""
-<div style="background:rgba(245,158,11,0.1);
+<div style="background:#FFFBEB;
 border:1px solid #F59E0B;border-left:4px solid #F59E0B;
 border-radius:10px;padding:14px 20px;margin:8px 0;
-color:#FCD34D;font-size:13px;font-weight:600">
+color:#92400E;font-size:13px;font-weight:600">
 ⚠️ PORTRAIT/CLOSE-UP DETECTED — 
 Switched to <b>OpenCV Face Detector</b>. 
 DM-Count is optimized for crowd scenes 
@@ -1932,53 +2060,55 @@ DM-Count is optimized for crowd scenes
                 _banner_model = "DM-Count Ensemble (SHA+SHB)"
 
             st.components.v1.html(f"""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:20px 24px;margin-bottom:24px;
             overflow:hidden;position:relative;">
 
             <div style="position:absolute;top:0;left:0;height:3px;
-            width:100%;background:#1B2B42;">
+            width:100%;background:#E5E7EB;">
             <div style="height:3px;background:linear-gradient(90deg,
-            #2563EB,#06B6D4,#7C3AED);animation:fill 0.8s ease-out forwards;
+            #4F46E5,#0891B2,#7C3AED);animation:fill 0.8s ease-out forwards;
             width:0%"></div>
             </div>
 
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;
             margin-top:4px">
             <div style="width:10px;height:10px;border-radius:50%;
-            background:#10B981;box-shadow:0 0 8px #10B981;
+            background:#059669;box-shadow:0 0 8px #059669;
             animation:blink 1s ease-in-out 3"></div>
-            <div style="color:#EFF6FF;font-size:14px;font-weight:700;
+            <div style="color:#1E1B4B;font-size:14px;font-weight:700;
             font-family:monospace;letter-spacing:1px">ANALYSIS COMPLETE</div>
             </div>
 
             <div style="display:flex;align-items:center;
             justify-content:space-between">
 
-            <div style="flex:1;text-align:center;border-right:1px solid #1B2B42;
+            <div style="flex:1;text-align:center;border-right:1px solid #C7D2FE;
             padding-right:20px">
-            <div style="color:#64748B;font-size:9px;font-weight:700;
+            <div style="color:#4B5563;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             PERSONS DETECTED</div>
-            <div style="color:#06B6D4;font-size:32px;font-weight:900;
-            font-family:monospace;text-shadow:0 0 20px rgba(6,182,212,0.3)">
-            {_crowd_count}</div>
+            <div style="color:#4F46E5;font-size:32px;font-weight:900;
+            font-family:monospace;text-shadow:0 0 20px rgba(79,70,229,0.2)">
+            {_dot_count}</div>
+            <div style="color:#6B7280;font-size:10px;font-family:monospace;
+            margin-top:2px">DM-Count estimate: {_crowd_count}</div>
             </div>
 
-            <div style="flex:1;text-align:center;border-right:1px solid #1B2B42;
+            <div style="flex:1;text-align:center;border-right:1px solid #C7D2FE;
             padding:0 20px">
-            <div style="color:#64748B;font-size:9px;font-weight:700;
+            <div style="color:#4B5563;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             MODEL</div>
-            <div style="color:#EFF6FF;font-size:14px;font-weight:700;
+            <div style="color:#1E1B4B;font-size:14px;font-weight:700;
             font-family:monospace">{_banner_model}</div>
             </div>
 
             <div style="flex:1;text-align:center;padding-left:20px">
-            <div style="color:#64748B;font-size:9px;font-weight:700;
+            <div style="color:#4B5563;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             CONFIDENCE</div>
-            <div style="color:#10B981;font-size:14px;font-weight:700;
+            <div style="color:#059669;font-size:14px;font-weight:700;
             font-family:monospace">{_banner_conf}%</div>
             </div>
 
@@ -2022,47 +2152,47 @@ DM-Count is optimized for crowd scenes
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.markdown(f"""
-                <div style="background:#0C1220;border:1px solid #1B2B42;
+                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
                 border-radius:12px;overflow:hidden;
-                box-shadow:0 2px 12px rgba(0,0,0,0.3)">
-                <div style="background:#0A1628;padding:10px 16px;
-                border-top:3px solid #06B6D4">
-                <span style="color:#06B6D4;font-size:10px;text-transform:uppercase;
+                box-shadow:0 4px 20px rgba(79,70,229,0.08)">
+                <div style="background:#EEF2FF;padding:10px 16px;
+                border-top:3px solid #4F46E5">
+                <span style="color:#4F46E5;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">{_panel1_title}</span></div>
                 <img src="data:image/jpeg;base64,{_headdot_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#080E1A;
-                color:#475569;font-size:11px">{_panel1_sub}</div>
+                <div style="padding:8px 16px;background:#F0F4FF;
+                color:#6B7280;font-size:11px">{_panel1_sub}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c2:
                 st.markdown(f"""
-                <div style="background:#0C1220;border:1px solid #1B2B42;
+                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
                 border-radius:12px;overflow:hidden;
-                box-shadow:0 2px 12px rgba(0,0,0,0.3)">
-                <div style="background:#0A1628;padding:10px 16px;
-                border-top:3px solid #06B6D4">
-                <span style="color:#06B6D4;font-size:10px;text-transform:uppercase;
+                box-shadow:0 4px 20px rgba(79,70,229,0.08)">
+                <div style="background:#EEF2FF;padding:10px 16px;
+                border-top:3px solid #4F46E5">
+                <span style="color:#4F46E5;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">DENSITY HEATMAP</span></div>
                 <img src="data:image/jpeg;base64,{_density_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#080E1A;
-                color:#475569;font-size:11px">Gaussian σ=8 · JET colormap · opacity {opacity}</div>
+                <div style="padding:8px 16px;background:#F0F4FF;
+                color:#6B7280;font-size:11px">Gaussian σ=8 · JET colormap · opacity {opacity}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c3:
                 st.markdown(f"""
-                <div style="background:#0C1220;border:1px solid #1B2B42;
+                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
                 border-radius:12px;overflow:hidden;
-                box-shadow:0 2px 12px rgba(0,0,0,0.3)">
-                <div style="background:#0A1628;padding:10px 16px;
+                box-shadow:0 4px 20px rgba(79,70,229,0.08)">
+                <div style="background:#EEF2FF;padding:10px 16px;
                 border-top:3px solid #10B981">
-                <span style="color:#10B981;font-size:10px;text-transform:uppercase;
+                <span style="color:#059669;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">SAFETY ZONE MAP — {method.upper()}</span></div>
                 <img src="data:image/jpeg;base64,{_safety_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#080E1A;
-                color:#475569;font-size:11px">8×8 grid · {method} classification</div>
+                <div style="padding:8px 16px;background:#F0F4FF;
+                color:#6B7280;font-size:11px">8×8 grid · {method} classification</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -2082,28 +2212,28 @@ DM-Count is optimized for crowd scenes
                 _model_badge = "DM-Count · Ensemble"
 
             st.markdown(f"""
-            <div style="background:#0C1220;border:1px solid #1B2B42;border-radius:10px;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:10px;
             padding:14px 20px;margin:8px 0 16px 0;display:flex;align-items:center;
             justify-content:space-between;gap:20px">
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span style="font-size:14px">🎯</span>
-            <span style="color:#64748B;font-size:10px;font-weight:700;
+            <span style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:1.5px;text-transform:uppercase">ANALYSIS CONFIDENCE</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;gap:12px">
-            <div style="flex:1;height:6px;background:#1B2B42;border-radius:4px;overflow:hidden">
+            <div style="flex:1;height:6px;background:#C7D2FE;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:{_confidence_pct}%;
             background:linear-gradient(90deg,#2563EB,#06B6D4);border-radius:4px;
             animation:barFill 1s ease-out forwards;
             --fill-pct:{_confidence_pct}%"></div>
             </div>
-            <span style="color:#EFF6FF;font-family:'JetBrains Mono',monospace;
+            <span style="color:#1E1B4B;font-family:'JetBrains Mono',monospace;
             font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
             flex-shrink:0">{_confidence_pct}%</span>
             </div>
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
-            background:rgba(6,182,212,0.1);color:#06B6D4;
+            background:rgba(6,182,212,0.1);color:#4F46E5;
             border:1px solid rgba(6,182,212,0.2);flex-shrink:0;
             font-family:'JetBrains Mono',monospace">{_model_badge}</span>
             </div>
@@ -2127,20 +2257,20 @@ DM-Count is optimized for crowd scenes
             m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
                 st.components.v1.html(f"""
-                <div style="background:#0C1220;border:1px solid #1B2B42;
+                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
                 border-radius:12px;padding:22px 18px;
-                border-top:2px solid #2563EB;
-                box-shadow:0 4px 20px rgba(37,99,235,0.15)">
-                <div style="color:#64748B;font-size:11px;text-transform:uppercase;
+                border-top:2px solid #4F46E5;
+                box-shadow:0 4px 20px rgba(79,70,229,0.15)">
+                <div style="color:#4B5563;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 👥 ESTIMATED CROWD</div>
-                <div style="color:#EFF6FF;font-family:'JetBrains Mono',monospace;
+                <div style="color:#1E1B4B;font-family:'JetBrains Mono',monospace;
                 font-size:36px;font-weight:700;letter-spacing:-0.03em;
                 font-variant-numeric:tabular-nums;line-height:1">{_crowd_count:,}</div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-                <span style="color:#64748B;font-size:11px">Range: {_count_low} – {_count_high}</span>
+                <span style="color:#4B5563;font-size:11px">Range: {_count_low} – {_count_high}</span>
                 <span style="padding:2px 8px;border-radius:12px;font-size:10px;
-                font-weight:600;background:rgba(6,182,212,0.1);color:#06B6D4;
+                font-weight:600;background:rgba(6,182,212,0.1);color:#4F46E5;
                 border:1px solid rgba(6,182,212,0.2);
                 font-family:'JetBrains Mono',monospace">±{int(_mae)} MAE</span>
                 </div>
@@ -2197,9 +2327,9 @@ DM-Count is optimized for crowd scenes
                                      family="Inter, sans-serif")),
                 gauge=dict(
                     axis=dict(range=[0, 100], tickcolor="#64748B",
-                              tickfont=dict(color="#64748B", size=10)),
+                              tickfont=dict(color="#6B7280", size=10)),
                     bar=dict(color=_g_color, thickness=0.3),
-                    bgcolor="#1B2B42",
+                    bgcolor="#C7D2FE",
                     borderwidth=0,
                     steps=[
                         dict(range=[0, 25],   color="#0C2A1A"),
@@ -2229,7 +2359,7 @@ DM-Count is optimized for crowd scenes
 
             # ── Alert banner ──────────────────────────────────
             if _zone_stats["Critical"] > 0:
-                st.markdown(f"""<div style="background:rgba(255,23,68,0.08);
+                st.markdown(f"""<div style="background:#FEF2F2;
                 border:1px solid rgba(255,23,68,0.3);border-left:4px solid #FF1744;
                 border-radius:10px;padding:18px 24px;
                 color:#FF6B6B;font-weight:700;font-size:15px;margin:16px 0;
@@ -2240,11 +2370,11 @@ DM-Count is optimized for crowd scenes
                 st.markdown(f"""<div style="background:rgba(245,158,11,0.08);
                 border:1px solid rgba(245,158,11,0.3);border-left:4px solid #F59E0B;
                 border-radius:10px;padding:18px 24px;
-                color:#FCD34D;font-weight:700;font-size:15px;margin:16px 0">
+                color:#92400E;font-weight:700;font-size:15px;margin:16px 0">
                 ⚠️ WARNING — {_zone_stats["High"]} high-density zones detected.
                 Monitor closely.</div>""", unsafe_allow_html=True)
             else:
-                st.markdown("""<div style="background:rgba(16,185,129,0.08);
+                st.markdown("""<div style="background:#F0FDF4;
                 border:1px solid rgba(16,185,129,0.3);border-left:4px solid #10B981;
                 border-radius:10px;padding:18px 24px;
                 color:#6EE7B7;font-weight:700;font-size:15px;margin:16px 0">
@@ -2252,7 +2382,7 @@ DM-Count is optimized for crowd scenes
                             unsafe_allow_html=True)
 
             # ── Zone breakdown chart ──────────────────────────
-            st.markdown('<div style="border-top:1px solid #1B2B42;margin:24px 0"></div>',
+            st.markdown('<div style="border-top:1px solid #C7D2FE;margin:24px 0"></div>',
                         unsafe_allow_html=True)
 
             # ── Zone Breakdown — 4 stat columns ──────────────
@@ -2268,16 +2398,16 @@ DM-Count is optimized for crowd scenes
                 _zb_pct = (_zb_count / 64) * 100
                 with _zb_col:
                     st.markdown(f"""
-                    <div style="background:#0C1220;border:1px solid #1B2B42;
+                    <div style="background:#FFFFFF;border:1px solid #C7D2FE;
                     border-radius:12px;padding:20px;text-align:center;
                     border-top:3px solid {_zb_color}">
                     <div style="font-size:2.5rem;font-weight:900;
                     color:{_zb_color};font-family:monospace">{_zb_count}</div>
-                    <div style="font-size:10px;color:#64748B;
+                    <div style="font-size:10px;color:#4B5563;
                     letter-spacing:2px;text-transform:uppercase;
                     margin-top:6px">{_zb_name} ZONES</div>
                     <div style="margin-top:12px;height:4px;
-                    background:#1B2B42;border-radius:4px">
+                    background:#C7D2FE;border-radius:4px">
                     <div style="height:4px;width:{_zb_pct}%;
                     background:{_zb_color};border-radius:4px;
                     transition:width 1s ease"></div>
@@ -2304,16 +2434,16 @@ DM-Count is optimized for crowd scenes
                 cap_label="OVERCAPACITY"; bar_color="#FF1744"
 
             st.markdown(f"""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:20px 24px;margin:16px 0">
 
             <div style="display:flex;justify-content:space-between;
             align-items:center;margin-bottom:14px">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🏟️ VENUE CAPACITY MONITOR</div>
             <div style="display:flex;gap:8px;align-items:center">
-            <span style="color:#64748B;font-size:12px">
+            <span style="color:#4B5563;font-size:12px">
             {_crowd_count} / {venue_capacity}</span>
             <span style="padding:3px 12px;border-radius:20px;
             font-size:11px;font-weight:700;
@@ -2322,7 +2452,7 @@ DM-Count is optimized for crowd scenes
             </div>
             </div>
 
-            <div style="height:8px;background:#1B2B42;
+            <div style="height:8px;background:#C7D2FE;
             border-radius:6px;overflow:hidden">
             <div style="height:100%;width:{_utilization}%;
             background:{bar_color};border-radius:6px;
@@ -2331,10 +2461,10 @@ DM-Count is optimized for crowd scenes
 
             <div style="display:flex;justify-content:space-between;
             margin-top:8px">
-            <span style="color:#64748B;font-size:10px">0%</span>
+            <span style="color:#4B5563;font-size:10px">0%</span>
             <span style="color:{cap_color};font-size:11px;
             font-weight:700">{_utilization}% utilized</span>
-            <span style="color:#64748B;font-size:10px">100%</span>
+            <span style="color:#4B5563;font-size:10px">100%</span>
             </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2360,25 +2490,25 @@ DM-Count is optimized for crowd scenes
                 _evac_status = "⚠️ CRITICAL EVACUATION TIME"
 
             st.markdown(f"""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:20px 24px;margin:16px 0;
             border-left:4px solid {_evac_color}">
             <div style="display:flex;align-items:center;
             justify-content:space-between">
             <div>
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;
             margin-bottom:6px">🚪 EVACUATION TIME ESTIMATE</div>
             <div style="color:{_evac_color};font-size:36px;
             font-weight:900;font-family:monospace">
             {_evac_mins_display}m {_evac_secs_display}s</div>
-            <div style="color:#64748B;font-size:11px;margin-top:4px">
+            <div style="color:#4B5563;font-size:11px;margin-top:4px">
             {_evac_status}</div>
             </div>
             <div style="text-align:right">
-            <div style="color:#64748B;font-size:10px;margin-bottom:4px">
+            <div style="color:#4B5563;font-size:10px;margin-bottom:4px">
             {num_exits} exits · 40 ppl/min each</div>
-            <div style="color:#64748B;font-size:10px">
+            <div style="color:#4B5563;font-size:10px">
             Critical zone penalty: +{int((_slowdown-1)*100)}%</div>
             </div>
             </div>
@@ -2393,7 +2523,7 @@ DM-Count is optimized for crowd scenes
 
                 # Custom colorscale: black→dark blue→cyan→yellow→red
                 _custom_cs = [
-                    [0.0, "#060A12"],
+                    [0.0, "#F0F4FF"],
                     [0.2, "#0C2461"],
                     [0.4, "#06B6D4"],
                     [0.6, "#F59E0B"],
@@ -2413,25 +2543,25 @@ DM-Count is optimized for crowd scenes
                     colorscale=_custom_cs,
                     showscale=True,
                     colorbar=dict(
-                        tickfont=dict(color="#94A3B8", size=10),
-                        title=dict(text="Density", font=dict(color="#94A3B8", size=11)),
+                        tickfont=dict(color="#4B5563", size=10),
+                        title=dict(text="Density", font=dict(color="#4B5563", size=11)),
                         bgcolor="rgba(0,0,0,0)",
                         borderwidth=0,
                     ),
                 ))
                 fig_heat.update_layout(
                     title=dict(text="Density Distribution · 8×8 Zone Grid",
-                               font=dict(size=14, color="#94A3B8",
+                               font=dict(size=14, color="#4B5563",
                                          family="Inter, sans-serif")),
                     template="plotly_dark",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                     height=380,
                     margin=dict(l=20, r=20, t=50, b=20),
-                    xaxis=dict(title="Column", tickfont=dict(color="#64748B"),
-                               title_font=dict(color="#64748B")),
-                    yaxis=dict(title="Row", tickfont=dict(color="#64748B"),
-                               title_font=dict(color="#64748B"), autorange="reversed"),
+                    xaxis=dict(title="Column", tickfont=dict(color="#6B7280"),
+                               title_font=dict(color="#6B7280")),
+                    yaxis=dict(title="Row", tickfont=dict(color="#6B7280"),
+                               title_font=dict(color="#6B7280"), autorange="reversed"),
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
@@ -2517,62 +2647,62 @@ DM-Count is optimized for crowd scenes
             <div style="text-align:center;padding:60px 20px 50px;min-height:480px;
             animation:floatUp 0.6s ease;
             background:radial-gradient(ellipse 600px 300px at center 120px,
-            rgba(37,99,235,0.07), transparent);border-top:1px solid #1B2B42">
+            rgba(79,70,229,0.07), transparent);border-top:1px solid #C7D2FE">
 
             <div style="font-size:64px;margin-bottom:16px;
-            filter:drop-shadow(0 4px 24px rgba(37,99,235,0.35))">🛡️</div>
+            filter:drop-shadow(0 4px 24px rgba(79,70,229,0.35))">🛡️</div>
 
             <div style="font-size:12px;font-weight:700;color:#2563EB;
             letter-spacing:6px;text-transform:uppercase;margin-bottom:12px">
             SAFECROWD VISION</div>
 
-            <h2 style="color:#EFF6FF;font-size:32px;font-weight:800;margin:0;
+            <h2 style="color:#1E1B4B;font-size:32px;font-weight:800;margin:0;
             letter-spacing:-0.03em">Ready for Analysis</h2>
 
-            <p style="color:#64748B;font-size:15px;max-width:520px;
+            <p style="color:#4B5563;font-size:15px;max-width:520px;
             margin:16px auto 0;line-height:1.8">
             Upload any crowd image to begin real-time density estimation
             and 4-zone safety mapping.</p>
 
-            <div style="border-top:1px solid #1B2B42;margin:36px auto 32px;
+            <div style="border-top:1px solid #C7D2FE;margin:36px auto 32px;
             max-width:400px"></div>
 
             <div style="display:flex;justify-content:center;gap:16px;
             flex-wrap:wrap;max-width:640px;margin:0 auto">
 
-            <div style="background:#0C1220;border:1px solid #1B2B42;
-            border-top:2px solid #2563EB;border-radius:12px;padding:20px 24px;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            border-top:2px solid #4F46E5;border-radius:12px;padding:20px 24px;
             flex:1;min-width:160px;max-width:200px;text-align:center">
             <div style="font-size:28px;margin-bottom:10px">🎯</div>
-            <div style="color:#EFF6FF;font-size:13px;font-weight:600;
+            <div style="color:#1E1B4B;font-size:13px;font-weight:600;
             margin-bottom:4px">DM-Count</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#4B5563;font-size:11px;line-height:1.5">
             Sparse-optimized<br>
             <span style="color:#3B82F6;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">MAE: 4.92</span></div>
             </div>
 
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-top:2px solid #10B981;border-radius:12px;padding:20px 24px;
             flex:1;min-width:160px;max-width:200px;text-align:center">
             <div style="font-size:28px;margin-bottom:10px">🗺️</div>
-            <div style="color:#EFF6FF;font-size:13px;font-weight:600;
+            <div style="color:#1E1B4B;font-size:13px;font-weight:600;
             margin-bottom:4px">4-Zone Safety</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#4B5563;font-size:11px;line-height:1.5">
             Spatial mapping<br>
-            <span style="color:#10B981;font-family:'JetBrains Mono',monospace;
+            <span style="color:#059669;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">8×8 Grid</span></div>
             </div>
 
-            <div style="background:#0C1220;border:1px solid #1B2B42;
-            border-top:2px solid #06B6D4;border-radius:12px;padding:20px 24px;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            border-top:2px solid #0891B2;border-radius:12px;padding:20px 24px;
             flex:1;min-width:160px;max-width:200px;text-align:center">
             <div style="font-size:28px;margin-bottom:10px">⚡</div>
-            <div style="color:#EFF6FF;font-size:13px;font-weight:600;
+            <div style="color:#1E1B4B;font-size:13px;font-weight:600;
             margin-bottom:4px">Real-Time</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#4B5563;font-size:11px;line-height:1.5">
             Instant analysis<br>
-            <span style="color:#06B6D4;font-family:'JetBrains Mono',monospace;
+            <span style="color:#4F46E5;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">Live Feed</span></div>
             </div>
 
@@ -2592,13 +2722,13 @@ DM-Count is optimized for crowd scenes
 
 with tab2:
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#0C1220 0%,#060A12 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #1B2B42;
+    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
     margin-bottom:22px;box-shadow:0 4px 20px rgba(0,0,0,0.4)">
-    <h2 style="color:#EFF6FF;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">
     How different ML methods see the same crowd</h2>
-    <p style="color:#94A3B8;margin:8px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#6B7280;margin:8px 0 0;font-size:13px;line-height:1.5">
     Same image analysed by three different algorithms side by side.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -2637,13 +2767,13 @@ with tab2:
         _xgb_b64 = _img_to_b64(xgb_img)
 
         st.markdown("""
-        <div style="background:linear-gradient(135deg,#0C1220 0%,#060A12 100%);
-        padding:18px 22px;border-radius:12px;border:1px solid #1B2B42;
-        margin-bottom:14px;border-left:3px solid #06B6D4;
+        <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
+        padding:18px 22px;border-radius:12px;border:1px solid #C7D2FE;
+        margin-bottom:14px;border-left:3px solid #0891B2;
         box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-        <h3 style="color:#EFF6FF;margin:0;font-size:16px;font-weight:700;
+        <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700;
         letter-spacing:-0.01em">⟺ Interactive Comparison</h3>
-        <p style="color:#64748B;font-size:12px;margin:6px 0 0;font-weight:400">
+        <p style="color:#4B5563;font-size:12px;margin:6px 0 0;font-weight:400">
         Drag the slider to compare KMeans vs XGBoost zone classification</p>
         </div>
         """, unsafe_allow_html=True)
@@ -2656,7 +2786,7 @@ with tab2:
             position: relative; width: 100%;
             border-radius: 12px; overflow: hidden;
             cursor: col-resize; user-select: none;
-            border: 1px solid #1B2B42;
+            border: 1px solid #C7D2FE;
             box-shadow: 0 4px 24px rgba(0,0,0,0.5);
         }}
         .cmp-wrap img {{ width: 100%; display: block; }}
@@ -2680,7 +2810,7 @@ with tab2:
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             z-index: 20; pointer-events: none;
         }}
-        .cmp-label-l {{ left: 12px; background: rgba(37,99,235,0.85); }}
+        .cmp-label-l {{ left: 12px; background: rgba(79,70,229,0.85); }}
         .cmp-label-r {{ right: 12px; background: rgba(16,185,129,0.85); }}
         #divider {{
             position: absolute; top: 0; left: 50%;
@@ -2783,18 +2913,18 @@ with tab2:
         c1, c2, c3 = st.columns(3)
 
         with c1:
-            st.markdown("""<div style="background:linear-gradient(160deg,#0C1220,#101827);
-            padding:18px;border-radius:12px;border:1px solid #1B2B42;
-            border-top:3px solid #2563EB;margin-bottom:8px;
+            st.markdown("""<div style="background:linear-gradient(160deg,#EEF2FF,#F8FAFF);
+            padding:18px;border-radius:12px;border:1px solid #C7D2FE;
+            border-top:3px solid #4F46E5;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#EFF6FF;margin:0;font-size:16px;font-weight:700">KMeans</h3>
-            <p style="color:#64748B;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700">KMeans</h3>
+            <p style="color:#4B5563;font-size:11px;margin:4px 0 0;font-weight:500">
             Unsupervised Clustering</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#0C1220;
-            border-radius:12px;border:1px solid #1B2B42;padding:16px;margin-bottom:8px;
+            st.markdown("""<div style="background:#FFFFFF;
+            border-radius:12px;border:1px solid #C7D2FE;padding:16px;margin-bottom:8px;
             border-top:2px solid #64748B">
-            <p style="color:#64748B;font-size:10px;text-transform:uppercase;
+            <p style="color:#4B5563;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(km_img, use_container_width=True,
@@ -2802,8 +2932,8 @@ with tab2:
             st.markdown(
                 f'<span style="display:inline-block;padding:6px 16px;'
                 f'border-radius:20px;font-size:12px;font-weight:600;'
-                f'background:rgba(37,99,235,0.1);color:#3B82F6;'
-                f'border:1px solid rgba(37,99,235,0.25);'
+                f'background:rgba(79,70,229,0.1);color:#3B82F6;'
+                f'border:1px solid rgba(79,70,229,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
                 f'Silhouette: {km_sil:.2f}</span>',
@@ -2811,26 +2941,26 @@ with tab2:
             st.caption("Hard clustering — assigns each patch to nearest centre")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#94A3B8">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#6B7280">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#EFF6FF;font-variant-numeric:tabular-nums">'
+                    f'color:#1E1B4B;font-variant-numeric:tabular-nums">'
                     f'{km_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
         with c2:
-            st.markdown("""<div style="background:linear-gradient(160deg,#0C1220,#101827);
-            padding:18px;border-radius:12px;border:1px solid #1B2B42;
+            st.markdown("""<div style="background:linear-gradient(160deg,#EEF2FF,#F8FAFF);
+            padding:18px;border-radius:12px;border:1px solid #C7D2FE;
             border-top:3px solid #10B981;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#EFF6FF;margin:0;font-size:16px;font-weight:700">XGBoost</h3>
-            <p style="color:#64748B;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700">XGBoost</h3>
+            <p style="color:#4B5563;font-size:11px;margin:4px 0 0;font-weight:500">
             Supervised Classification</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#0C1220;
-            border-radius:12px;border:1px solid #1B2B42;padding:16px;margin-bottom:8px;
+            st.markdown("""<div style="background:#FFFFFF;
+            border-radius:12px;border:1px solid #C7D2FE;padding:16px;margin-bottom:8px;
             border-top:2px solid #64748B">
-            <p style="color:#64748B;font-size:10px;text-transform:uppercase;
+            <p style="color:#4B5563;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(xgb_img, use_container_width=True,
@@ -2838,7 +2968,7 @@ with tab2:
             st.markdown(
                 f'<span style="display:inline-block;padding:6px 16px;'
                 f'border-radius:20px;font-size:12px;font-weight:600;'
-                f'background:rgba(16,185,129,0.1);color:#6EE7B7;'
+                f'background:#F0FDF4;color:#6EE7B7;'
                 f'border:1px solid rgba(16,185,129,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
@@ -2847,26 +2977,26 @@ with tab2:
             st.caption("Learned from KMeans labels — gradient boosted trees")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#94A3B8">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#6B7280">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#EFF6FF;font-variant-numeric:tabular-nums">'
+                    f'color:#1E1B4B;font-variant-numeric:tabular-nums">'
                     f'{xgb_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
         with c3:
-            st.markdown("""<div style="background:linear-gradient(160deg,#0C1220,#101827);
-            padding:18px;border-radius:12px;border:1px solid #1B2B42;
+            st.markdown("""<div style="background:linear-gradient(160deg,#EEF2FF,#F8FAFF);
+            padding:18px;border-radius:12px;border:1px solid #C7D2FE;
             border-top:3px solid #7C3AED;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#EFF6FF;margin:0;font-size:16px;font-weight:700">GMM</h3>
-            <p style="color:#64748B;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700">GMM</h3>
+            <p style="color:#4B5563;font-size:11px;margin:4px 0 0;font-weight:500">
             Unsupervised Soft Clustering</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#0C1220;
-            border-radius:12px;border:1px solid #1B2B42;padding:16px;margin-bottom:8px;
+            st.markdown("""<div style="background:#FFFFFF;
+            border-radius:12px;border:1px solid #C7D2FE;padding:16px;margin-bottom:8px;
             border-top:2px solid #64748B">
-            <p style="color:#64748B;font-size:10px;text-transform:uppercase;
+            <p style="color:#4B5563;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(gmm_img, use_container_width=True,
@@ -2884,10 +3014,10 @@ with tab2:
             st.caption("Soft clustering — probability-based zone assignment")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#94A3B8">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#6B7280">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#EFF6FF;font-variant-numeric:tabular-nums">'
+                    f'color:#1E1B4B;font-variant-numeric:tabular-nums">'
                     f'{gmm_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
@@ -2900,20 +3030,20 @@ with tab3:
 
     # ── Section header ──
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#0C1220 0%,#060A12 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #1B2B42;
-    border-left:4px solid #2563EB;margin-bottom:22px;
-    box-shadow:inset 4px 0 30px rgba(37,99,235,0.15), 0 4px 20px rgba(0,0,0,0.4)">
+    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
+    border-left:4px solid #4F46E5;margin-bottom:22px;
+    box-shadow:inset 4px 0 30px rgba(79,70,229,0.15), 0 4px 20px rgba(0,0,0,0.4)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#EFF6FF;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">📡 Operations Timeline</h2>
-    <p style="color:#94A3B8;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#6B7280;margin:6px 0 0;font-size:13px;line-height:1.5">
     Security operations center · Scan history & threat analysis</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
     padding:5px 14px;border-radius:20px;font-size:10px;font-weight:600;
-    background:rgba(6,182,212,0.1);color:#06B6D4;
+    background:rgba(6,182,212,0.1);color:#4F46E5;
     border:1px solid rgba(6,182,212,0.2);
     font-family:'JetBrains Mono',monospace;letter-spacing:1px">
     <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
@@ -2938,17 +3068,17 @@ with tab3:
 
         with _dc1:
             st.components.v1.html(f"""
-            <div style="background:#101827;border:1px solid #1B2B42;
-            border-radius:12px;border-top:2px solid #2563EB;
+            <div style="background:#F8FAFF;border:1px solid #C7D2FE;
+            border-radius:12px;border-top:2px solid #4F46E5;
             padding:24px 20px;text-align:center;
-            box-shadow:0 4px 20px rgba(37,99,235,0.1)">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            box-shadow:0 4px 20px rgba(79,70,229,0.1)">
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             📊 TOTAL SCANS</div>
             <div id="stat-total" style="font-size:42px;font-weight:900;
-            color:#EFF6FF;font-family:'JetBrains Mono',monospace;
+            color:#1E1B4B;font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums;line-height:1;
-            text-shadow:0 0 30px rgba(37,99,235,0.2)">0</div>
+            text-shadow:0 0 30px rgba(79,70,229,0.2)">0</div>
             <div style="color:#3B4A63;font-size:10px;margin-top:8px;
             font-family:'JetBrains Mono',monospace;letter-spacing:1px">
             images analysed</div>
@@ -2964,15 +3094,15 @@ with tab3:
 
         with _dc2:
             st.components.v1.html(f"""
-            <div style="background:#101827;border:1px solid #1B2B42;
-            border-radius:12px;border-top:2px solid #06B6D4;
+            <div style="background:#F8FAFF;border:1px solid #C7D2FE;
+            border-radius:12px;border-top:2px solid #0891B2;
             padding:24px 20px;text-align:center;
             box-shadow:0 4px 20px rgba(6,182,212,0.1)">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             👥 AVERAGE CROWD</div>
             <div id="stat-avg" style="font-size:42px;font-weight:900;
-            color:#06B6D4;font-family:'JetBrains Mono',monospace;
+            color:#4F46E5;font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums;line-height:1;
             text-shadow:0 0 30px rgba(6,182,212,0.25)">0</div>
             <div style="color:#3B4A63;font-size:10px;margin-top:8px;
@@ -2999,12 +3129,12 @@ with tab3:
                 50% {{ box-shadow: 0 4px 32px rgba(255,23,68,0.35); }}
             }}
             </style>
-            <div style="background:#101827;border:1px solid #1B2B42;
+            <div style="background:#F8FAFF;border:1px solid #C7D2FE;
             border-radius:12px;border-top:2px solid {_peak_color};
             padding:24px 20px;text-align:center;
             box-shadow:0 4px 20px {'rgba(255,23,68,0.15)' if _hist_peak > 100 else 'rgba(16,185,129,0.1)'};
             {'animation:critGlow 2s ease-in-out infinite;' if _hist_peak > 100 else ''}">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             🔺 PEAK THREAT</div>
             <div id="stat-peak" style="font-size:42px;font-weight:900;
@@ -3029,10 +3159,10 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="background:#0C1220;border:1px solid #1B2B42;
+        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
         border-radius:12px;padding:14px 18px 6px;margin:8px 0 4px;
-        border-top:2px solid #2563EB">
-        <div style="color:#64748B;font-size:10px;font-weight:700;
+        border-top:2px solid #4F46E5">
+        <div style="color:#4B5563;font-size:10px;font-weight:700;
         letter-spacing:2px;text-transform:uppercase">
         📈 CROWD DENSITY TIMELINE</div>
         </div>
@@ -3070,8 +3200,8 @@ with tab3:
         _fig_timeline.add_trace(go.Scatter(
             x=_scan_nums, y=_hist_counts,
             fill='tozeroy',
-            fillcolor='rgba(37,99,235,0.08)',
-            line=dict(color='rgba(37,99,235,0.0)', width=0),
+            fillcolor='rgba(79,70,229,0.08)',
+            line=dict(color='rgba(79,70,229,0.0)', width=0),
             showlegend=False, hoverinfo='skip',
         ))
 
@@ -3097,7 +3227,7 @@ with tab3:
             hovertext=_hover_text,
             hoverinfo='text',
             hoverlabel=dict(
-                bgcolor='#101827', bordercolor='#1B2B42',
+                bgcolor='#FFFFFF', bordercolor='#C7D2FE',
                 font=dict(family='Inter, sans-serif', size=12, color='#EFF6FF'),
             ),
             showlegend=False,
@@ -3113,7 +3243,7 @@ with tab3:
                 title=dict(text='Scan #', font=dict(color='#64748B', size=11)),
                 tickfont=dict(color='#64748B', size=10,
                               family='JetBrains Mono, monospace'),
-                gridcolor='#1B2B42', gridwidth=1,
+                gridcolor='#E5E7EB', gridwidth=1,
                 zeroline=False,
                 dtick=1,
             ),
@@ -3121,7 +3251,7 @@ with tab3:
                 title=dict(text='Crowd Count', font=dict(color='#64748B', size=11)),
                 tickfont=dict(color='#64748B', size=10,
                               family='JetBrains Mono, monospace'),
-                gridcolor='#1B2B42', gridwidth=1,
+                gridcolor='#E5E7EB', gridwidth=1,
                 zeroline=False,
             ),
             font=dict(family='Inter, sans-serif'),
@@ -3134,10 +3264,10 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="background:#0C1220;border:1px solid #1B2B42;
+        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
         border-radius:12px;padding:14px 18px 6px;margin:16px 0 4px;
-        border-top:2px solid #06B6D4">
-        <div style="color:#64748B;font-size:10px;font-weight:700;
+        border-top:2px solid #0891B2">
+        <div style="color:#4B5563;font-size:10px;font-weight:700;
         letter-spacing:2px;text-transform:uppercase">
         🗂️ THREAT HISTORY LOG</div>
         </div>
@@ -3145,22 +3275,22 @@ with tab3:
 
         # Build table header
         _table_html = """
-        <div style="border:1px solid #1B2B42;border-radius:12px;
+        <div style="border:1px solid #C7D2FE;border-radius:12px;
         overflow:hidden;margin-top:8px">
         <table style="width:100%;border-collapse:collapse;
         font-family:'Inter',sans-serif">
         <thead>
-        <tr style="background:#0A0F1A;border-bottom:2px solid #1B2B42">
-        <th style="padding:12px 16px;text-align:left;color:#64748B;
+        <tr style="background:#0A0F1A;border-bottom:2px solid #C7D2FE">
+        <th style="padding:12px 16px;text-align:left;color:#4B5563;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">SCAN #</th>
-        <th style="padding:12px 16px;text-align:center;color:#64748B;
+        <th style="padding:12px 16px;text-align:center;color:#4B5563;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">COUNT</th>
-        <th style="padding:12px 16px;text-align:center;color:#64748B;
+        <th style="padding:12px 16px;text-align:center;color:#4B5563;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">THREAT LEVEL</th>
-        <th style="padding:12px 16px;text-align:right;color:#64748B;
+        <th style="padding:12px 16px;text-align:right;color:#4B5563;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">ZONE STATUS</th>
         </tr>
@@ -3173,7 +3303,7 @@ with tab3:
         _display_hist.reverse()
 
         for _idx, (_scan_n, _cnt) in enumerate(_display_hist):
-            _row_bg = "#0C1220" if _idx % 2 == 0 else "#101827"
+            _row_bg = "#FFFFFF" if _idx % 2 == 0 else "#F8FAFF"
 
             if _cnt < 30:
                 _tl = "MINIMAL"
@@ -3201,13 +3331,13 @@ with tab3:
                 _zc = "#FF6B6B"
 
             _table_html += f"""
-            <tr style="background:{_row_bg};border-bottom:1px solid #1B2B42;
+            <tr style="background:{_row_bg};border-bottom:1px solid #C7D2FE;
             transition:background 0.2s">
-            <td style="padding:12px 16px;color:#94A3B8;font-size:13px;
+            <td style="padding:12px 16px;color:#6B7280;font-size:13px;
             font-family:'JetBrains Mono',monospace;font-weight:500">
             #{_scan_n:02d}</td>
             <td style="padding:12px 16px;text-align:center;
-            color:#EFF6FF;font-size:15px;font-weight:700;
+            color:#1E1B4B;font-size:15px;font-weight:700;
             font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums">{_cnt}</td>
             <td style="padding:12px 16px;text-align:center">
@@ -3248,28 +3378,28 @@ rgba(6,182,212,0.06), transparent)">
 <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
 filter:drop-shadow(0 4px 20px rgba(6,182,212,0.25))">📡</div>
 
-<div style="font-size:11px;font-weight:700;color:#06B6D4;
+<div style="font-size:11px;font-weight:700;color:#4F46E5;
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 OPERATIONS TIMELINE</div>
 
-<h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">No Scans Yet</h2>
 
-<p style="color:#64748B;font-size:14px;max-width:440px;
+<p style="color:#4B5563;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Analyse images in the <span style="color:#3B82F6;
 font-weight:600">Live Analysis</span> tab to populate
 the operations timeline with threat data.</p>
 
-<div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
+<div style="border-top:1px solid #C7D2FE;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:inline-flex;align-items:center;gap:8px;
 padding:8px 20px;border-radius:20px;
-background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2)">
+background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2)">
 <span style="display:inline-block;width:6px;height:6px;
 border-radius:50%;background:#3B4A63"></span>
-<span style="color:#64748B;font-size:11px;font-weight:500;
+<span style="color:#4B5563;font-size:11px;font-weight:500;
 font-family:'JetBrains Mono',monospace;letter-spacing:1px">
 AWAITING FIRST SCAN</span>
 </div>
@@ -3287,19 +3417,19 @@ with tab4:
 <div style="text-align:center;padding:80px 20px 70px;
 animation:floatUp 0.6s ease;
 background:radial-gradient(ellipse 500px 250px at center 100px,
-rgba(37,99,235,0.06), transparent)">
+rgba(79,70,229,0.06), transparent)">
 
 <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-filter:drop-shadow(0 4px 20px rgba(37,99,235,0.25))">📱</div>
+filter:drop-shadow(0 4px 20px rgba(79,70,229,0.25))">📱</div>
 
 <div style="font-size:11px;font-weight:700;color:#2563EB;
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 LIVE CAPTURE</div>
 
-<h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">Coming Soon</h2>
 
-<p style="color:#64748B;font-size:14px;max-width:440px;
+<p style="color:#4B5563;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Real-time camera feed analysis will be available in a future update.
 Use the <span style="color:#3B82F6;font-weight:600">Live Analysis</span> tab
@@ -3317,15 +3447,15 @@ with tab5:
 
     # ── Header card ──
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#0C1220 0%,#060A12 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #1B2B42;
+    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
     border-left:4px solid #7C3AED;margin-bottom:22px;
     box-shadow:inset 4px 0 30px rgba(124,58,237,0.15), 0 4px 20px rgba(0,0,0,0.4)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#EFF6FF;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">🗂️ Batch Analysis</h2>
-    <p style="color:#94A3B8;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#6B7280;margin:6px 0 0;font-size:13px;line-height:1.5">
     Multi-frame crowd density analysis · Full zone classification per image</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
@@ -3347,10 +3477,10 @@ with tab5:
 
     if batch_files and len(batch_files) > 0:
         st.markdown(f"""
-        <div style="background:#0C1220;border:1px solid #1B2B42;border-radius:10px;
+        <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:10px;
         padding:12px 20px;margin:8px 0 16px 0;display:flex;align-items:center;gap:10px">
         <span style="color:#A78BFA;font-size:14px">📁</span>
-        <span style="color:#94A3B8;font-size:13px">{len(batch_files)} images selected</span>
+        <span style="color:#6B7280;font-size:13px">{len(batch_files)} images selected</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -3369,9 +3499,15 @@ with tab5:
                 _b_t0 = time.time()
                 raw_bytes = np.asarray(bytearray(bf.read()), dtype=np.uint8)
                 bf.seek(0)
-                _b_img_bgr = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
-                _b_img_rgb = cv2.cvtColor(_b_img_bgr, cv2.COLOR_BGR2RGB)
-                _b_h, _b_w = _b_img_rgb.shape[:2]
+                try:
+                    _b_img_bgr = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
+                    if _b_img_bgr is None:
+                        raise ValueError("Decode returned None")
+                    _b_img_rgb = cv2.cvtColor(_b_img_bgr, cv2.COLOR_BGR2RGB)
+                    _b_h, _b_w = _b_img_rgb.shape[:2]
+                except Exception as _b_dec_err:
+                    st.warning(f"⚠️ Skipped **{bf.name}** — corrupted or unreadable ({_b_dec_err})")
+                    continue
 
                 if LWCC_AVAILABLE and lwcc_shb is not None:
                     _b_count, _b_density = predict_density_lwcc(_b_img_rgb)
@@ -3452,6 +3588,7 @@ with tab5:
             progress_bar.empty()
 
             st.session_state["batch_results"] = batch_results
+            gc.collect()
         # Display results if available
         if "batch_results" in st.session_state and st.session_state["batch_results"]:
             batch_results = st.session_state["batch_results"]
@@ -3465,10 +3602,10 @@ with tab5:
             _avg_threat = int(np.mean([r["threat_score"] for r in batch_results]))
 
             st.markdown("""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:14px 18px 6px;margin:16px 0 12px;
             border-top:2px solid #7C3AED">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📊 AGGREGATE ANALYTICS</div>
             </div>
@@ -3506,15 +3643,15 @@ with tab5:
                 )])
                 _fig_zone_dist.update_layout(
                     title=dict(text="Zone Distribution (All Frames)",
-                               font=dict(color="#94A3B8", size=13)),
+                               font=dict(color="#4B5563", size=13)),
                     template="plotly_dark",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                     height=280,
                     margin=dict(l=40, r=20, t=40, b=40),
-                    xaxis=dict(tickfont=dict(color="#94A3B8", size=11)),
-                    yaxis=dict(tickfont=dict(color="#64748B", size=10),
-                               gridcolor="#1B2B42"),
+                    xaxis=dict(tickfont=dict(color="#4B5563", size=11)),
+                    yaxis=dict(tickfont=dict(color="#6B7280", size=10),
+                               gridcolor="#E5E7EB"),
                     showlegend=False,
                 )
                 st.plotly_chart(_fig_zone_dist, use_container_width=True)
@@ -3529,7 +3666,7 @@ with tab5:
                 _fig_threat_dist = go.Figure(data=[go.Pie(
                     labels=_td_labels, values=_td_values,
                     marker=dict(colors=_td_cols,
-                                line=dict(color="#0C1220", width=2)),
+                                line=dict(color="#FFFFFF", width=2)),
                     textinfo="label+value",
                     textfont=dict(size=11, color="#EFF6FF",
                                   family="Inter, sans-serif"),
@@ -3537,7 +3674,7 @@ with tab5:
                 )])
                 _fig_threat_dist.update_layout(
                     title=dict(text="Threat Level Distribution",
-                               font=dict(color="#94A3B8", size=13)),
+                               font=dict(color="#4B5563", size=13)),
                     template="plotly_dark",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
@@ -3550,46 +3687,46 @@ with tab5:
             # 2. SUMMARY TABLE WITH ZONE COLUMNS
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:14px 18px 6px;margin:16px 0 4px;
             border-top:2px solid #7C3AED">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📋 DETAILED RESULTS TABLE</div>
             </div>
             """, unsafe_allow_html=True)
 
             _batch_table = """
-            <div style="border:1px solid #1B2B42;border-radius:12px;
+            <div style="border:1px solid #C7D2FE;border-radius:12px;
             overflow:hidden;margin-top:8px">
             <table style="width:100%;border-collapse:collapse;
             font-family:'Inter',sans-serif">
             <thead>
-            <tr style="background:#0A0F1A;border-bottom:2px solid #1B2B42">
-            <th style="padding:12px 14px;text-align:left;color:#64748B;
+            <tr style="background:#0A0F1A;border-bottom:2px solid #C7D2FE">
+            <th style="padding:12px 14px;text-align:left;color:#4B5563;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">IMAGE</th>
-            <th style="padding:12px 10px;text-align:center;color:#64748B;
+            <th style="padding:12px 10px;text-align:center;color:#4B5563;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">COUNT</th>
-            <th style="padding:12px 10px;text-align:center;color:#10B981;
+            <th style="padding:12px 10px;text-align:center;color:#059669;
             font-size:10px;font-weight:700;letter-spacing:1.5px">LOW</th>
-            <th style="padding:12px 10px;text-align:center;color:#F59E0B;
+            <th style="padding:12px 10px;text-align:center;color:#D97706;
             font-size:10px;font-weight:700;letter-spacing:1.5px">MED</th>
-            <th style="padding:12px 10px;text-align:center;color:#EF4444;
+            <th style="padding:12px 10px;text-align:center;color:#DC2626;
             font-size:10px;font-weight:700;letter-spacing:1.5px">HIGH</th>
-            <th style="padding:12px 10px;text-align:center;color:#FF1744;
+            <th style="padding:12px 10px;text-align:center;color:#B91C1C;
             font-size:10px;font-weight:700;letter-spacing:1.5px">CRIT</th>
-            <th style="padding:12px 10px;text-align:center;color:#64748B;
+            <th style="padding:12px 10px;text-align:center;color:#4B5563;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">THREAT</th>
-            <th style="padding:12px 10px;text-align:center;color:#64748B;
+            <th style="padding:12px 10px;text-align:center;color:#4B5563;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">SCORE</th>
-            <th style="padding:12px 10px;text-align:center;color:#06B6D4;
+            <th style="padding:12px 10px;text-align:center;color:#4F46E5;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">CONF</th>
-            <th style="padding:12px 10px;text-align:right;color:#64748B;
+            <th style="padding:12px 10px;text-align:right;color:#4B5563;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">TIME</th>
             </tr>
@@ -3605,30 +3742,30 @@ with tab5:
             }
 
             for _bi, _br in enumerate(batch_results):
-                _row_bg = "#0C1220" if _bi % 2 == 0 else "#101827"
+                _row_bg = "#FFFFFF" if _bi % 2 == 0 else "#F8FAFF"
                 _btc, _btbg = _threat_colors.get(_br["threat"], ("#64748B", "rgba(100,116,139,0.12)"))
                 _zs = _br["zone_stats"]
 
                 _batch_table += f"""
-                <tr style="background:{_row_bg};border-bottom:1px solid #1B2B42">
-                <td style="padding:10px 14px;color:#94A3B8;font-size:12px;
+                <tr style="background:{_row_bg};border-bottom:1px solid #C7D2FE">
+                <td style="padding:10px 14px;color:#6B7280;font-size:12px;
                 font-family:'JetBrains Mono',monospace;font-weight:500">
                 {_br['name']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#EFF6FF;font-size:14px;font-weight:700;
+                color:#1E1B4B;font-size:14px;font-weight:700;
                 font-family:'JetBrains Mono',monospace;
                 font-variant-numeric:tabular-nums">{_br['count']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#10B981;font-size:13px;font-weight:600;
+                color:#059669;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_zs['Low']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#F59E0B;font-size:13px;font-weight:600;
+                color:#D97706;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_zs['Medium']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#EF4444;font-size:13px;font-weight:600;
+                color:#DC2626;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_zs['High']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#FF1744;font-size:13px;font-weight:600;
+                color:#B91C1C;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_zs['Critical']}</td>
                 <td style="padding:10px;text-align:center">
                 <span style="display:inline-block;padding:4px 12px;
@@ -3636,13 +3773,13 @@ with tab5:
                 letter-spacing:1px;color:{_btc};background:{_btbg};
                 border:1px solid {_btc}30">{_br['threat']}</span></td>
                 <td style="padding:10px;text-align:center;
-                color:#06B6D4;font-size:13px;font-weight:600;
+                color:#4F46E5;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_br['threat_score']}%</td>
                 <td style="padding:10px;text-align:center;
                 color:#A78BFA;font-size:12px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_br['confidence']}%</td>
                 <td style="padding:10px;text-align:right;
-                color:#64748B;font-size:12px;font-weight:500;
+                color:#4B5563;font-size:12px;font-weight:500;
                 font-family:'JetBrains Mono',monospace">{_br.get('time_s', '—')}s</td>
                 </tr>
                 """
@@ -3653,10 +3790,10 @@ with tab5:
             # 3. PER-IMAGE EXPANDABLE DETAIL CARDS
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
-            border-top:2px solid #06B6D4">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            border-top:2px solid #0891B2">
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🔍 PER-IMAGE DETAILS</div>
             </div>
@@ -3671,7 +3808,7 @@ with tab5:
                     _d_c1, _d_c2 = st.columns(2)
                     with _d_c1:
                         st.markdown(f"""
-                        <div style="color:#06B6D4;font-size:10px;font-weight:700;
+                        <div style="color:#4F46E5;font-size:10px;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                         SAFETY ZONE MAP — {method.upper()}</div>
                         """, unsafe_allow_html=True)
@@ -3679,7 +3816,7 @@ with tab5:
                         st.image(_d_safety_bytes, use_container_width=True)
                     with _d_c2:
                         st.markdown("""
-                        <div style="color:#06B6D4;font-size:10px;font-weight:700;
+                        <div style="color:#4F46E5;font-size:10px;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                         DENSITY HEATMAP</div>
                         """, unsafe_allow_html=True)
@@ -3698,10 +3835,10 @@ with tab5:
                             [_d_z1, _d_z2, _d_z3, _d_z4], _d_zone_data):
                         with _d_col:
                             st.markdown(f"""
-                            <div style="background:#0C1220;border:1px solid #1B2B42;
+                            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
                             border-radius:10px;padding:14px;text-align:center;
                             border-top:2px solid {_d_clr}">
-                            <div style="font-size:10px;color:#64748B;font-weight:700;
+                            <div style="font-size:10px;color:#4B5563;font-weight:700;
                             letter-spacing:1.2px;margin-bottom:4px">{_d_lbl}</div>
                             <div style="font-size:28px;font-weight:900;color:{_d_clr};
                             font-family:'JetBrains Mono',monospace">{_d_val}</div>
@@ -3720,9 +3857,9 @@ with tab5:
                                              family="Inter, sans-serif")),
                         gauge=dict(
                             axis=dict(range=[0, 100], tickcolor="#64748B",
-                                      tickfont=dict(color="#64748B", size=9)),
+                                      tickfont=dict(color="#6B7280", size=9)),
                             bar=dict(color=_d_tc, thickness=0.3),
-                            bgcolor="#1B2B42", borderwidth=0,
+                            bgcolor="#C7D2FE", borderwidth=0,
                             steps=[
                                 dict(range=[0, 25], color="#0C2A1A"),
                                 dict(range=[25, 50], color="#2A1F00"),
@@ -3747,14 +3884,14 @@ with tab5:
             _peak_result = max(batch_results, key=lambda x: x["count"])
 
             st.markdown(f"""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
             border-top:2px solid #FF1744">
             <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🔺 PEAK DENSITY FRAME</div>
-            <span style="color:#FF1744;font-size:12px;font-weight:700;
+            <span style="color:#B91C1C;font-size:12px;font-weight:700;
             font-family:'JetBrains Mono',monospace">{_peak_result['count']} persons · {_peak_result['name']}</span>
             </div>
             </div>
@@ -3774,10 +3911,10 @@ with tab5:
             # 5. BATCH TIMELINE CHART
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#0C1220;border:1px solid #1B2B42;
+            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
-            border-top:2px solid #2563EB">
-            <div style="color:#64748B;font-size:10px;font-weight:700;
+            border-top:2px solid #4F46E5">
+            <div style="color:#4B5563;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📈 BATCH DENSITY TIMELINE</div>
             </div>
@@ -3828,7 +3965,7 @@ with tab5:
                             line=dict(color='rgba(255,255,255,0.3)', width=1.5)),
                 hovertext=_batch_hover,
                 hoverinfo='text',
-                hoverlabel=dict(bgcolor='#101827', bordercolor='#1B2B42',
+                hoverlabel=dict(bgcolor='#FFFFFF', bordercolor='#C7D2FE',
                                 font=dict(family='Inter, sans-serif', size=12, color='#EFF6FF')),
                 showlegend=False,
             ))
@@ -3855,14 +3992,14 @@ with tab5:
                     title=dict(text='Frame #', font=dict(color='#64748B', size=11)),
                     tickfont=dict(color='#64748B', size=10,
                                   family='JetBrains Mono, monospace'),
-                    gridcolor='#1B2B42', gridwidth=1,
+                    gridcolor='#E5E7EB', gridwidth=1,
                     zeroline=False, dtick=1,
                 ),
                 yaxis=dict(
                     title=dict(text='Crowd Count', font=dict(color='#64748B', size=11)),
                     tickfont=dict(color='#64748B', size=10,
                                   family='JetBrains Mono, monospace'),
-                    gridcolor='#1B2B42', gridwidth=1,
+                    gridcolor='#E5E7EB', gridwidth=1,
                     zeroline=False,
                 ),
                 font=dict(family='Inter, sans-serif'),
@@ -3923,50 +4060,50 @@ filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🗂️</div>
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 BATCH ANALYSIS</div>
 
-<h2 style="color:#EFF6FF;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">Upload Multiple Images</h2>
 
-<p style="color:#64748B;font-size:14px;max-width:440px;
+<p style="color:#4B5563;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Upload multiple crowd images for full zone classification per frame.
 Get aggregate statistics, per-image overlays, and a downloadable report.</p>
 
-<div style="border-top:1px solid #1B2B42;margin:32px auto 28px;
+<div style="border-top:1px solid #C7D2FE;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:flex;justify-content:center;gap:16px;
 flex-wrap:wrap;max-width:600px;margin:0 auto">
 
-<div style="background:#0C1220;border:1px solid #1B2B42;
+<div style="background:#FFFFFF;border:1px solid #C7D2FE;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📊</div>
-<div style="color:#EFF6FF;font-size:12px;font-weight:600">Zone Stats</div>
-<div style="color:#64748B;font-size:10px;margin-top:4px">Per-image classification</div>
+<div style="color:#1E1B4B;font-size:12px;font-weight:600">Zone Stats</div>
+<div style="color:#4B5563;font-size:10px;margin-top:4px">Per-image classification</div>
 </div>
 
-<div style="background:#0C1220;border:1px solid #1B2B42;
+<div style="background:#FFFFFF;border:1px solid #C7D2FE;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🗺️</div>
-<div style="color:#EFF6FF;font-size:12px;font-weight:600">Safety Maps</div>
-<div style="color:#64748B;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
+<div style="color:#1E1B4B;font-size:12px;font-weight:600">Safety Maps</div>
+<div style="color:#4B5563;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
 </div>
 
-<div style="background:#0C1220;border:1px solid #1B2B42;
+<div style="background:#FFFFFF;border:1px solid #C7D2FE;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📈</div>
-<div style="color:#EFF6FF;font-size:12px;font-weight:600">Timeline</div>
-<div style="color:#64748B;font-size:10px;margin-top:4px">Density across frames</div>
+<div style="color:#1E1B4B;font-size:12px;font-weight:600">Timeline</div>
+<div style="color:#4B5563;font-size:10px;margin-top:4px">Density across frames</div>
 </div>
 
-<div style="background:#0C1220;border:1px solid #1B2B42;
+<div style="background:#FFFFFF;border:1px solid #C7D2FE;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📥</div>
-<div style="color:#EFF6FF;font-size:12px;font-weight:600">JSON Report</div>
-<div style="color:#64748B;font-size:10px;margin-top:4px">Full zone-level data</div>
+<div style="color:#1E1B4B;font-size:12px;font-weight:600">JSON Report</div>
+<div style="color:#4B5563;font-size:10px;margin-top:4px">Full zone-level data</div>
 </div>
 
 </div>
