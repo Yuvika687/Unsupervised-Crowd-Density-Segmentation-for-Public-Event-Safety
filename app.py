@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 from PIL import Image
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, maximum_filter
 import plotly.graph_objects as go
 import plotly.express as px
 import joblib
@@ -26,8 +26,13 @@ import base64
 import os
 import gc
 import json
+import hashlib
 import tempfile
 import random
+import shutil
+import urllib.parse
+import uuid
+from textwrap import dedent
 from collections import deque
 from datetime import datetime
 import torch.optim as optim
@@ -542,6 +547,295 @@ ZONE_RGB = {"Low": (16, 185, 129), "Medium": (245, 158, 11),
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades +
     'haarcascade_frontalface_default.xml')
+face_cascade_alt = cv2.CascadeClassifier(
+    cv2.data.haarcascades +
+    'haarcascade_frontalface_alt.xml')
+face_cascade_alt2 = cv2.CascadeClassifier(
+    cv2.data.haarcascades +
+    'haarcascade_frontalface_alt2.xml')
+eye_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades +
+    'haarcascade_eye.xml')
+eye_glasses_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades +
+    'haarcascade_eye_tree_eyeglasses.xml')
+
+
+def _box_iou(box_a, box_b):
+    ax, ay, aw, ah = box_a
+    bx, by, bw, bh = box_b
+    ax2, ay2 = ax + aw, ay + ah
+    bx2, by2 = bx + bw, by + bh
+
+    inter_x1 = max(ax, bx)
+    inter_y1 = max(ay, by)
+    inter_x2 = min(ax2, bx2)
+    inter_y2 = min(ay2, by2)
+    inter_w = max(0, inter_x2 - inter_x1)
+    inter_h = max(0, inter_y2 - inter_y1)
+    inter_area = inter_w * inter_h
+    if inter_area <= 0:
+        return 0.0
+
+    area_a = aw * ah
+    area_b = bw * bh
+    denom = area_a + area_b - inter_area
+    return inter_area / max(denom, 1)
+
+
+def _intersection_over_smaller(box_a, box_b):
+    ax, ay, aw, ah = box_a
+    bx, by, bw, bh = box_b
+    ax2, ay2 = ax + aw, ay + ah
+    bx2, by2 = bx + bw, by + bh
+
+    inter_x1 = max(ax, bx)
+    inter_y1 = max(ay, by)
+    inter_x2 = min(ax2, bx2)
+    inter_y2 = min(ay2, by2)
+    inter_w = max(0, inter_x2 - inter_x1)
+    inter_h = max(0, inter_y2 - inter_y1)
+    inter_area = inter_w * inter_h
+    smaller = max(1, min(aw * ah, bw * bh))
+    return inter_area / smaller
+
+
+def _count_eye_hits(gray_roi):
+    """Count lightweight eye detections inside the upper face region."""
+    if gray_roi is None or gray_roi.size == 0:
+        return 0
+
+    roi_eq = cv2.equalizeHist(gray_roi)
+    upper_h = max(1, int(round(roi_eq.shape[0] * 0.72)))
+    upper_roi = roi_eq[:upper_h, :]
+    min_side = max(8, int(round(min(upper_roi.shape[:2]) * 0.12)))
+    hit_count = 0
+
+    for cascade in (eye_cascade, eye_glasses_cascade):
+        if cascade is None or cascade.empty():
+            continue
+        try:
+            hits = cascade.detectMultiScale(
+                upper_roi,
+                scaleFactor=1.08,
+                minNeighbors=3,
+                minSize=(min_side, min_side),
+            )
+            hit_count = max(hit_count, len(hits))
+        except Exception:
+            continue
+
+    return int(hit_count)
+
+
+def _merge_face_boxes(boxes):
+    """Group near-duplicate Haar detections without collapsing nearby faces."""
+    if not boxes:
+        return []
+
+    prepared = [
+        [int(x), int(y), int(w), int(h)]
+        for (x, y, w, h) in boxes
+        if w > 0 and h > 0
+    ]
+    if not prepared:
+        return []
+
+    grouped = []
+    weights = []
+    try:
+        repeated = []
+        for rect in prepared:
+            repeated.extend([rect, rect, rect])
+        grouped, weights = cv2.groupRectangles(
+            repeated, groupThreshold=1, eps=0.22)
+    except Exception:
+        grouped = []
+        weights = []
+
+    if len(grouped) == 0:
+        grouped = [tuple(rect) for rect in prepared]
+        weights = [3] * len(grouped)
+    else:
+        grouped = [tuple(int(v) for v in rect) for rect in grouped]
+
+    candidates = []
+    for box, weight in zip(grouped, weights):
+        candidates.append({
+            "box": box,
+            "support": max(1, int(round(float(weight) / 3.0))),
+        })
+
+    deduped = []
+    for item in sorted(
+            candidates,
+            key=lambda candidate: (
+                candidate["support"],
+                candidate["box"][2] * candidate["box"][3],
+            ),
+            reverse=True):
+        box = item["box"]
+        bx, by, bw, bh = box
+        matched = False
+        for kept in deduped:
+            kx, ky, kw, kh = kept["box"]
+            center_dist = np.hypot(
+                (bx + bw / 2.0) - (kx + kw / 2.0),
+                (by + bh / 2.0) - (ky + kh / 2.0),
+            )
+            size_gate = max(8.0, min(bw, bh, kw, kh) * 0.18)
+            if (_box_iou(box, (kx, ky, kw, kh)) > 0.35 or
+                    _intersection_over_smaller(box, (kx, ky, kw, kh)) > 0.65 or
+                    center_dist < size_gate):
+                if (item["support"] > kept["support"] or
+                        (item["support"] == kept["support"] and
+                         (bw * bh) > (kw * kh))):
+                    kept["box"] = box
+                    kept["support"] = item["support"]
+                matched = True
+                break
+        if not matched:
+            deduped.append({
+                "box": box,
+                "support": item["support"],
+            })
+
+    deduped.sort(key=lambda item: (item["box"][0], item["box"][1]))
+    return deduped
+
+
+def _detect_faces_multi_pass(img_bgr):
+    """Run several lightweight face-detector passes and merge stable results."""
+    img_h, img_w = img_bgr.shape[:2]
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    gray_eq = cv2.equalizeHist(gray)
+
+    detectors = [face_cascade]
+    for cascade in (face_cascade_alt, face_cascade_alt2):
+        if cascade is not None and not cascade.empty():
+            detectors.append(cascade)
+
+    passes = [
+        (gray, 1.0, False),
+        (gray_eq, 1.0, False),
+        (cv2.flip(gray, 1), 1.0, True),
+        (cv2.flip(gray_eq, 1), 1.0, True),
+    ]
+
+    if min(img_h, img_w) < 1200:
+        up_scale = 1.25
+        gray_up = cv2.resize(
+            gray, None, fx=up_scale, fy=up_scale,
+            interpolation=cv2.INTER_CUBIC)
+        gray_eq_up = cv2.resize(
+            gray_eq, None, fx=up_scale, fy=up_scale,
+            interpolation=cv2.INTER_CUBIC)
+        passes.extend([
+            (gray_up, up_scale, False),
+            (gray_eq_up, up_scale, False),
+            (cv2.flip(gray_up, 1), up_scale, True),
+            (cv2.flip(gray_eq_up, 1), up_scale, True),
+        ])
+
+    params = [
+        (1.10, 5, 36),
+        (1.07, 4, 30),
+        (1.04, 3, 26),
+    ]
+
+    boxes = []
+    min_dim = min(img_h, img_w)
+    for cascade in detectors:
+        if cascade is None or cascade.empty():
+            continue
+        for source, scale, flipped in passes:
+            for scale_factor, min_neighbors, min_size in params:
+                detected = cascade.detectMultiScale(
+                    source,
+                    scaleFactor=scale_factor,
+                    minNeighbors=min_neighbors,
+                    minSize=(min_size, min_size),
+                )
+                for (x, y, w, h) in detected:
+                    x = int(round(x / scale))
+                    y = int(round(y / scale))
+                    w = int(round(w / scale))
+                    h = int(round(h / scale))
+                    if flipped:
+                        x = img_w - (x + w)
+                    aspect = w / max(h, 1)
+                    if aspect < 0.55 or aspect > 1.55:
+                        continue
+                    if min(w, h) < max(24, int(min_dim * 0.055)):
+                        continue
+                    if w * h > (img_h * img_w) * 0.35:
+                        continue
+                    boxes.append((x, y, w, h))
+
+    candidates = _merge_face_boxes(boxes)
+    if not candidates:
+        return []
+
+    areas = [item["box"][2] * item["box"][3] for item in candidates]
+    median_area = float(np.median(areas)) if areas else 0.0
+    validated = []
+
+    for item in sorted(
+            candidates,
+            key=lambda candidate: (
+                candidate["support"],
+                candidate["box"][2] * candidate["box"][3],
+            ),
+            reverse=True):
+        x, y, w, h = item["box"]
+        support = item["support"]
+        area = w * h
+
+        if y > img_h * 0.78 and support < 3:
+            continue
+        if median_area > 1.0 and area < median_area * 0.42 and support < 3:
+            continue
+        if (x <= 2 or y <= 2 or x + w >= img_w - 2 or y + h >= img_h - 2) and support < 3:
+            continue
+
+        roi = gray[y:min(img_h, y + h), x:min(img_w, x + w)]
+        eye_hits = _count_eye_hits(roi)
+        if eye_hits <= 0:
+            if support <= 1:
+                continue
+            if median_area > 1.0 and area < median_area * 0.58 and support < 3:
+                continue
+
+        shadowed = False
+        for kept in validated:
+            if _intersection_over_smaller(item["box"], kept["box"]) > 0.72:
+                shadowed = True
+                break
+        if shadowed:
+            continue
+
+        validated.append({
+            "box": item["box"],
+            "support": support,
+            "eye_hits": eye_hits,
+        })
+
+    validated.sort(key=lambda item: (item["box"][0], item["box"][1]))
+    return [item["box"] for item in validated]
+
+
+def _draw_faces_on_image(base_img, faces, label="Face"):
+    """Draw face rectangles on top of an RGB image and return a copy."""
+    overlay = base_img.copy()
+    for (fx, fy, fw, fh) in faces:
+        cv2.rectangle(
+            overlay, (fx, fy), (fx + fw, fy + fh),
+            (0, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(
+            overlay, label, (fx, max(14, fy - 6)),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.42,
+            (0, 255, 255), 1, cv2.LINE_AA)
+    return overlay
 
 # ═══════════════════════════════════════════════════════════════
 # MODEL DEFINITION (untouched)
@@ -762,7 +1056,9 @@ class EvacuationAgent:
         self.optimizer.step()
 
         if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+            self.epsilon = max(
+                self.epsilon_min,
+                self.epsilon * self.epsilon_decay)
 
         self.train_step += 1
         if self.train_step % 10 == 0:
@@ -838,6 +1134,331 @@ class EvacuationAgent:
                f"{crit + high} risk zones over time",
         }
         return details.get(action, "")
+
+
+# ═══════════════════════════════════════════════════════════════
+# LIVE CAPTURE RELAY — phone to laptop inbox
+# ═══════════════════════════════════════════════════════════════
+
+LIVE_CAPTURE_ROOT = os.path.join(
+    tempfile.gettempdir(), "safecrowd_live_capture")
+
+
+def _new_capture_session_id():
+    return f"scv-{uuid.uuid4().hex[:8]}"
+
+
+def _normalize_capture_session_id(raw):
+    cleaned = "".join(
+        ch.lower() if ch.isalnum() else "-"
+        for ch in str(raw or "").strip()
+    )
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    cleaned = cleaned.strip("-")
+    return cleaned[:32] or _new_capture_session_id()
+
+
+def _get_query_param(name, default=""):
+    try:
+        value = st.query_params.get(name, default)
+    except Exception:
+        value = st.experimental_get_query_params().get(name, [default])
+
+    if isinstance(value, list):
+        return value[0] if value else default
+    return value
+
+
+def _build_mobile_capture_url(base_url, session_id):
+    base = str(base_url or "").strip().rstrip("/")
+    if not base:
+        return ""
+    joiner = "&" if "?" in base else "?"
+    query = urllib.parse.urlencode({
+        "mobile_capture": "1",
+        "capture_session": _normalize_capture_session_id(session_id),
+    })
+    return f"{base}{joiner}{query}"
+
+
+def _capture_session_dir(session_id):
+    safe_session = _normalize_capture_session_id(session_id)
+    target_dir = os.path.join(LIVE_CAPTURE_ROOT, safe_session)
+    os.makedirs(target_dir, exist_ok=True)
+    return target_dir, safe_session
+
+
+def _write_json_atomic(path, payload):
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+    os.replace(tmp_path, path)
+
+
+def _load_json_file(path, default=None):
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return default
+
+
+def _save_capture_record(record):
+    session_dir, safe_session = _capture_session_dir(record["session_id"])
+    record["session_id"] = safe_session
+    meta_path = os.path.join(session_dir, f"{record['id']}.json")
+    _write_json_atomic(meta_path, record)
+    return meta_path
+
+
+def _list_live_capture_records(session_id, limit=None):
+    session_dir, safe_session = _capture_session_dir(session_id)
+    records = []
+
+    for name in sorted(os.listdir(session_dir), reverse=True):
+        if not name.endswith(".json"):
+            continue
+        record = _load_json_file(os.path.join(session_dir, name), default=None)
+        if not isinstance(record, dict):
+            continue
+        record["session_id"] = safe_session
+        image_path = record.get("image_path")
+        if not image_path or not os.path.exists(image_path):
+            continue
+        records.append(record)
+        if limit and len(records) >= limit:
+            break
+
+    return records
+
+
+def _queue_live_capture_bytes(image_bytes, session_id, source,
+                              mime_type="image/jpeg", label=""):
+    session_dir, safe_session = _capture_session_dir(session_id)
+    img_hash = hashlib.sha1(image_bytes).hexdigest()
+
+    for existing in _list_live_capture_records(safe_session, limit=12):
+        if existing.get("sha1") == img_hash:
+            return existing, False
+
+    capture_id = (
+        f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}-"
+        f"{uuid.uuid4().hex[:6]}"
+    )
+    suffix = ".png" if "png" in str(mime_type).lower() else ".jpg"
+    image_path = os.path.join(session_dir, f"{capture_id}{suffix}")
+
+    with open(image_path, "wb") as handle:
+        handle.write(image_bytes)
+
+    record = {
+        "id": capture_id,
+        "session_id": safe_session,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "source": source,
+        "label": str(label or "").strip(),
+        "mime_type": mime_type,
+        "sha1": img_hash,
+        "image_path": image_path,
+        "status": "pending",
+        "analysis": None,
+        "updated_at": None,
+    }
+    _save_capture_record(record)
+    return record, True
+
+
+def _format_capture_time(ts):
+    try:
+        return datetime.fromisoformat(ts).strftime("%H:%M:%S")
+    except Exception:
+        return str(ts or "unknown")
+
+
+def _read_capture_bytes(record):
+    with open(record["image_path"], "rb") as handle:
+        return handle.read()
+
+
+def _decode_capture_record(record):
+    raw_bytes = _read_capture_bytes(record)
+    img_arr = np.frombuffer(raw_bytes, dtype=np.uint8)
+    img_bgr = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+    if img_bgr is None:
+        raise ValueError("Failed to decode live capture")
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    return raw_bytes, img_rgb, img_bgr
+
+
+def _analyze_live_capture_record(record, method, opacity):
+    raw_bytes, img_rgb, img_bgr = _decode_capture_record(record)
+    started = time.time()
+    analysis = _analyze_scene_frame(img_rgb, img_bgr, method, opacity)
+
+    record["status"] = "analyzed"
+    record["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    record["analysis"] = {
+        "count": analysis["count"],
+        "threat": analysis["threat"],
+        "threat_score": analysis["threat_score"],
+        "confidence": analysis["confidence"],
+        "zone_stats": analysis["zone_stats"],
+        "model": analysis["model"],
+        "marker_count": analysis["marker_count"],
+        "marker_note": analysis["marker_note"],
+        "used_face_detector": analysis["used_face_detector"],
+        "portrait_hybrid_mode": analysis["portrait_hybrid_mode"],
+        "method": method,
+        "opacity": round(float(opacity), 2),
+        "time_s": round(time.time() - started, 2),
+        "original_b64": base64.b64encode(raw_bytes).decode(),
+        "head_overlay_b64": _compress_img_b64(analysis["head_overlay"]),
+        "density_overlay_b64": _compress_img_b64(analysis["density_overlay"]),
+        "safety_img_b64": _compress_img_b64(analysis["safety_img"]),
+    }
+    _save_capture_record(record)
+    return record
+
+
+def _clear_live_capture_session(session_id):
+    session_dir, _safe_session = _capture_session_dir(session_id)
+    shutil.rmtree(session_dir, ignore_errors=True)
+
+
+def _render_mobile_capture_portal():
+    _capture_session_param = str(_get_query_param("capture_session", "")).strip()
+    _capture_session_default = (
+        _normalize_capture_session_id(_capture_session_param)
+        if _capture_session_param else ""
+    )
+    capture_session = st.text_input(
+        "Laptop channel code",
+        value=_capture_session_default,
+        key="mobile_capture_channel_code",
+        placeholder="scv-1234abcd",
+        help="Use the same code shown on the laptop Live Capture tab.",
+    ).strip()
+    capture_session = (
+        _normalize_capture_session_id(capture_session)
+        if capture_session else ""
+    )
+
+    st.markdown(f"""
+    <div style="padding:22px 18px 8px;text-align:center">
+    <div style="display:inline-flex;align-items:center;gap:8px;
+    padding:6px 14px;border-radius:999px;border:1px solid rgba(34,211,238,0.28);
+    background:rgba(34,211,238,0.08);color:#22D3EE;font-size:11px;
+    font-weight:700;letter-spacing:1.8px;text-transform:uppercase">
+    Phone Capture Relay</div>
+    <h1 style="color:#F1F5F9;margin:16px 0 8px;font-size:30px;
+    letter-spacing:-0.03em">Send Crowd Photos To Laptop</h1>
+    <p style="color:#94A3B8;font-size:14px;line-height:1.7;
+    max-width:520px;margin:0 auto 12px">
+    Capture a classroom or crowd image here. The photo is delivered to the
+    laptop inbox for DM-Count analysis in the Live Capture dashboard.</p>
+    <div style="color:#6366F1;font-size:12px;font-family:'JetBrains Mono',monospace">
+    Channel: {capture_session or 'enter code from laptop'}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+    padding:14px 16px;margin-bottom:14px">
+    <div style="color:#22D3EE;font-size:11px;font-weight:700;letter-spacing:1.8px;
+    text-transform:uppercase;margin-bottom:6px">Phone Only Capture</div>
+    <div style="color:#94A3B8;font-size:13px;line-height:1.8">
+    Use your phone camera here. The laptop does not capture the image in this mode;
+    it only receives the frame and runs analysis.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not capture_session:
+        st.info("Scan the QR code from the laptop or type the laptop channel code above to start sending photos.")
+        return
+
+    _mobile_label = st.text_input(
+        "Optional label",
+        placeholder="Classroom A / Back row / Exit gate",
+        key=f"mobile_capture_label_{capture_session}",
+    )
+    _mobile_cam = st.camera_input(
+        "Take a photo and relay it to the laptop",
+        key=f"mobile_camera_{capture_session}",
+    )
+    _mobile_upload = st.file_uploader(
+        "Or upload from gallery",
+        type=["jpg", "jpeg", "png"],
+        key=f"mobile_upload_{capture_session}",
+    )
+
+    _capture_file = _mobile_cam if _mobile_cam is not None else _mobile_upload
+    if _capture_file is not None:
+        _record, _is_new = _queue_live_capture_bytes(
+            _capture_file.getvalue(),
+            capture_session,
+            source="phone-camera" if _mobile_cam is not None else "phone-upload",
+            mime_type=getattr(_capture_file, "type", "image/jpeg"),
+            label=_mobile_label,
+        )
+        if _is_new:
+            st.success(
+                f"Delivered to laptop inbox at {_format_capture_time(_record['created_at'])}."
+            )
+        else:
+            st.info("This photo is already in the laptop inbox.")
+
+        st.image(_capture_file.getvalue(), use_container_width=True)
+
+    _recent = _list_live_capture_records(capture_session, limit=4)
+    st.markdown("""
+    <div style="margin-top:18px;margin-bottom:8px;color:#94A3B8;
+    font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase">
+    Recent Relays</div>
+    """, unsafe_allow_html=True)
+
+    if not _recent:
+        st.markdown("""
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+        padding:16px;color:#64748B;font-size:13px">
+        No photos sent yet. Capture one above and then refresh the laptop inbox.</div>
+        """, unsafe_allow_html=True)
+    else:
+        for _rec in _recent:
+            _status_color = "#22D3EE" if _rec.get("status") == "pending" else "#10B981"
+            _status_text = _rec.get("status", "pending").upper()
+            st.markdown(f"""
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+            padding:12px 14px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+            <div>
+            <div style="color:#F1F5F9;font-size:13px;font-weight:600">
+            {_rec.get('label') or 'Crowd capture'}</div>
+            <div style="color:#64748B;font-size:11px;margin-top:4px">
+            {_rec.get('source', 'phone')} · {_format_capture_time(_rec.get('created_at'))}</div>
+            </div>
+            <div style="color:{_status_color};font-size:11px;font-weight:700;
+            letter-spacing:1px">{_status_text}</div>
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+    padding:16px 18px;margin-top:10px">
+    <div style="color:#6366F1;font-size:11px;font-weight:700;letter-spacing:1.8px;
+    text-transform:uppercase;margin-bottom:8px">Workflow</div>
+    <div style="color:#94A3B8;font-size:13px;line-height:1.8">
+    1. Scan the laptop QR or enter the laptop channel code.<br>
+    2. Take a photo here with the phone camera.<br>
+    3. Switch back to the laptop and analyze the new frame in <b>Live Capture</b>.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+if str(_get_query_param("mobile_capture", "")).lower() in {"1", "true", "yes"}:
+    _render_mobile_capture_portal()
+    st.stop()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1189,7 +1810,7 @@ def build_overlay(img_rgb, labels_list, grid=GRID, opacity=0.45):
 
 
 def build_density_overlay(img_rgb, density_map, opacity=0.5,
-                          expected_count=0):
+                          expected_count=0, marker_points=None):
     smoothed = gaussian_filter(density_map.astype(np.float64), sigma=8)
     if smoothed.max() > 0:
         norm = ((smoothed / smoothed.max()) * 255).astype(np.uint8)
@@ -1199,10 +1820,13 @@ def build_density_overlay(img_rgb, density_map, opacity=0.5,
     jet_rgb = cv2.cvtColor(jet, cv2.COLOR_BGR2RGB)
     blended = cv2.addWeighted(jet_rgb, opacity, img_rgb, 1-opacity, 0)
 
-    # Draw head dots on the heatmap too
-    peaks = _find_density_peaks(density_map, expected_count)
+    # Reuse the same resolved markers used by the head-marker panel.
+    if marker_points is None:
+        marker_points, _ = _resolve_head_markers(
+            img_rgb, density_map, expected_count)
+
     h = blended.shape[0]
-    for (py, px, _val) in peaks:
+    for (py, px, _val) in marker_points:
         depth_ratio = py / max(h, 1)  # 0=top(far), 1=bottom(near)
         r = max(2, int(3 + depth_ratio * 3))
         cv2.circle(blended, (px, py), r, (0, 255, 255), -1, cv2.LINE_AA)
@@ -1210,100 +1834,93 @@ def build_density_overlay(img_rgb, density_map, opacity=0.5,
     return blended
 
 
+def _marker_spacing(h, w, expected_count=0):
+    target = max(1, int(round(expected_count))) if expected_count > 0 else 6
+    avg_spacing = np.sqrt((h * w) / max(target, 1))
+    min_dist = int(np.clip(avg_spacing * 0.32, 8, 28))
+    border_margin = int(np.clip(min_dist * 0.65, 5, 18))
+    return min_dist, border_margin
+
+
 def _find_density_peaks(density_map, expected_count=0):
     """
-    Place head-position dots by sampling from the density map.
+    Extract stable, deterministic head-marker candidates from a density map.
 
-    DM-Count produces smooth density fields (not per-head peaks),
-    so we treat the density map as a probability distribution and
-    sample `expected_count` head positions from it.
-
-    Uses minimum-distance enforcement so dots don't pile up.
-    Returns list of (row, col, density_value) sorted by density descending.
+    DM-Count outputs a smooth field rather than explicit detections, so we:
+    1. smooth moderately,
+    2. find local maxima with a morphology-style max filter,
+    3. lower the threshold adaptively until enough candidates appear,
+    4. merge nearby candidates to avoid stacked markers.
     """
     h, w = density_map.shape
-    smoothed = gaussian_filter(density_map.astype(np.float64), sigma=2)
+    density = np.clip(density_map.astype(np.float64), 0, None)
+    smoothed = gaussian_filter(density, sigma=1.4)
 
     if smoothed.max() <= 1e-6 or expected_count <= 0:
-        return []
+        return [], 0
+
+    active = smoothed[smoothed > 0]
+    if active.size == 0:
+        return [], 0
 
     target = int(round(expected_count))
+    min_dist_px, border_margin = _marker_spacing(h, w, target)
+    max_window = max(3, min_dist_px)
+    if max_window % 2 == 0:
+        max_window += 1
 
-    # ── Compute minimum spacing between dots ──
-    avg_spacing = np.sqrt(h * w / max(target, 1))
-    min_dist_sq = max(3, int(avg_spacing * 0.25)) ** 2  # squared for fast checks
+    peak_max = float(smoothed.max())
+    norm = smoothed / peak_max
+    local_max = maximum_filter(norm, size=max_window, mode="nearest")
+    threshold_floor = float(np.clip(
+        active.mean() / peak_max + 0.35 * (active.std() / peak_max),
+        0.04, 0.55))
+    candidate_goal = max(10, target * 3)
 
-    # ── Build probability distribution from density map ──
-    prob = smoothed.copy()
-    prob[prob < 0] = 0
-    total = prob.sum()
-    if total <= 1e-6:
-        return []
-    prob_flat = prob.ravel() / total
+    all_candidates = []
+    for pct in [99, 97, 95, 93, 91, 89, 86, 83, 80, 76, 72, 68, 64]:
+        thr = max(threshold_floor, float(np.percentile(norm[norm > 0], pct)))
+        maxima = (norm >= (local_max - 1e-9)) & (norm >= thr)
 
-    # ── Sample positions weighted by density ──
-    # Over-sample 3x to have enough candidates after distance filtering
-    n_sample = min(target * 3, prob_flat.size)
-    rng = np.random.RandomState(42)  # deterministic for same image
-    indices = rng.choice(prob_flat.size, size=n_sample, replace=False,
-                         p=prob_flat)
+        maxima[:border_margin, :] = False
+        maxima[-border_margin:, :] = False
+        maxima[:, :border_margin] = False
+        maxima[:, -border_margin:] = False
 
-    # Convert flat indices to (row, col) and sort by density descending
-    candidates = []
-    for idx in indices:
-        r, c = divmod(int(idx), w)
-        val = float(smoothed[r, c])
-        candidates.append((r, c, val))
-    candidates.sort(key=lambda p: p[2], reverse=True)
-
-    # ── Greedy selection with minimum distance enforcement ──
-    selected = []
-    occupied = np.zeros((h, w), dtype=bool)
-    min_dist_px = max(3, int(np.sqrt(min_dist_sq)))
-
-    for (r, c, val) in candidates:
-        if len(selected) >= target:
-            break
-        # Check if too close to any existing dot
-        r_lo = max(0, r - min_dist_px)
-        r_hi = min(h, r + min_dist_px + 1)
-        c_lo = max(0, c - min_dist_px)
-        c_hi = min(w, c + min_dist_px + 1)
-        if occupied[r_lo:r_hi, c_lo:c_hi].any():
-            continue
-        selected.append((r, c, val))
-        occupied[r_lo:r_hi, c_lo:c_hi] = True
-
-    # ── If still short, do a second pass with tighter spacing ──
-    if len(selected) < target * 0.8:
-        min_dist_px2 = max(2, min_dist_px // 2)
-        occupied2 = np.zeros((h, w), dtype=bool)
-        for (r, c, _) in selected:
-            r_lo = max(0, r - min_dist_px2)
-            r_hi = min(h, r + min_dist_px2 + 1)
-            c_lo = max(0, c - min_dist_px2)
-            c_hi = min(w, c + min_dist_px2 + 1)
-            occupied2[r_lo:r_hi, c_lo:c_hi] = True
-
-        # Sample more candidates
-        n_extra = min(target * 5, prob_flat.size)
-        extra_indices = rng.choice(prob_flat.size, size=n_extra,
-                                   replace=False, p=prob_flat)
-        for idx in extra_indices:
-            if len(selected) >= target:
-                break
-            r, c = divmod(int(idx), w)
-            val = float(smoothed[r, c])
-            r_lo = max(0, r - min_dist_px2)
-            r_hi = min(h, r + min_dist_px2 + 1)
-            c_lo = max(0, c - min_dist_px2)
-            c_hi = min(w, c + min_dist_px2 + 1)
-            if occupied2[r_lo:r_hi, c_lo:c_hi].any():
+        num_labels, labels, _, _ = cv2.connectedComponentsWithStats(
+            maxima.astype(np.uint8), connectivity=8)
+        batch = []
+        for label_idx in range(1, num_labels):
+            ys, xs = np.where(labels == label_idx)
+            if ys.size == 0:
                 continue
-            selected.append((r, c, val))
-            occupied2[r_lo:r_hi, c_lo:c_hi] = True
+            vals = smoothed[ys, xs]
+            best_idx = int(np.argmax(vals))
+            py = int(ys[best_idx])
+            px = int(xs[best_idx])
+            batch.append((py, px, float(vals[best_idx])))
 
-    return selected
+        all_candidates.extend(batch)
+        all_candidates = _filter_nearby_peaks(
+            all_candidates, min_dist=max(6, int(min_dist_px * 0.8)))
+        if len(all_candidates) >= candidate_goal:
+            break
+
+    if not all_candidates:
+        flat = norm.ravel()
+        fallback_n = min(flat.size, max(12, target * 2))
+        top_indices = np.argpartition(flat, -fallback_n)[-fallback_n:]
+        for idx in top_indices:
+            py, px = divmod(int(idx), w)
+            if (py < border_margin or px < border_margin or
+                    py >= h - border_margin or
+                    px >= w - border_margin):
+                continue
+            all_candidates.append((py, px, float(smoothed[py, px])))
+
+    ranked = sorted(all_candidates, key=lambda p: p[2], reverse=True)
+    ranked = _filter_nearby_peaks(ranked, min_dist=min_dist_px)
+    return ranked, min_dist_px
 
 
 def _sort_reading_order(peaks):
@@ -1335,46 +1952,161 @@ def _sort_reading_order(peaks):
     return [p for row in rows for p in row]
 
 
-def _filter_color_false_positives(peaks, img_rgb):
+def _classify_peak_region(peak, img_rgb):
     """
-    Remove density peaks that land on non-person colors
-    (bags, furniture, walls, floors) by sampling a small
-    region around each peak in the original RGB image.
+    Score whether a density peak is likely to sit on a visible head region.
+
+    Returns:
+      ("primary" | "secondary" | "reject", score)
     """
+    py, px, _val = peak
     h, w = img_rgb.shape[:2]
-    kept = []
-    patch_r = 7  # 15x15 region (7 pixels each side)
+    patch_r = max(6, min(h, w) // 80)
+    border_margin = patch_r + 3
 
-    for (py, px, val) in peaks:
-        y0 = max(0, py - patch_r)
-        y1 = min(h, py + patch_r + 1)
-        x0 = max(0, px - patch_r)
-        x1 = min(w, px + patch_r + 1)
-        region = img_rgb[y0:y1, x0:x1]
-        if region.size == 0:
-            continue
-        r_avg = float(region[:, :, 0].mean())
-        g_avg = float(region[:, :, 1].mean())
-        b_avg = float(region[:, :, 2].mean())
+    if (py < border_margin or px < border_margin or
+            py >= h - border_margin or px >= w - border_margin):
+        return "reject", -1.0
 
-        # Skip predominantly red objects (bags, signs)
-        if r_avg > 150 and g_avg < 80 and b_avg < 80:
-            continue
-        # Skip predominantly green objects (plants, boards)
-        if g_avg > 150 and r_avg < 80:
-            continue
-        # Skip bright yellow objects (safety vests, bags)
-        if r_avg > 180 and g_avg > 180 and b_avg < 80:
-            continue
-        # Skip pure white walls/ceilings
-        if r_avg > 220 and g_avg > 220 and b_avg > 220:
-            continue
-        # Skip pure black floors/shadows
-        if r_avg < 30 and g_avg < 30 and b_avg < 30:
-            continue
+    y0 = max(0, py - patch_r)
+    y1 = min(h, py + patch_r + 1)
+    x0 = max(0, px - patch_r)
+    x1 = min(w, px + patch_r + 1)
+    region = img_rgb[y0:y1, x0:x1]
+    if region.size == 0:
+        return "reject", -1.0
 
-        kept.append((py, px, val))
-    return kept
+    gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+    hsv = cv2.cvtColor(region, cv2.COLOR_RGB2HSV)
+    gray_mean = float(gray.mean())
+    gray_std = float(gray.std())
+    sat_mean = float(hsv[:, :, 1].mean())
+    edge_strength = float(np.abs(cv2.Laplacian(gray, cv2.CV_32F)).mean())
+    r_avg = float(region[:, :, 0].mean())
+    g_avg = float(region[:, :, 1].mean())
+    b_avg = float(region[:, :, 2].mean())
+
+    if gray_mean > 228 and gray_std < 12:
+        return "reject", -0.9
+    if gray_mean < 26 and gray_std < 8 and edge_strength < 6:
+        return "reject", -0.9
+    if sat_mean < 20 and gray_std < 10 and edge_strength < 6:
+        return "reject", -0.7
+
+    if r_avg > 185 and g_avg > 175 and b_avg < 110 and edge_strength < 12:
+        return "secondary", 0.2
+    if r_avg > 175 and g_avg < 95 and b_avg < 95 and edge_strength < 14:
+        return "secondary", 0.2
+    if gray_mean < 55 and gray_std < 15 and edge_strength < 10:
+        return "secondary", 0.25
+    if gray_mean > 210 and gray_std < 18:
+        return "secondary", 0.25
+
+    quality = (
+        min(gray_std / 18.0, 1.6) +
+        min(edge_strength / 12.0, 1.6) +
+        min(sat_mean / 55.0, 1.0)
+    )
+    return "primary", quality
+
+
+def _select_peak_subset(candidates, target, min_dist=20):
+    """Greedy non-max selection over ranked marker candidates."""
+    if not candidates or target <= 0:
+        return []
+
+    ranked = sorted(
+        candidates, key=lambda item: (item["score"], item["peak"][2]),
+        reverse=True)
+    min_dist_sq = min_dist * min_dist
+    selected = []
+
+    for item in ranked:
+        py, px, _ = item["peak"]
+        too_close = False
+        for sy, sx, _ in selected:
+            if (py - sy) ** 2 + (px - sx) ** 2 < min_dist_sq:
+                too_close = True
+                break
+        if too_close:
+            continue
+        selected.append(item["peak"])
+        if len(selected) >= target:
+            break
+
+    return selected
+
+
+def _resolve_head_markers(img_rgb, density_map, expected_count=0):
+    """
+    Resolve final visible head markers from DM-Count density.
+
+    Primary markers come from strong, head-like candidates. If filtering
+    removes too many, a second pass refills from weaker-but-still-valid
+    candidates so the overlay remains useful without pretending to be truth.
+    """
+    target = max(0, int(round(expected_count)))
+    candidates, min_dist = _find_density_peaks(density_map, target)
+
+    if not candidates:
+        return [], {
+            "count": 0,
+            "target": target,
+            "incomplete": target > 0,
+            "gap": target,
+            "note": "Head-marker overlay unavailable",
+        }
+
+    primary = []
+    secondary = []
+    for peak in candidates:
+        status, score = _classify_peak_region(peak, img_rgb)
+        if status == "reject":
+            continue
+        item = {"peak": peak, "score": score}
+        if status == "primary":
+            primary.append(item)
+        else:
+            secondary.append(item)
+
+    select_target = target if target > 0 else len(primary) + len(secondary)
+    primary_selected = _select_peak_subset(primary, select_target, min_dist)
+    selected = primary_selected
+    refill_used = False
+
+    if (target > 0 and len(selected) < min(target, max(3, int(np.ceil(target * 0.8))))
+            and secondary):
+        refill_used = True
+        selected = _select_peak_subset(
+            primary + secondary, select_target,
+            max(6, int(min_dist * 0.85)))
+
+    if not selected and secondary:
+        refill_used = True
+        selected = _select_peak_subset(
+            secondary, max(1, min(select_target, len(secondary))),
+            max(6, int(min_dist * 0.85)))
+
+    selected = _sort_reading_order(selected)
+    marker_count = len(selected)
+    gap = max(0, target - marker_count) if target > 0 else 0
+    incomplete = target > 0 and gap > 1
+
+    if incomplete:
+        note = "Marker overlay incomplete"
+    elif refill_used:
+        note = "Markers recovered from weaker candidates"
+    else:
+        note = ""
+
+    return selected, {
+        "count": marker_count,
+        "target": target,
+        "gap": gap,
+        "incomplete": incomplete,
+        "refill_used": refill_used,
+        "note": note,
+    }
 
 
 def _filter_nearby_peaks(peaks, min_dist=20):
@@ -1390,130 +2122,63 @@ def _filter_nearby_peaks(peaks, min_dist=20):
     min_dist_sq = min_dist * min_dist
 
     kept = []
-    for (py, px, val) in sorted_peaks:
+    for peak in sorted_peaks:
+        py = int(peak[0])
+        px = int(peak[1])
         too_close = False
-        for (ky, kx, _) in kept:
+        for kept_peak in kept:
+            ky = int(kept_peak[0])
+            kx = int(kept_peak[1])
             if (py - ky) ** 2 + (px - kx) ** 2 < min_dist_sq:
                 too_close = True
                 break
         if not too_close:
-            kept.append((py, px, val))
+            kept.append(peak)
     return kept
 
 
-def build_headdot_overlay(img_rgb, density_map, expected_count=0):
+def build_headdot_overlay(img_rgb, density_map, expected_count=0,
+                          marker_points=None):
     """
-    Draw depth-aware numbered dots on detected heads.
+    Draw clean depth-aware dots on resolved visible head markers.
 
     - Dots sized by vertical position (perspective depth):
       bottom of image = close to camera = bigger dots
       top of image = far from camera = smaller dots
-    - Numbered in reading order (left→right, top→bottom)
-    - Clean numbered pills with dark background circles
-    - Color-filtered to remove bags/objects/walls
-    - Minimum-distance filtered to remove duplicates
+    - No numbered badges or in-image captions to keep faces visible
+    - Marker count is a visualization aid, not the final DM-Count estimate
     """
-    peaks = _find_density_peaks(density_map, expected_count)
     overlay = img_rgb.copy()
-    h, w = overlay.shape[:2]
+    h = overlay.shape[0]
 
-    if not peaks:
-        return overlay, 0
+    if marker_points is None:
+        marker_points, _ = _resolve_head_markers(
+            img_rgb, density_map, expected_count)
 
-    # Filter 1: Remove non-person colors (bags, walls, floors)
-    peaks = _filter_color_false_positives(peaks, img_rgb)
-
-    # Filter 2: Remove duplicates within 20px
-    peaks = _filter_nearby_peaks(peaks, min_dist=20)
-
-    if not peaks:
+    if not marker_points:
         return overlay, 0
 
     # Sort in reading order: top-to-bottom, left-to-right
-    peaks_sorted = _sort_reading_order(peaks)
+    peaks_sorted = _sort_reading_order(marker_points)
 
-    for idx, (py, px, val) in enumerate(peaks_sorted):
+    for (py, px, _val) in peaks_sorted:
         # Depth-aware scaling: 0.0 = top (far), 1.0 = bottom (near)
         depth_ratio = py / max(h, 1)
-        scale = 0.7 + depth_ratio * 0.6
+        scale = 0.75 + depth_ratio * 0.35
+        r_glow = max(5, int(10 * scale))
+        r_ring = max(4, int(7 * scale))
+        r_core = max(2, int(3 * scale))
 
-        # Brightness from confidence
-        max_val = peaks_sorted[0][2] if peaks_sorted else 1.0
-        brightness = 0.5 + 0.5 * (val / max(max_val, 1e-6))
-
-        # Scaled radii
-        r_glow_outer = max(4, int(18 * scale))
-        r_glow_mid   = max(3, int(14 * scale))
-        r_glow_inner = max(3, int(10 * scale))
-        r_white      = max(2, int(7 * scale))
-        r_cyan       = max(2, int(5 * scale))
-
-        # 1. OUTER GLOW RINGS (3 layers, decreasing opacity)
+        # Soft glow to make markers visible without obscuring faces.
         glow_overlay = overlay.copy()
-        cv2.circle(glow_overlay, (px, py), r_glow_outer,
+        cv2.circle(glow_overlay, (px, py), r_glow,
                    (0, 210, 255), -1, cv2.LINE_AA)
-        cv2.addWeighted(glow_overlay, 0.15, overlay, 0.85, 0, overlay)
+        cv2.addWeighted(glow_overlay, 0.16, overlay, 0.84, 0, overlay)
 
-        glow_overlay2 = overlay.copy()
-        cv2.circle(glow_overlay2, (px, py), r_glow_mid,
-                   (0, 210, 255), -1, cv2.LINE_AA)
-        cv2.addWeighted(glow_overlay2, 0.3, overlay, 0.7, 0, overlay)
-
-        glow_overlay3 = overlay.copy()
-        cv2.circle(glow_overlay3, (px, py), r_glow_inner,
-                   (6, 182, 212), -1, cv2.LINE_AA)
-        cv2.addWeighted(glow_overlay3, 0.7, overlay, 0.3, 0, overlay)
-
-        # 2. INNER DOT (white core + cyan fill)
-        cv2.circle(overlay, (px, py), r_white, (255, 255, 255), -1, cv2.LINE_AA)
-        cv2.circle(overlay, (px, py), r_cyan, (0, 180, 220), -1, cv2.LINE_AA)
-
-        # 3. NUMBER BADGE (for first 200 dots)
-        if len(peaks_sorted) <= 200:
-            num_str = str(idx + 1)
-            font = cv2.FONT_HERSHEY_DUPLEX
-            font_scale = max(0.30, 0.28 + depth_ratio * 0.12)
-            thickness = 1
-            (tw, th), baseline = cv2.getTextSize(
-                num_str, font, font_scale, thickness)
-
-            # Badge position: above dot, offset right
-            badge_x = px + r_white + max(2, int(4 * scale))
-            badge_y = py - max(4, int(8 * scale))
-            pad_x = max(3, int(4 * scale))
-            pad_y = max(2, int(3 * scale))
-
-            # 5. CONNECTING LINE from dot to badge
-            cv2.line(overlay,
-                     (px, py),
-                     (badge_x, badge_y + th // 2),
-                     (0, 180, 220), 1, cv2.LINE_AA)
-
-            # Dark navy pill background
-            cv2.rectangle(overlay,
-                          (badge_x - pad_x, badge_y - pad_y - 1),
-                          (badge_x + tw + pad_x, badge_y + th + pad_y - 1),
-                          (15, 23, 42), -1, cv2.LINE_AA)
-            # Cyan border
-            cv2.rectangle(overlay,
-                          (badge_x - pad_x, badge_y - pad_y - 1),
-                          (badge_x + tw + pad_x, badge_y + th + pad_y - 1),
-                          (0, 180, 220), 1, cv2.LINE_AA)
-            # White number text
-            cv2.putText(overlay, num_str,
-                        (badge_x, badge_y + th),
-                        font, font_scale,
-                        (255, 255, 255), thickness, cv2.LINE_AA)
-
-
-    # Summary label in corner
-    label_text = f"{len(peaks_sorted)} heads detected"
-    tw = len(label_text) * 11 + 16
-    cv2.rectangle(overlay, (8, h - 40), (tw, h - 8), (6, 10, 18), -1)
-    cv2.rectangle(overlay, (8, h - 40), (tw, h - 8), (0, 200, 255), 1)
-    cv2.putText(overlay, label_text, (14, h - 18),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 255, 255), 1, cv2.LINE_AA)
+        # Thin ring plus compact center dot.
+        cv2.circle(overlay, (px, py), r_ring, (210, 248, 255), 1, cv2.LINE_AA)
+        cv2.circle(overlay, (px, py), r_core + 1, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(overlay, (px, py), r_core, (0, 186, 222), -1, cv2.LINE_AA)
 
     return overlay, len(peaks_sorted)
 
@@ -1734,6 +2399,163 @@ def compute_dynamic_confidence(features_sc, method, km_model, xgb_model, gmm_mod
     return max(40, min(99, int(round(blended))))
 
 
+def _select_zone_labels(features, features_sc, method,
+                        km_model, xgb_model, gmm_model):
+    """Shared zone-labelling path for live and batch analysis."""
+    if method == "XGBoost" and xgb_model is not None:
+        return labels_from_xgb(features_sc, xgb_model)
+    if method == "GMM" and gmm_model is not None:
+        labels, _ = labels_from_gmm(features_sc, gmm_model)
+        return labels
+    if km_model is not None:
+        return labels_from_kmeans(features_sc, km_model)
+    return [get_label(float(f[0])) for f in features]
+
+
+def _compute_threat_band(zone_stats, crowd_count):
+    """Mirror the live-analysis threat score logic."""
+    threat_score = min(100, int(
+        zone_stats.get("Critical", 0) * 40 +
+        zone_stats.get("High", 0) * 20 +
+        zone_stats.get("Medium", 0) * 1 +
+        min(15, crowd_count / 10)
+    ))
+
+    if threat_score < 25:
+        threat_label = "MINIMAL"
+    elif threat_score < 50:
+        threat_label = "ELEVATED"
+    elif threat_score < 75:
+        threat_label = "HIGH"
+    else:
+        threat_label = "CRITICAL"
+
+    return threat_score, threat_label
+
+
+def _model_label_for_scene(crowd_count, used_face_detector=False,
+                           portrait_hybrid_mode=False):
+    if portrait_hybrid_mode:
+        return "Portrait Hybrid (Face + Density)"
+    if used_face_detector:
+        return "OpenCV Face Detector"
+    if crowd_count < 80:
+        return "DM-Count SHB"
+    if crowd_count < 200:
+        return "DM-Count SHA"
+    return "DM-Count Ensemble (SHA+SHB)"
+
+
+def _compress_img_b64(img_arr, quality=80):
+    """Compress an RGB image to JPEG base64 for lightweight session storage."""
+    ok, buf = cv2.imencode(
+        '.jpg',
+        cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR),
+        [cv2.IMWRITE_JPEG_QUALITY, quality])
+    if not ok:
+        raise ValueError("Failed to encode image")
+    return base64.b64encode(buf).decode()
+
+
+def _analyze_scene_frame(img_rgb, img_bgr, method, opacity):
+    """
+    Analyze a single scene using the same core logic as live analysis.
+
+    Returns all overlays and metrics needed by batch analysis.
+    """
+    h, w = img_rgb.shape[:2]
+
+    if LWCC_AVAILABLE and lwcc_shb is not None:
+        crowd_count, density_full = predict_density_lwcc(img_rgb)
+    else:
+        density_raw = predict_density_raw(cnn, img_bgr)
+        density_full = cv2.resize(density_raw, (w, h))
+        crowd_count = apply_calibration(float(density_raw.sum()), "small")
+
+    features = extract_features(density_full)
+    features_sc = scaler.transform(features) if scaler else features
+    labels = _select_zone_labels(features, features_sc, method, km, xgb, gmm)
+    safety_img, zone_stats = build_overlay(img_rgb, labels, GRID, opacity)
+
+    head_markers, marker_meta = _resolve_head_markers(
+        img_rgb, density_full, crowd_count)
+    density_overlay = build_density_overlay(
+        img_rgb, density_full, opacity,
+        expected_count=crowd_count,
+        marker_points=head_markers)
+    head_overlay, marker_count = build_headdot_overlay(
+        img_rgb, density_full,
+        expected_count=crowd_count,
+        marker_points=head_markers)
+
+    density_max = float(density_full.max()) if density_full.size else 0.0
+    density_coverage = (
+        (density_full > density_max * 0.1).sum() / density_full.size
+        if density_max > 1e-6 else 0.0
+    )
+    is_portrait = crowd_count < 10 and density_coverage < 0.15
+
+    used_face_detector = False
+    portrait_hybrid_mode = False
+    marker_note = marker_meta.get("note", "")
+
+    if is_portrait:
+        faces = _detect_faces_multi_pass(img_bgr)
+        face_count = len(faces)
+
+        if face_count > 0:
+            portrait_estimate = max(marker_count, face_count)
+            if face_count >= marker_count:
+                crowd_count = portrait_estimate
+                head_overlay = _draw_faces_on_image(img_rgb, faces)
+                marker_count = face_count
+                used_face_detector = True
+                marker_note = "Face-detector fallback active for portrait scene"
+            else:
+                head_overlay = _draw_faces_on_image(head_overlay, faces)
+                crowd_count = portrait_estimate
+                portrait_hybrid_mode = True
+                marker_note = (
+                    f"Portrait hybrid fallback active — face detector found "
+                    f"{face_count}, estimate retained {portrait_estimate}"
+                )
+        elif marker_count > 0:
+            crowd_count = marker_count
+            portrait_hybrid_mode = True
+            marker_note = (
+                f"Portrait marker recovery active — using {marker_count} "
+                f"visible markers"
+            )
+
+    threat_score, threat_label = _compute_threat_band(zone_stats, crowd_count)
+    confidence = compute_dynamic_confidence(
+        features_sc, method, km, xgb, gmm, crowd_count)
+
+    return {
+        "count": int(crowd_count),
+        "density_full": density_full,
+        "features": features,
+        "features_sc": features_sc,
+        "labels": labels,
+        "zone_stats": zone_stats,
+        "confidence": confidence,
+        "threat_score": threat_score,
+        "threat": threat_label,
+        "safety_img": safety_img,
+        "density_overlay": density_overlay,
+        "head_overlay": head_overlay,
+        "marker_count": int(marker_count),
+        "marker_note": marker_note,
+        "used_face_detector": used_face_detector,
+        "portrait_hybrid_mode": portrait_hybrid_mode,
+        "model": _model_label_for_scene(
+            crowd_count,
+            used_face_detector=used_face_detector,
+            portrait_hybrid_mode=portrait_hybrid_mode,
+        ),
+    }
+
+
 def risk_grid(density_map, grid=GRID):
     h, w   = density_map.shape
     ph, pw = h // grid, w // grid
@@ -1759,12 +2581,21 @@ for _k, _v in [
     ("rl_prev_stats",     None),
     ("last_zone_stats",   {"Low":64,"Medium":0,"High":0,"Critical":0}),
     ("rl_last_result",    None),
+    ("batch_results",     []),
+    ("batch_results_signature", None),
+    ("batch_summary",     None),
+    ("share_ngrok_url",   ""),
+    ("live_capture_session_id", None),
+    ("live_capture_selected_id", None),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
 if st.session_state["rl_agent"] is None:
     st.session_state["rl_agent"] = EvacuationAgent()
+
+if not st.session_state["live_capture_session_id"]:
+    st.session_state["live_capture_session_id"] = _new_capture_session_id()
 
 # ═══════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -1900,13 +2731,18 @@ font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10p
 
     ngrok_url = st.text_input(
         "ngrok URL",
+        value=st.session_state.get("share_ngrok_url", ""),
         placeholder="https://abc123.ngrok-free.app",
-        help="Paste your ngrok URL to generate QR code"
+        help="Paste your ngrok URL to generate a phone capture portal QR code"
     )
+    st.session_state["share_ngrok_url"] = ngrok_url.strip()
 
     if ngrok_url and ngrok_url.startswith("https://"):
-        import urllib.parse
-        _qr_data = urllib.parse.quote(ngrok_url)
+        _capture_portal_url = _build_mobile_capture_url(
+            ngrok_url,
+            st.session_state["live_capture_session_id"],
+        )
+        _qr_data = urllib.parse.quote(_capture_portal_url)
         _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
 
         st.markdown(f"""
@@ -1916,9 +2752,11 @@ font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10p
         border-radius:8px">
         <div style="color:#6366F1;font-size:10px;
         font-family:monospace;letter-spacing:1px;
-        margin-top:10px;word-break:break-all">{ngrok_url}</div>
+        margin-top:10px;word-break:break-all">{_capture_portal_url}</div>
         <div style="color:#94A3B8;font-size:10px;
-        margin-top:6px">Scan to open on phone</div>
+        margin-top:6px">Scan to open phone capture portal</div>
+        <div style="color:#64748B;font-size:10px;margin-top:4px">
+        Channel: {st.session_state["live_capture_session_id"]}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2205,7 +3043,7 @@ with tab1:
                 box-shadow:0 6px 32px rgba(99,102,241,0.2)">
                 <div style="color:#94A3B8;font-size:10px;font-weight:700;
                 letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
-                PERSONS DETECTED</div>
+                ESTIMATED CROWD</div>
                 <div id="present-count" style="font-size:80px;font-weight:900;color:#F1F5F9;
                 font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;
                 line-height:1;text-shadow:0 0 40px rgba(99,102,241,0.3)">0</div>
@@ -2361,7 +3199,7 @@ with tab1:
                 f'<div style="font-size:2.5rem;color:white;margin-top:10px;">'
                 f'{label}</div>'
                 f'<div style="font-size:1.2rem;color:rgba(255,255,255,0.55);'
-                f'margin-top:6px;font-weight:400">people detected</div></div>',
+                f'margin-top:6px;font-weight:400">estimated crowd</div></div>',
                 unsafe_allow_html=True)
 
         else:
@@ -2384,14 +3222,19 @@ with tab1:
 
             # (threat score is calculated at the gauge render site below)
 
+            _head_markers, _marker_meta = _resolve_head_markers(
+                _img_rgb, _density_full, _crowd_count)
+
             density_overlay = build_density_overlay(
                 _img_rgb, _density_full, opacity,
-                expected_count=_crowd_count)
+                expected_count=_crowd_count,
+                marker_points=_head_markers)
 
-            # Head-dot overlay: dots on each detected head
+            # Head-marker overlay: approximate visible head locations
             headdot_overlay, _dot_count = build_headdot_overlay(
                 _img_rgb, _density_full,
-                expected_count=_crowd_count)
+                expected_count=_crowd_count,
+                marker_points=_head_markers)
 
             # save to history
             thumb = cv2.resize(_img_rgb, (80, 80))
@@ -2416,50 +3259,38 @@ with tab1:
             )
 
             _used_face_detector = False
+            _portrait_hybrid_mode = False
+            _marker_note = _marker_meta.get("note", "")
 
             if _is_portrait:
-                # ── OpenCV face detection fallback ─────────────
-                _gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-                _faces = face_cascade.detectMultiScale(
-                    _gray, scaleFactor=1.1,
-                    minNeighbors=5, minSize=(30, 30))
+                _faces = _detect_faces_multi_pass(img_bgr)
                 _face_count = len(_faces)
 
-                if _face_count > _crowd_count:
-                    _crowd_count = _face_count
-
-                # Build face-rectangle overlay instead of head dots
-                _face_overlay = _img_rgb.copy()
-                for (fx, fy, fw, fh) in _faces:
-                    cv2.rectangle(_face_overlay,
-                                 (fx, fy),
-                                 (fx + fw, fy + fh),
-                                 (0, 255, 255), 2, cv2.LINE_AA)
-                    # Small label above each face
-                    cv2.putText(_face_overlay, "Face",
-                                (fx, fy - 6),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.4,
-                                (0, 255, 255), 1, cv2.LINE_AA)
-
-                # Summary label
-                _fh, _fw = _face_overlay.shape[:2]
-                _fl_text = f"{_face_count} face(s) detected"
-                _fl_tw = len(_fl_text) * 11 + 16
-                cv2.rectangle(_face_overlay,
-                              (8, _fh - 40), (_fl_tw, _fh - 8),
-                              (6, 10, 18), -1)
-                cv2.rectangle(_face_overlay,
-                              (8, _fh - 40), (_fl_tw, _fh - 8),
-                              (0, 200, 255), 1)
-                cv2.putText(_face_overlay, _fl_text,
-                            (14, _fh - 18),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            (0, 255, 255), 1, cv2.LINE_AA)
-
-                # Replace head-dot overlay & counts
-                headdot_overlay = _face_overlay
-                _dot_count = _face_count
-                _used_face_detector = True
+                if _face_count > 0:
+                    _portrait_estimate = max(_dot_count, _face_count)
+                    if _face_count >= _dot_count:
+                        _crowd_count = _portrait_estimate
+                        headdot_overlay = _draw_faces_on_image(_img_rgb, _faces)
+                        _dot_count = _face_count
+                        _used_face_detector = True
+                        _marker_note = "Face-detector fallback active for portrait scene"
+                    else:
+                        headdot_overlay = _draw_faces_on_image(
+                            headdot_overlay, _faces)
+                        _crowd_count = _portrait_estimate
+                        _portrait_hybrid_mode = True
+                        _marker_note = (
+                            f"Portrait hybrid fallback active — face detector "
+                            f"found {_face_count}, estimate retained "
+                            f"{_portrait_estimate}"
+                        )
+                elif _dot_count > 0:
+                    _crowd_count = _dot_count
+                    _portrait_hybrid_mode = True
+                    _marker_note = (
+                        f"Portrait marker recovery active — using "
+                        f"{_dot_count} visible markers"
+                    )
 
                 st.markdown("""
 <div style="background:rgba(245,158,11,0.1);
@@ -2467,7 +3298,7 @@ border:1px solid #F59E0B;border-left:4px solid #F59E0B;
 border-radius:10px;padding:14px 20px;margin:8px 0;
 color:#FCD34D;font-size:13px;font-weight:600">
 ⚠️ PORTRAIT/CLOSE-UP DETECTED — 
-Switched to <b>OpenCV Face Detector</b>. 
+Using <b>portrait-aware recovery</b> with face detection and density cues. 
 DM-Count is optimized for crowd scenes 
 (20+ people, overhead or eye-level view).
 </div>
@@ -2476,7 +3307,9 @@ DM-Count is optimized for crowd scenes
             # ── Analysis Complete banner ───────────────────────
             _banner_conf = compute_dynamic_confidence(
                 _features_sc, method, km, xgb, gmm, _crowd_count)
-            if _used_face_detector:
+            if _portrait_hybrid_mode:
+                _banner_model = "Portrait Hybrid (Face + Density)"
+            elif _used_face_detector:
                 _banner_model = "OpenCV Face Detector"
             elif _crowd_count < 80:
                 _banner_model = "DM-Count SHB"
@@ -2485,10 +3318,41 @@ DM-Count is optimized for crowd scenes
             else:
                 _banner_model = "DM-Count Ensemble (SHA+SHB)"
 
+            if _portrait_hybrid_mode:
+                _banner_label = "ESTIMATED GROUP"
+                _banner_primary = _crowd_count
+                _banner_secondary = (
+                    f"Portrait markers: {_dot_count} · face boxes + density"
+                )
+                _banner_note_block = (
+                    '<div style="margin-top:14px;padding-top:12px;'
+                    'border-top:1px solid #334155;color:#F59E0B;'
+                    'font-size:10px;font-family:monospace;line-height:1.45">'
+                    f'{_marker_note}</div>'
+                    if _marker_note else ""
+                )
+            elif _used_face_detector:
+                _banner_label = "FACES DETECTED"
+                _banner_primary = _dot_count
+                _banner_secondary = f"OpenCV face markers: {_dot_count}"
+                _banner_note_block = ""
+            else:
+                _banner_label = "ESTIMATED CROWD"
+                _banner_primary = _crowd_count
+                _banner_secondary = f"Visible head markers: {_dot_count}"
+                _banner_note_block = (
+                    '<div style="margin-top:14px;padding-top:12px;'
+                    'border-top:1px solid #334155;color:#F59E0B;'
+                    'font-size:10px;font-family:monospace;line-height:1.45">'
+                    f'{_marker_note}</div>'
+                    if _marker_note else ""
+                )
+            _banner_height = 154 if _banner_note_block else 128
+
             st.components.v1.html(f"""
             <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:20px 24px;margin-bottom:24px;
-            overflow:hidden;position:relative;">
+            overflow:hidden;position:relative;min-height:102px;">
 
             <div style="position:absolute;top:0;left:0;height:3px;
             width:100%;background:#334155;">
@@ -2506,23 +3370,23 @@ DM-Count is optimized for crowd scenes
             font-family:monospace;letter-spacing:1px">ANALYSIS COMPLETE</div>
             </div>
 
-            <div style="display:flex;align-items:center;
-            justify-content:space-between">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+            align-items:start">
 
-            <div style="flex:1;text-align:center;border-right:1px solid #334155;
-            padding-right:20px">
+            <div style="text-align:center;border-right:1px solid #334155;
+            padding:0 20px;min-height:58px">
             <div style="color:#94A3B8;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
-            PERSONS DETECTED</div>
+            {_banner_label}</div>
             <div style="color:#6366F1;font-size:32px;font-weight:900;
             font-family:monospace;text-shadow:0 0 20px rgba(99,102,241,0.2)">
-            {_dot_count}</div>
+            {_banner_primary}</div>
             <div style="color:#64748B;font-size:10px;font-family:monospace;
-            margin-top:2px">DM-Count estimate: {_crowd_count}</div>
+            margin-top:2px">{_banner_secondary}</div>
             </div>
 
-            <div style="flex:1;text-align:center;border-right:1px solid #334155;
-            padding:0 20px">
+            <div style="text-align:center;border-right:1px solid #334155;
+            padding:0 20px;min-height:58px">
             <div style="color:#94A3B8;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             MODEL</div>
@@ -2530,15 +3394,15 @@ DM-Count is optimized for crowd scenes
             font-family:monospace">{_banner_model}</div>
             </div>
 
-            <div style="flex:1;text-align:center;padding-left:20px">
+            <div style="text-align:center;padding:0 20px;min-height:58px">
             <div style="color:#94A3B8;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             CONFIDENCE</div>
             <div style="color:#10B981;font-size:14px;font-weight:700;
             font-family:monospace">{_banner_conf}%</div>
             </div>
-
             </div>
+            {_banner_note_block}
 
             <style>
             @keyframes fill {{
@@ -2549,7 +3413,7 @@ DM-Count is optimized for crowd scenes
             }}
             </style>
             </div>
-            """, height=110)
+            """, height=_banner_height)
 
             # ── Row 1: 3 image panels ─────────────────────────
             def _to_panel_b64(img_arr):
@@ -2567,12 +3431,38 @@ DM-Count is optimized for crowd scenes
             _panel1_title = (
                 f"FACE DETECTION — {_dot_count} FACES"
                 if _used_face_detector
-                else f"HEAD DETECTION — {_dot_count} DOTS"
+                else (
+                    f"PORTRAIT MARKERS — {_dot_count}"
+                    if _portrait_hybrid_mode
+                    else f"HEAD MARKERS — {_dot_count}"
+                )
             )
             _panel1_sub = (
                 f"Each cyan rectangle = 1 detected face · {w}×{h}"
                 if _used_face_detector
-                else f"Each cyan dot = 1 detected person · {w}×{h}"
+                else (
+                    f"Approximate portrait markers · estimate {_crowd_count}"
+                    if _portrait_hybrid_mode
+                    else (
+                        f"Approximate visible head markers · DM-Count estimate {_crowd_count}"
+                    )
+                )
+            )
+            _panel1_note = (
+                ""
+                if _used_face_detector or not _marker_note
+                else (
+                    '<div style="padding:0 16px 10px;background:#0F172A;'
+                    'color:#F59E0B;font-size:11px">'
+                    + (
+                        'Portrait markers are approximate and may combine face '
+                        'boxes with density recovery.'
+                        if _portrait_hybrid_mode else
+                        'Some people may be counted from density without a clean '
+                        'visible marker.'
+                    )
+                    + '</div>'
+                )
             )
 
             c1, c2, c3 = st.columns(3)
@@ -2589,6 +3479,7 @@ DM-Count is optimized for crowd scenes
                 style="width:100%;display:block">
                 <div style="padding:8px 16px;background:#0F172A;
                 color:#64748B;font-size:11px">{_panel1_sub}</div>
+                {_panel1_note}
                 </div>
                 """, unsafe_allow_html=True)
             with c2:
@@ -3111,7 +4002,7 @@ DM-Count is optimized for crowd scenes
                 f'<div style="font-size:2.5rem;color:white;margin-top:10px;">'
                 f'{label}</div>'
                 f'<div style="font-size:1.2rem;color:rgba(255,255,255,0.55);'
-                f'margin-top:6px;font-weight:400">people detected</div></div>',
+                f'margin-top:6px;font-weight:400">estimated crowd</div></div>',
                 unsafe_allow_html=True)
         else:
             st.markdown("""
@@ -3884,30 +4775,368 @@ AWAITING FIRST SCAN</span>
 # ═══════════════════════════════════════════════════════════════
 
 with tab4:
-    st.markdown("""
-<div style="text-align:center;padding:80px 20px 70px;
-animation:floatUp 0.6s ease;
-background:radial-gradient(ellipse 500px 250px at center 100px,
-rgba(99,102,241,0.06), transparent)">
+    if "live_capture_channel_input" not in st.session_state:
+        st.session_state["live_capture_channel_input"] = (
+            st.session_state["live_capture_session_id"]
+        )
 
-<div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-filter:drop-shadow(0 4px 20px rgba(99,102,241,0.25))">📱</div>
+    _capture_session_input = st.text_input(
+        "Capture channel",
+        key="live_capture_channel_input",
+        help="Phone and laptop must use the same channel to exchange captures.",
+    )
+    _capture_session = _normalize_capture_session_id(_capture_session_input)
+    if _capture_session != st.session_state["live_capture_session_id"]:
+        st.session_state["live_capture_session_id"] = _capture_session
+        st.session_state["live_capture_selected_id"] = None
 
-<div style="font-size:11px;font-weight:700;color:#6366F1;
-letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
-LIVE CAPTURE</div>
+    _share_url = st.session_state.get("share_ngrok_url", "").strip()
+    _capture_portal_url = _build_mobile_capture_url(_share_url, _capture_session)
 
-<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
-letter-spacing:-0.02em">Coming Soon</h2>
+    st.markdown(f"""
+    <div style="background:linear-gradient(135deg,#1E293B 0%,#111827 100%);
+    border:1px solid #334155;border-left:4px solid #22D3EE;border-radius:14px;
+    padding:20px 24px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+    <div style="max-width:760px">
+    <div style="color:#22D3EE;font-size:11px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;margin-bottom:10px">Live Capture Relay</div>
+    <div style="color:#F1F5F9;font-size:28px;font-weight:800;letter-spacing:-0.03em">
+    Phone Captures. Laptop Analyzes.</div>
+    <div style="color:#94A3B8;font-size:14px;line-height:1.8;margin-top:10px">
+    Use your phone camera to capture classroom or crowd images. The frame is
+    relayed to this laptop, and all counting, overlays, safety zoning, and
+    threat analysis run here.</div>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;
+    border-radius:999px;background:rgba(16,185,129,0.10);
+    border:1px solid rgba(16,185,129,0.28);color:#10B981;font-size:11px;
+    font-weight:700;letter-spacing:1.4px;text-transform:uppercase">
+    Phone Relay Only</div>
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-<p style="color:#94A3B8;font-size:14px;max-width:440px;
-margin:14px auto 0;line-height:1.8">
-Real-time camera feed analysis will be available in a future update.
-Use the <span style="color:#3B82F6;font-weight:600">Live Analysis</span> tab
-for image-based analysis.</p>
+    _lc_top1, _lc_top2 = st.columns([1.05, 0.95])
+    with _lc_top1:
+        st.markdown(f"""
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+        padding:18px 20px;min-height:248px">
+        <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+        text-transform:uppercase;margin-bottom:10px">Channel Pairing</div>
+        <div style="background:#0F172A;border:1px solid #334155;border-radius:12px;
+        padding:16px 18px;margin-bottom:16px">
+        <div style="color:#64748B;font-size:10px;font-weight:700;letter-spacing:1.6px;
+        text-transform:uppercase">Channel Code</div>
+        <div style="color:#F1F5F9;font-size:28px;font-weight:800;
+        font-family:'JetBrains Mono',monospace;letter-spacing:-0.02em;margin-top:8px">
+        {_capture_session.upper()}</div>
+        <div style="color:#94A3B8;font-size:12px;line-height:1.7;margin-top:8px">
+        Use this same code on the phone if you open the portal manually.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:10px">
+        <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
+        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">1. Open On Phone</div>
+        <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
+        Scan the QR code, or open the portal link and enter the channel code.</div>
+        </div>
+        <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
+        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">2. Capture</div>
+        <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
+        Take the crowd photo on the phone. The laptop does not capture anything.</div>
+        </div>
+        <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
+        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">3. Analyze Here</div>
+        <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
+        Refresh the inbox and run analysis on the newest frame on this laptop.</div>
+        </div>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-</div>
-""", unsafe_allow_html=True)
+    with _lc_top2:
+        if _capture_portal_url:
+            _capture_qr = (
+                "https://api.qrserver.com/v1/create-qr-code/?size=180x180"
+                f"&data={urllib.parse.quote(_capture_portal_url)}"
+                "&bgcolor=0C1220&color=06B6D4&qzone=2"
+            )
+            st.markdown(f"""
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+            padding:18px;text-align:center;min-height:248px">
+            <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+            text-transform:uppercase;margin-bottom:12px">Phone Capture Portal</div>
+            <img src="{_capture_qr}" style="width:180px;height:180px;border-radius:12px">
+            <div style="color:#94A3B8;font-size:11px;margin-top:12px;line-height:1.7">
+            Scan on phone to open camera mode directly.</div>
+            <div style="color:#64748B;font-size:10px;font-family:'JetBrains Mono',monospace;
+            margin-top:10px;word-break:break-all">{_capture_portal_url}</div>
+            <div style="color:#22D3EE;font-size:11px;font-family:'JetBrains Mono',monospace;
+            margin-top:10px">Code: {_capture_session.upper()}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+            padding:18px;min-height:248px;display:flex;align-items:center">
+            <div>
+            <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+            text-transform:uppercase;margin-bottom:12px">Phone Capture Portal</div>
+            <div style="color:#F59E0B;font-size:14px;font-weight:600;line-height:1.8">
+            Add your ngrok URL in the sidebar to generate a phone QR code and
+            remote capture link for this laptop.</div>
+            <div style="color:#22D3EE;font-size:12px;font-family:'JetBrains Mono',monospace;
+            margin-top:12px">Manual code: {_capture_session.upper()}</div>
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    _lc_actions = st.columns([1.0, 1.0, 1.2])
+    if _lc_actions[0].button("Refresh Inbox", key="live_capture_refresh", use_container_width=True):
+        pass
+    if _lc_actions[1].button("New Channel Code", key="live_capture_new_channel", use_container_width=True):
+        _new_session_id = _new_capture_session_id()
+        st.session_state["live_capture_session_id"] = _new_session_id
+        st.session_state["live_capture_channel_input"] = _new_session_id
+        st.session_state["live_capture_selected_id"] = None
+        st.rerun()
+    if _lc_actions[2].button("Clear Inbox", key="live_capture_clear_channel", use_container_width=True):
+        _clear_live_capture_session(_capture_session)
+        st.session_state["live_capture_selected_id"] = None
+        st.rerun()
+
+    _capture_records = _list_live_capture_records(_capture_session)
+    _pending_records = [
+        r for r in _capture_records
+        if r.get("status") != "analyzed"
+    ]
+    _analyzed_records = [
+        r for r in _capture_records
+        if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)
+    ]
+
+    if not _capture_records:
+        st.markdown("""
+        <div style="text-align:center;padding:72px 20px 60px;
+        background:radial-gradient(ellipse 500px 240px at center 110px,
+        rgba(34,211,238,0.06), transparent)">
+        <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
+        filter:drop-shadow(0 4px 20px rgba(34,211,238,0.25))">📡</div>
+        <div style="font-size:11px;font-weight:700;color:#22D3EE;
+        letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
+        Live Capture Relay</div>
+        <h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
+        letter-spacing:-0.02em">Waiting For Phone Photos</h2>
+        <p style="color:#94A3B8;font-size:14px;max-width:540px;
+        margin:14px auto 0;line-height:1.8">
+        Scan the QR code from a phone, capture a scene, then return here and
+        refresh the inbox. You can also open the phone portal manually and enter the channel code.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        _m1, _m2, _m3, _m4 = st.columns(4)
+        _m1.metric("Inbox Frames", len(_capture_records))
+        _m2.metric("Pending", len(_pending_records))
+        _m3.metric("Analyzed", len(_analyzed_records))
+        _m4.metric(
+            "Latest",
+            _format_capture_time(_capture_records[0]["created_at"])
+            if _capture_records else "—",
+        )
+
+        _selector_options = []
+        for _rec in _capture_records:
+            _status = _rec.get("status", "pending").upper()
+            _label = _rec.get("label") or _rec.get("source", "capture")
+            _selector_options.append(
+                (
+                    _rec["id"],
+                    f"{_format_capture_time(_rec['created_at'])} · {_label} · {_status}"
+                )
+            )
+
+        _selected_id = st.session_state.get("live_capture_selected_id")
+        _option_ids = [_opt_id for _opt_id, _opt_label in _selector_options]
+        if _selected_id not in _option_ids:
+            _selected_id = _option_ids[0]
+        _selected_index = _option_ids.index(_selected_id)
+        _workspace_left, _workspace_right = st.columns([0.82, 1.18])
+
+        with _workspace_left:
+            st.markdown("""
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+            padding:14px 16px;margin-top:12px">
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;letter-spacing:2px;
+            text-transform:uppercase;margin-bottom:10px">Inbox Queue</div>
+            </div>
+            """, unsafe_allow_html=True)
+            _selected_id = st.selectbox(
+                "Choose a relayed frame",
+                options=_option_ids,
+                index=_selected_index,
+                format_func=lambda _id: next(
+                    _label for _opt_id, _label in _selector_options if _opt_id == _id
+                ),
+                key="live_capture_selector",
+            )
+            st.session_state["live_capture_selected_id"] = _selected_id
+            _selected_record = next(
+                rec for rec in _capture_records if rec["id"] == _selected_id
+            )
+
+            _queue_rows = ""
+            for _idx, _rec in enumerate(_capture_records[:8]):
+                _row_bg = "#1E293B" if _idx % 2 == 0 else "#263445"
+                _status = _rec.get("status", "pending")
+                _status_color = "#10B981" if _status == "analyzed" else "#22D3EE"
+                _analysis = _rec.get("analysis") or {}
+                _queue_rows += f"""
+                <tr style="background:{_row_bg};border-bottom:1px solid #334155">
+                <td style="padding:10px 12px;color:#F1F5F9;font-size:12px;font-weight:600">
+                {_rec.get('label') or 'Crowd capture'}</td>
+                <td style="padding:10px 12px;color:#94A3B8;font-size:12px">
+                {_format_capture_time(_rec.get('created_at'))}</td>
+                <td style="padding:10px 12px;color:{_status_color};font-size:11px;font-weight:700;letter-spacing:1px">
+                {_status.upper()}</td>
+                <td style="padding:10px 12px;color:#F1F5F9;font-size:12px;text-align:center">
+                {_analysis.get('count', '—')}</td>
+                </tr>
+                """
+
+            st.markdown(f"""
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+            overflow:hidden;margin-top:10px">
+            <table style="width:100%;border-collapse:collapse;font-family:'Inter',sans-serif">
+            <thead>
+            <tr style="background:#0F172A">
+            <th style="padding:10px 12px;text-align:left;color:#64748B;font-size:10px;letter-spacing:1.5px">LABEL</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748B;font-size:10px;letter-spacing:1.5px">TIME</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748B;font-size:10px;letter-spacing:1.5px">STATUS</th>
+            <th style="padding:10px 12px;text-align:center;color:#64748B;font-size:10px;letter-spacing:1.5px">COUNT</th>
+            </tr>
+            </thead>
+            <tbody>{_queue_rows}</tbody>
+            </table>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button("Analyze Latest Pending", key="live_capture_analyze_latest", use_container_width=True):
+                if _pending_records:
+                    _analyze_live_capture_record(_pending_records[0], method, opacity)
+                    st.success("Latest pending frame analyzed.")
+                    st.rerun()
+                else:
+                    st.info("No pending captures to analyze.")
+            if st.button("Analyze All Pending", key="live_capture_analyze_all", use_container_width=True):
+                if _pending_records:
+                    _queue_bar = st.progress(0.0, text="Analyzing live capture queue...")
+                    for _idx, _record in enumerate(_pending_records, start=1):
+                        _queue_bar.progress(
+                            _idx / len(_pending_records),
+                            text=f"Analyzing {_record.get('label') or _record['id'][:8]} ({_idx}/{len(_pending_records)})",
+                        )
+                        _analyze_live_capture_record(_record, method, opacity)
+                    _queue_bar.empty()
+                    st.success(f"Analyzed {len(_pending_records)} queued frame(s).")
+                    st.rerun()
+                else:
+                    st.info("The queue is already clear.")
+
+        with _workspace_right:
+            _selected_analysis = _selected_record.get("analysis")
+            _status_color = "#10B981" if _selected_record.get("status") == "analyzed" else "#22D3EE"
+            st.markdown(f"""
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+            padding:14px 18px;margin-top:12px;display:flex;flex-wrap:wrap;gap:18px;align-items:center">
+            <span style="color:#F1F5F9;font-size:13px;font-weight:600">
+            {_selected_record.get('label') or 'Live capture'}</span>
+            <span style="color:#94A3B8;font-size:12px">Source: {_selected_record.get('source', 'phone')}</span>
+            <span style="color:#94A3B8;font-size:12px">Captured: {_format_capture_time(_selected_record.get('created_at'))}</span>
+            <span style="color:{_status_color};font-size:12px;font-weight:700;letter-spacing:1px">
+            {_selected_record.get('status', 'pending').upper()}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button("Analyze Selected Frame", key="live_capture_analyze_selected", use_container_width=True):
+                _analyze_live_capture_record(_selected_record, method, opacity)
+                st.success("Selected frame analyzed.")
+                st.rerun()
+
+            _preview_bytes = _read_capture_bytes(_selected_record)
+            if not isinstance(_selected_analysis, dict):
+                st.image(_preview_bytes, caption="Original capture", use_container_width=True)
+                st.info("This frame is waiting for analysis on the laptop.")
+            else:
+                _info_cols = st.columns(5)
+                _info_cols[0].metric("Estimated Crowd", _selected_analysis["count"])
+                _info_cols[1].metric("Markers", _selected_analysis["marker_count"])
+                _info_cols[2].metric("Threat", _selected_analysis["threat"])
+                _info_cols[3].metric("Confidence", f"{_selected_analysis['confidence']}%")
+                _info_cols[4].metric("Time", f"{_selected_analysis['time_s']}s")
+
+                st.markdown(f"""
+                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                padding:12px 16px;margin:8px 0 14px;display:flex;flex-wrap:wrap;gap:16px">
+                <span style="color:#94A3B8;font-size:12px">Model: <span style="color:#F1F5F9">{_selected_analysis.get('model', '—')}</span></span>
+                <span style="color:#94A3B8;font-size:12px">Method: <span style="color:#F1F5F9">{_selected_analysis.get('method', method)}</span></span>
+                <span style="color:#94A3B8;font-size:12px">Opacity: <span style="color:#F1F5F9">{_selected_analysis.get('opacity', opacity):.2f}</span></span>
+                <span style="color:#94A3B8;font-size:12px">Threat score: <span style="color:#F1F5F9">{_selected_analysis.get('threat_score', 0)}%</span></span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if _selected_analysis.get("marker_note"):
+                    st.markdown(f"""
+                    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);
+                    border-radius:10px;padding:10px 14px;margin:0 0 14px 0;
+                    color:#F59E0B;font-size:11px">{_selected_analysis['marker_note']}</div>
+                    """, unsafe_allow_html=True)
+
+                _img_c1, _img_c2 = st.columns(2)
+                with _img_c1:
+                    st.image(_preview_bytes, caption="Original Capture", use_container_width=True)
+                    st.image(
+                        base64.b64decode(_selected_analysis["head_overlay_b64"]),
+                        caption=(
+                            "Portrait Markers"
+                            if _selected_analysis.get("portrait_hybrid_mode")
+                            else ("Face Markers" if _selected_analysis.get("used_face_detector")
+                                  else "Head Markers")
+                        ),
+                        use_container_width=True,
+                    )
+                with _img_c2:
+                    st.image(
+                        base64.b64decode(_selected_analysis["density_overlay_b64"]),
+                        caption="Density Heatmap",
+                        use_container_width=True,
+                    )
+                    _analysis_method = _selected_analysis.get("method", method)
+                    st.image(
+                        base64.b64decode(_selected_analysis["safety_img_b64"]),
+                        caption=f"Safety Zone Map — {_analysis_method}",
+                        use_container_width=True,
+                    )
+
+                _zs = _selected_analysis["zone_stats"]
+                _zone_cols = st.columns(4)
+                for _col, (_lbl, _val, _clr) in zip(
+                        _zone_cols,
+                        [
+                            ("LOW", _zs["Low"], "#10B981"),
+                            ("MEDIUM", _zs["Medium"], "#F59E0B"),
+                            ("HIGH", _zs["High"], "#EF4444"),
+                            ("CRITICAL", _zs["Critical"], "#FF1744"),
+                        ]):
+                    with _col:
+                        st.markdown(f"""
+                        <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
+                        padding:14px;text-align:center;border-top:2px solid {_clr}">
+                        <div style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:1.2px;
+                        margin-bottom:4px">{_lbl}</div>
+                        <div style="font-size:28px;font-weight:900;color:{_clr};
+                        font-family:'JetBrains Mono',monospace">{_val}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -3947,6 +5176,19 @@ with tab5:
     )
 
     if batch_files and len(batch_files) > 0:
+        _batch_signature = (
+            method,
+            round(float(opacity), 2),
+            tuple(
+                (bf.name, getattr(bf, "size", None))
+                for bf in batch_files
+            )
+        )
+        if st.session_state["batch_results_signature"] != _batch_signature:
+            st.session_state["batch_results_signature"] = _batch_signature
+            st.session_state["batch_results"] = []
+            st.session_state["batch_summary"] = None
+
         st.markdown(f"""
         <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
         padding:12px 20px;margin:8px 0 16px 0;display:flex;align-items:center;gap:10px">
@@ -3958,111 +5200,141 @@ with tab5:
         if st.button("▶ Run Batch Analysis", key="run_batch", use_container_width=True):
 
             batch_results = []
+            skipped_files = []
             progress_bar = st.progress(0, text="Processing batch...")
             _batch_total_start = time.time()
 
-            for idx, bf in enumerate(batch_files):
+            for idx, bf in enumerate(batch_files, start=1):
                 progress_bar.progress(
-                    (idx) / len(batch_files),
-                    text=f"Analyzing {bf.name} ({idx+1}/{len(batch_files)})..."
+                    (idx - 1) / len(batch_files),
+                    text=f"Analyzing {bf.name} ({idx}/{len(batch_files)})..."
                 )
 
                 _b_t0 = time.time()
-                raw_bytes = np.asarray(bytearray(bf.read()), dtype=np.uint8)
-                bf.seek(0)
                 try:
+                    raw_bytes = np.frombuffer(bf.getvalue(), dtype=np.uint8)
                     _b_img_bgr = cv2.imdecode(raw_bytes, cv2.IMREAD_COLOR)
                     if _b_img_bgr is None:
                         raise ValueError("Decode returned None")
                     _b_img_rgb = cv2.cvtColor(_b_img_bgr, cv2.COLOR_BGR2RGB)
-                    _b_h, _b_w = _b_img_rgb.shape[:2]
                 except Exception as _b_dec_err:
-                    st.warning(f"⚠️ Skipped **{bf.name}** — corrupted or unreadable ({_b_dec_err})")
+                    skipped_files.append({
+                        "name": bf.name,
+                        "reason": f"Unreadable image ({_b_dec_err})",
+                    })
+                    progress_bar.progress(
+                        idx / len(batch_files),
+                        text=f"Skipped {bf.name} ({idx}/{len(batch_files)})"
+                    )
                     continue
 
-                if LWCC_AVAILABLE and lwcc_shb is not None:
-                    _b_count, _b_density = predict_density_lwcc(_b_img_rgb)
-                else:
-                    _b_density_raw = predict_density_raw(cnn, _b_img_bgr)
-                    _b_density = cv2.resize(_b_density_raw, (_b_w, _b_h))
-                    _b_count = apply_calibration(float(_b_density_raw.sum()), "small")
+                try:
+                    _b_result = _analyze_scene_frame(
+                        _b_img_rgb, _b_img_bgr, method, opacity)
+                except Exception as _b_analysis_err:
+                    skipped_files.append({
+                        "name": bf.name,
+                        "reason": f"Analysis failed ({_b_analysis_err})",
+                    })
+                    progress_bar.progress(
+                        idx / len(batch_files),
+                        text=f"Skipped {bf.name} ({idx}/{len(batch_files)})"
+                    )
+                    continue
 
-                # ── Real zone classification (same pipeline as Live Analysis) ──
-                _b_feats = extract_features(_b_density)
-                _b_feats_sc = scaler.transform(_b_feats) if scaler else _b_feats
-
-                if method == "XGBoost" and xgb:
-                    _b_labels = labels_from_xgb(_b_feats_sc, xgb)
-                elif method == "GMM" and gmm:
-                    _b_labels, _ = labels_from_gmm(_b_feats_sc, gmm)
-                else:
-                    _b_labels = labels_from_kmeans(_b_feats_sc, km) \
-                        if km else [get_label(float(f[0])) for f in _b_feats]
-
-                _b_safety_img, _b_zone_stats = build_overlay(
-                    _b_img_rgb, _b_labels, GRID, opacity)
-                _b_density_overlay = build_density_overlay(
-                    _b_img_rgb, _b_density, opacity,
-                    expected_count=_b_count)
-
-                # Threat score (same formula as live gauge)
-                _b_threat_score = min(100, int(
-                    _b_zone_stats.get("Critical", 0) * 40 +
-                    _b_zone_stats.get("High", 0) * 20 +
-                    _b_zone_stats.get("Medium", 0) * 1 +
-                    min(15, _b_count / 10)
-                ))
-
-                if _b_threat_score < 25:
-                    _b_threat = "MINIMAL"
-                elif _b_threat_score < 50:
-                    _b_threat = "ELEVATED"
-                elif _b_threat_score < 75:
-                    _b_threat = "HIGH"
-                else:
-                    _b_threat = "CRITICAL"
-
-                # Dynamic confidence (uses actual model outputs)
-                _b_conf = compute_dynamic_confidence(
-                    _b_feats_sc, method, km, xgb, gmm, _b_count)
-
-                _b_elapsed = time.time() - _b_t0
-
-                # Compress images to JPEG base64 for memory efficiency (~10x smaller)
-                def _compress_img_b64(img_arr, quality=80):
-                    _, buf = cv2.imencode('.jpg',
-                        cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR),
-                        [cv2.IMWRITE_JPEG_QUALITY, quality])
-                    return base64.b64encode(buf).decode()
+                _b_elapsed = round(time.time() - _b_t0, 2)
 
                 batch_results.append({
                     "name": bf.name,
-                    "count": _b_count,
-                    "threat": _b_threat,
-                    "threat_score": _b_threat_score,
-                    "confidence": _b_conf,
-                    "zone_stats": _b_zone_stats,
-                    "safety_img_b64": _compress_img_b64(_b_safety_img),
-                    "density_overlay_b64": _compress_img_b64(_b_density_overlay),
-                    "time_s": round(_b_elapsed, 2),
+                    "count": _b_result["count"],
+                    "threat": _b_result["threat"],
+                    "threat_score": _b_result["threat_score"],
+                    "confidence": _b_result["confidence"],
+                    "zone_stats": _b_result["zone_stats"],
+                    "model": _b_result["model"],
+                    "marker_count": _b_result["marker_count"],
+                    "marker_note": _b_result["marker_note"],
+                    "used_face_detector": _b_result["used_face_detector"],
+                    "portrait_hybrid_mode": _b_result.get("portrait_hybrid_mode", False),
+                    "safety_img_b64": _compress_img_b64(_b_result["safety_img"]),
+                    "density_overlay_b64": _compress_img_b64(_b_result["density_overlay"]),
+                    "head_overlay_b64": _compress_img_b64(_b_result["head_overlay"]),
+                    "time_s": _b_elapsed,
                 })
 
                 # Update progress with timing info
                 progress_bar.progress(
-                    (idx + 1) / len(batch_files),
-                    text=f"✓ {bf.name} — {_b_count} persons · {_b_elapsed:.1f}s ({idx+1}/{len(batch_files)})"
+                    idx / len(batch_files),
+                    text=(
+                        f"✓ {bf.name} — est. {batch_results[-1]['count']} "
+                        f"· {_b_elapsed:.1f}s ({idx}/{len(batch_files)})"
+                    )
                 )
 
             _batch_total_elapsed = time.time() - _batch_total_start
-            progress_bar.progress(1.0, text=f"✅ Batch complete! {len(batch_files)} images in {_batch_total_elapsed:.1f}s")
-            time.sleep(0.8)
+            _processed_count = len(batch_results)
+            _skipped_count = len(skipped_files)
+            progress_bar.progress(
+                1.0,
+                text=(
+                    f"✅ Batch complete! {_processed_count} processed"
+                    f"{' · ' + str(_skipped_count) + ' skipped' if _skipped_count else ''}"
+                    f" · {_batch_total_elapsed:.1f}s"
+                ))
             progress_bar.empty()
 
             st.session_state["batch_results"] = batch_results
+            st.session_state["batch_summary"] = {
+                "uploaded": len(batch_files),
+                "processed": _processed_count,
+                "skipped": skipped_files,
+                "elapsed_s": round(_batch_total_elapsed, 2),
+            }
+
+            if batch_results:
+                st.success(
+                    f"Processed {_processed_count} image(s) in {_batch_total_elapsed:.1f}s."
+                    + (f" Skipped {_skipped_count} image(s)." if _skipped_count else "")
+                )
+            else:
+                st.error("Batch analysis could not process any uploaded images.")
+
+            if skipped_files:
+                _skip_lines = "".join(
+                    f"<li><span style='color:#F1F5F9'>{s['name']}</span> — {s['reason']}</li>"
+                    for s in skipped_files
+                )
+                st.markdown(f"""
+                <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);
+                border-radius:12px;padding:14px 18px;margin:10px 0 16px 0">
+                <div style="color:#F59E0B;font-size:10px;font-weight:700;
+                letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
+                ⚠️ Skipped Files</div>
+                <ul style="margin:0;padding-left:18px;color:#94A3B8;font-size:12px;line-height:1.6">
+                {_skip_lines}
+                </ul>
+                </div>
+                """, unsafe_allow_html=True)
+
             gc.collect()
         # Display results if available
-        if "batch_results" in st.session_state and st.session_state["batch_results"]:
+        if st.session_state["batch_results"]:
             batch_results = st.session_state["batch_results"]
+            _batch_summary = st.session_state.get("batch_summary", None)
+
+            if _batch_summary:
+                st.markdown(f"""
+                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                padding:12px 18px;margin:14px 0 8px;display:flex;flex-wrap:wrap;
+                gap:18px;align-items:center">
+                <span style="color:#A78BFA;font-size:10px;font-weight:700;
+                letter-spacing:2px;text-transform:uppercase">Batch Run Summary</span>
+                <span style="color:#94A3B8;font-size:12px">Uploaded: {_batch_summary['uploaded']}</span>
+                <span style="color:#F1F5F9;font-size:12px">Processed: {_batch_summary['processed']}</span>
+                <span style="color:#F59E0B;font-size:12px">Skipped: {len(_batch_summary['skipped'])}</span>
+                <span style="color:#22D3EE;font-size:12px">Elapsed: {_batch_summary['elapsed_s']:.2f}s</span>
+                </div>
+                """, unsafe_allow_html=True)
 
             # ══════════════════════════════════════════════════
             # 1. AGGREGATE ANALYTICS DASHBOARD
@@ -4125,7 +5397,11 @@ with tab5:
                                gridcolor="#E5E7EB"),
                     showlegend=False,
                 )
-                st.plotly_chart(_fig_zone_dist, use_container_width=True)
+                st.plotly_chart(
+                    _fig_zone_dist,
+                    use_container_width=True,
+                    key="batch_zone_distribution",
+                )
 
             with _agg_c2:
                 _td_colors = {"MINIMAL": "#10B981", "ELEVATED": "#F59E0B",
@@ -4153,7 +5429,11 @@ with tab5:
                     margin=dict(l=20, r=20, t=40, b=20),
                     showlegend=False,
                 )
-                st.plotly_chart(_fig_threat_dist, use_container_width=True)
+                st.plotly_chart(
+                    _fig_threat_dist,
+                    use_container_width=True,
+                    key="batch_threat_distribution",
+                )
             # ══════════════════════════════════════════════════
             # 2. SUMMARY TABLE WITH ZONE COLUMNS
             # ══════════════════════════════════════════════════
@@ -4167,9 +5447,9 @@ with tab5:
             </div>
             """, unsafe_allow_html=True)
 
-            _batch_table = """
+            _batch_table = dedent("""
             <div style="border:1px solid #334155;border-radius:12px;
-            overflow:hidden;margin-top:8px">
+            overflow:auto;margin-top:8px">
             <table style="width:100%;border-collapse:collapse;
             font-family:'Inter',sans-serif">
             <thead>
@@ -4179,7 +5459,7 @@ with tab5:
             text-transform:uppercase">IMAGE</th>
             <th style="padding:12px 10px;text-align:center;color:#94A3B8;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
-            text-transform:uppercase">COUNT</th>
+            text-transform:uppercase">EST.</th>
             <th style="padding:12px 10px;text-align:center;color:#10B981;
             font-size:10px;font-weight:700;letter-spacing:1.5px">LOW</th>
             <th style="padding:12px 10px;text-align:center;color:#D97706;
@@ -4203,7 +5483,7 @@ with tab5:
             </tr>
             </thead>
             <tbody>
-            """
+            """)
 
             _threat_colors = {
                 "MINIMAL": ("#10B981", "rgba(16,185,129,0.12)"),
@@ -4217,7 +5497,7 @@ with tab5:
                 _btc, _btbg = _threat_colors.get(_br["threat"], ("#64748B", "rgba(100,116,139,0.12)"))
                 _zs = _br["zone_stats"]
 
-                _batch_table += f"""
+                _batch_table += dedent(f"""
                 <tr style="background:{_row_bg};border-bottom:1px solid #334155">
                 <td style="padding:10px 14px;color:#64748B;font-size:12px;
                 font-family:'JetBrains Mono',monospace;font-weight:500">
@@ -4253,7 +5533,7 @@ with tab5:
                 color:#94A3B8;font-size:12px;font-weight:500;
                 font-family:'JetBrains Mono',monospace">{_br.get('time_s', '—')}s</td>
                 </tr>
-                """
+                """)
 
             _batch_table += "</tbody></table></div>"
             st.markdown(_batch_table, unsafe_allow_html=True)
@@ -4274,10 +5554,55 @@ with tab5:
                 _d_zs = _dr["zone_stats"]
                 _d_ts = _dr["threat_score"]
                 _d_tc, _ = _threat_colors.get(_dr["threat"], ("#64748B", ""))
+                if _dr.get("portrait_hybrid_mode"):
+                    _d_marker_mode = "portrait markers"
+                    _d_marker_title = "PORTRAIT MARKERS"
+                elif _dr.get("used_face_detector"):
+                    _d_marker_mode = "face markers"
+                    _d_marker_title = "FACE MARKERS"
+                else:
+                    _d_marker_mode = "head markers"
+                    _d_marker_title = "HEAD MARKERS"
 
-                with st.expander(f"📷 {_dr['name']}  —  {_dr['count']} persons  ·  {_dr['threat']}  ·  {_dr['confidence']}% conf  ·  {_dr.get('time_s', '—')}s"):
-                    _d_c1, _d_c2 = st.columns(2)
+                with st.expander(
+                        f"📷 {_dr['name']}  —  est. {_dr['count']}  ·  "
+                        f"{_dr.get('marker_count', 0)} {_d_marker_mode}  ·  "
+                        f"{_dr['threat']}  ·  {_dr['confidence']}% conf  ·  "
+                        f"{_dr.get('time_s', '—')}s"):
+                    st.markdown(f"""
+                    <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
+                    padding:10px 14px;margin:4px 0 14px;display:flex;flex-wrap:wrap;gap:14px">
+                    <span style="color:#94A3B8;font-size:11px">Model: <span style="color:#F1F5F9">{_dr.get('model', '—')}</span></span>
+                    <span style="color:#94A3B8;font-size:11px">Visible markers: <span style="color:#F1F5F9">{_dr.get('marker_count', 0)}</span></span>
+                    <span style="color:#94A3B8;font-size:11px">Threat score: <span style="color:#F1F5F9">{_d_ts}%</span></span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    if _dr.get("marker_note"):
+                        st.markdown(f"""
+                        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);
+                        border-radius:10px;padding:10px 14px;margin:0 0 14px 0;
+                        color:#F59E0B;font-size:11px">{_dr['marker_note']}</div>
+                        """, unsafe_allow_html=True)
+
+                    _d_c1, _d_c2, _d_c3 = st.columns(3)
                     with _d_c1:
+                        st.markdown(f"""
+                        <div style="color:#6366F1;font-size:10px;font-weight:700;
+                        letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
+                        {_d_marker_title}</div>
+                        """, unsafe_allow_html=True)
+                        _d_head_bytes = base64.b64decode(_dr["head_overlay_b64"])
+                        st.image(_d_head_bytes, use_container_width=True)
+                    with _d_c2:
+                        st.markdown(f"""
+                        <div style="color:#6366F1;font-size:10px;font-weight:700;
+                        letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
+                        DENSITY HEATMAP</div>
+                        """, unsafe_allow_html=True)
+                        _d_density_bytes = base64.b64decode(_dr["density_overlay_b64"])
+                        st.image(_d_density_bytes, use_container_width=True)
+                    with _d_c3:
                         st.markdown(f"""
                         <div style="color:#6366F1;font-size:10px;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
@@ -4285,14 +5610,6 @@ with tab5:
                         """, unsafe_allow_html=True)
                         _d_safety_bytes = base64.b64decode(_dr["safety_img_b64"])
                         st.image(_d_safety_bytes, use_container_width=True)
-                    with _d_c2:
-                        st.markdown("""
-                        <div style="color:#6366F1;font-size:10px;font-weight:700;
-                        letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
-                        DENSITY HEATMAP</div>
-                        """, unsafe_allow_html=True)
-                        _d_density_bytes = base64.b64decode(_dr["density_overlay_b64"])
-                        st.image(_d_density_bytes, use_container_width=True)
 
                     # Zone stats row
                     _d_z1, _d_z2, _d_z3, _d_z4 = st.columns(4)
@@ -4348,7 +5665,11 @@ with tab5:
                         margin=dict(l=30, r=30, t=45, b=5),
                         font=dict(family="Inter, sans-serif"),
                     )
-                    st.plotly_chart(_d_gauge, use_container_width=True)
+                    st.plotly_chart(
+                        _d_gauge,
+                        use_container_width=True,
+                        key=f"batch_threat_gauge_{_di}_{_dr['name']}",
+                    )
             # ══════════════════════════════════════════════════
             # 4. PEAK FRAME HIGHLIGHT
             # ══════════════════════════════════════════════════
@@ -4363,20 +5684,24 @@ with tab5:
             letter-spacing:2px;text-transform:uppercase">
             🔺 PEAK DENSITY FRAME</div>
             <span style="color:#B91C1C;font-size:12px;font-weight:700;
-            font-family:'JetBrains Mono',monospace">{_peak_result['count']} persons · {_peak_result['name']}</span>
+            font-family:'JetBrains Mono',monospace">est. {_peak_result['count']} · {_peak_result['name']}</span>
             </div>
             </div>
             """, unsafe_allow_html=True)
 
-            _pk_c1, _pk_c2 = st.columns(2)
+            _pk_c1, _pk_c2, _pk_c3 = st.columns(3)
             with _pk_c1:
-                _pk_safety_bytes = base64.b64decode(_peak_result["safety_img_b64"])
-                st.image(_pk_safety_bytes, use_container_width=True,
-                         caption=f"Safety Map — {_peak_result['name']}")
+                _pk_head_bytes = base64.b64decode(_peak_result["head_overlay_b64"])
+                st.image(_pk_head_bytes, use_container_width=True,
+                         caption=f"Markers — {_peak_result['name']}")
             with _pk_c2:
                 _pk_density_bytes = base64.b64decode(_peak_result["density_overlay_b64"])
                 st.image(_pk_density_bytes, use_container_width=True,
                          caption=f"Density Heatmap — {_peak_result['name']}")
+            with _pk_c3:
+                _pk_safety_bytes = base64.b64decode(_peak_result["safety_img_b64"])
+                st.image(_pk_safety_bytes, use_container_width=True,
+                         caption=f"Safety Map — {_peak_result['name']}")
 
             # ══════════════════════════════════════════════════
             # 5. BATCH TIMELINE CHART
@@ -4436,7 +5761,7 @@ with tab5:
                             line=dict(color='rgba(255,255,255,0.3)', width=1.5)),
                 hovertext=_batch_hover,
                 hoverinfo='text',
-                hoverlabel=dict(bgcolor='#FFFFFF', bordercolor='#C7D2FE',
+                hoverlabel=dict(bgcolor='#0F172A', bordercolor='#7C3AED',
                                 font=dict(family='Inter, sans-serif', size=12, color='#EFF6FF')),
                 showlegend=False,
             ))
@@ -4476,7 +5801,11 @@ with tab5:
                 font=dict(family='Inter, sans-serif'),
                 hovermode='closest',
             )
-            st.plotly_chart(_fig_batch, use_container_width=True)
+            st.plotly_chart(
+                _fig_batch,
+                use_container_width=True,
+                key="batch_count_timeline",
+            )
 
             # ══════════════════════════════════════════════════
             # 6. DOWNLOAD BATCH REPORT
@@ -4485,6 +5814,7 @@ with tab5:
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "method": method,
                 "venue_capacity": venue_capacity,
+                "summary": st.session_state.get("batch_summary", {}),
                 "total_frames": len(batch_results),
                 "peak_count": _peak_result["count"],
                 "peak_frame": _peak_result["name"],
@@ -4496,10 +5826,16 @@ with tab5:
                     {
                         "name": r["name"],
                         "count": r["count"],
+                        "model": r.get("model"),
+                        "marker_count": r.get("marker_count"),
+                        "marker_note": r.get("marker_note"),
+                        "used_face_detector": r.get("used_face_detector"),
+                        "portrait_hybrid_mode": r.get("portrait_hybrid_mode"),
                         "threat": r["threat"],
                         "threat_score": r["threat_score"],
                         "confidence": r["confidence"],
                         "zone_stats": r["zone_stats"],
+                        "time_s": r.get("time_s"),
                     }
                     for r in batch_results
                 ],
@@ -4592,7 +5928,12 @@ with tab6:
     _rl = st.session_state["rl_agent"]
 
     # ── SECTION 1: Header ──
-    if _rl.epsilon > 0.5:
+    if _rl.episode == 0:
+        _rl_status_label = "READY"
+        _rl_status_bg = "rgba(34,211,238,0.12)"
+        _rl_status_color = "#22D3EE"
+        _rl_status_border = "rgba(34,211,238,0.3)"
+    elif _rl.epsilon > 0.5:
         _rl_status_label = "TRAINING"
         _rl_status_bg = "rgba(245,158,11,0.12)"
         _rl_status_color = "#D97706"
@@ -4635,16 +5976,48 @@ with tab6:
     # ── SECTION 2: Agent Stats (4 cards) ──
     _rl_explore_pct = int(_rl.epsilon * 100)
     _rl_mem_size = len(_rl.memory)
+    _rl_buffer_pct = min(100, int((_rl_mem_size / 2000) * 100))
+
+    def _render_rl_stat_card(title, value, subtitle, accent):
+        st.markdown(f"""
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+        padding:18px 20px;min-height:164px;display:flex;flex-direction:column;
+        justify-content:space-between;box-shadow:0 8px 28px rgba(15,23,42,0.28);
+        border-top:3px solid {accent}">
+        <div style="color:#94A3B8;font-size:11px;font-weight:700;
+        letter-spacing:1.6px;text-transform:uppercase">{title}</div>
+        <div style="color:#F8FAFC;font-size:46px;font-weight:900;line-height:1;
+        font-family:'JetBrains Mono',monospace;letter-spacing:-0.04em;
+        margin:14px 0 10px;word-break:break-word">{value}</div>
+        <div style="color:#64748B;font-size:12px;line-height:1.45">{subtitle}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     rl_c1, rl_c2, rl_c3, rl_c4 = st.columns(4)
     with rl_c1:
-        st.metric("Episodes Trained", f"{_rl.episode}")
+        _render_rl_stat_card(
+            "Episodes Trained",
+            f"{_rl.episode}",
+            "Completed training steps on the latest analyzed scenes",
+            "#6366F1")
     with rl_c2:
-        st.metric("Exploration Rate", f"{_rl_explore_pct}% exploring")
+        _render_rl_stat_card(
+            "Exploration Rate",
+            f"{_rl_explore_pct}%",
+            "Random exploration probability for the next decision",
+            "#FF5A5F")
     with rl_c3:
-        st.metric("Memory Size", f"{_rl_mem_size}/2000")
+        _render_rl_stat_card(
+            "Replay Buffer",
+            f"{_rl_mem_size}",
+            f"{_rl_buffer_pct}% of 2000 stored experiences ready for replay",
+            "#F59E0B")
     with rl_c4:
-        st.metric("Total Reward", f"{_rl.total_reward:+.1f}")
+        _render_rl_stat_card(
+            "Total Reward",
+            f"{_rl.total_reward:+.1f}",
+            "Cumulative reward accumulated across all completed episodes",
+            "#10B981")
 
     st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
 
@@ -4716,9 +6089,6 @@ with tab6:
                 agent.episode += 1
                 agent.action_history.append(_rl_action)
                 agent.reward_history.append(_rl_reward)
-
-                if agent.epsilon > agent.epsilon_min:
-                    agent.epsilon *= agent.epsilon_decay
 
                 # 8. Store in rl_history
                 _rl_record = {
