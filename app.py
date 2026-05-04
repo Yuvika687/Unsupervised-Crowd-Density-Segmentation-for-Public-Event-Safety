@@ -86,24 +86,26 @@ st.set_page_config(
 st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-/* ══════════ CSS VARIABLES — Mission Control Light ══════════ */
+/* ══════════ CSS VARIABLES — Premium Slate ══════════ */
 :root {
-    --bg:       #F0F4FF;
-    --surface:  #FFFFFF;
-    --card:     #F8FAFF;
-    --border:   #C7D2FE;
-    --border-h: #A5B4FC;
-    --accent:   #4F46E5;
-    --accent-g: #6366F1;
-    --cyan:     #0891B2;
-    --purple:   #7C3AED;
-    --green:    #059669;
-    --amber:    #D97706;
-    --red:      #DC2626;
-    --critical: #B91C1C;
-    --text:     #1E1B4B;
-    --muted:    #6B7280;
-    --dimmed:   #9CA3AF;
+    --bg:         #0F172A;
+    --surface:    #1E293B;
+    --surface-2:  #263445;
+    --card:       #1E293B;
+    --border:     #334155;
+    --border-h:   #475569;
+    --accent:     #6366F1;
+    --accent-g:   #8B5CF6;
+    --cyan:       #22D3EE;
+    --purple:     #8B5CF6;
+    --green:      #10B981;
+    --amber:      #F59E0B;
+    --red:        #EF4444;
+    --critical:   #FF1744;
+    --text:       #F1F5F9;
+    --text-2:     #94A3B8;
+    --muted:      #64748B;
+    --dimmed:     #475569;
 }
 
 /* ══════════ BASE ══════════ */
@@ -118,11 +120,11 @@ st.markdown("""<style>
     width: 100vw; height: 100vh;
     background-image:
         radial-gradient(circle at 20% 50%,
-            rgba(79,70,229,0.06) 0%, transparent 50%),
+            rgba(99,102,241,0.08) 0%, transparent 50%),
         radial-gradient(circle at 80% 20%,
-            rgba(8,145,178,0.05) 0%, transparent 40%),
+            rgba(34,211,238,0.06) 0%, transparent 40%),
         radial-gradient(circle at 60% 80%,
-            rgba(124,58,237,0.04) 0%, transparent 35%);
+            rgba(139,92,246,0.05) 0%, transparent 35%);
     animation: bgPulse 8s ease-in-out infinite alternate;
     pointer-events: none;
     z-index: 0;
@@ -140,8 +142,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
 }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #EEF2FF 0%, #F0F4FF 100%) !important;
-    border-right: 2px solid var(--border) !important;
+    background: linear-gradient(180deg, #1A2744 0%, #0F172A 100%) !important;
+    border-right: 1px solid var(--border) !important;
     min-width: 310px !important;
     z-index: 10;
 }
@@ -154,7 +156,7 @@ section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stRadio label,
 section[data-testid="stSidebar"] .stSlider label {
-    color: #4B5563 !important;
+    color: #94A3B8 !important;
     font-weight: 500 !important;
     font-size: 13px !important;
 }
@@ -162,7 +164,7 @@ section[data-testid="stSidebar"] p {
     color: var(--muted) !important;
 }
 section[data-testid="stSidebar"] span {
-    color: #4B5563 !important;
+    color: #94A3B8 !important;
 }
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
     color: var(--muted) !important;
@@ -183,7 +185,7 @@ section[data-testid="stSidebar"] [data-testid="stSlider"] [data-baseweb="slider"
 section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"],
 section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label[aria-checked="true"] {
     color: var(--text) !important;
-    text-shadow: 0 0 8px rgba(79,70,229,0.4);
+    text-shadow: 0 0 8px rgba(99,102,241,0.5);
 }
 
 /* ══════════ METRIC CARDS ══════════ */
@@ -192,24 +194,25 @@ section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] lab
     border-radius: 12px !important;
     padding: 22px 18px !important;
     border: 1px solid var(--border) !important;
-    border-top: 2px solid var(--accent) !important;
-    box-shadow: 0 4px 20px rgba(79,70,229,0.08) !important;
+    border-top: 3px solid var(--accent) !important;
+    box-shadow: 0 4px 24px rgba(99,102,241,0.12) !important;
     transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
 }
 [data-testid="stMetric"]:hover {
     border-color: var(--border-h) !important;
     transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(99,102,241,0.2) !important;
 }
 div[data-testid="stMetricValue"] {
     color: var(--text) !important;
     font-family: 'JetBrains Mono', monospace !important;
-    font-size: 36px !important;
-    font-weight: 700 !important;
+    font-size: 40px !important;
+    font-weight: 800 !important;
     letter-spacing: -0.03em !important;
     font-variant-numeric: tabular-nums !important;
 }
 div[data-testid="stMetricLabel"] {
-    color: var(--muted) !important;
+    color: var(--text-2) !important;
     font-size: 11px !important;
     text-transform: uppercase !important;
     letter-spacing: 1.2px !important;
@@ -218,20 +221,20 @@ div[data-testid="stMetricLabel"] {
 
 /* ── Per-metric accent colors ── */
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(1) [data-testid="stMetric"] {
-    border-top: 3px solid #4F46E5 !important;
-    box-shadow: 0 4px 20px rgba(79,70,229,0.10) !important;
+    border-top: 3px solid #6366F1 !important;
+    box-shadow: 0 4px 24px rgba(99,102,241,0.15) !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(2) [data-testid="stMetric"] {
-    border-top: 3px solid #DC2626 !important;
-    box-shadow: 0 4px 20px rgba(220,38,38,0.10) !important;
+    border-top: 3px solid #EF4444 !important;
+    box-shadow: 0 4px 24px rgba(239,68,68,0.15) !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(3) [data-testid="stMetric"] {
-    border-top: 3px solid #D97706 !important;
-    box-shadow: 0 4px 20px rgba(217,119,6,0.10) !important;
+    border-top: 3px solid #F59E0B !important;
+    box-shadow: 0 4px 24px rgba(245,158,11,0.15) !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div:nth-child(4) [data-testid="stMetric"] {
-    border-top: 3px solid #059669 !important;
-    box-shadow: 0 4px 20px rgba(5,150,105,0.10) !important;
+    border-top: 3px solid #10B981 !important;
+    box-shadow: 0 4px 24px rgba(16,185,129,0.15) !important;
 }
 
 /* ══════════ TABS — PILL NAV ══════════ */
@@ -255,13 +258,13 @@ div[data-testid="stMetricLabel"] {
 }
 .stTabs [data-baseweb="tab"]:hover {
     color: var(--text) !important;
-    background: rgba(79,70,229,0.08) !important;
+    background: rgba(99,102,241,0.12) !important;
 }
 .stTabs [aria-selected="true"] {
     color: #FFFFFF !important;
     background: var(--accent) !important;
     border-radius: 6px !important;
-    box-shadow: 0 4px 14px rgba(79,70,229,0.4) !important;
+    box-shadow: 0 4px 18px rgba(99,102,241,0.5) !important;
 }
 .stTabs [aria-selected="true"]::after {
     content: '';
@@ -287,8 +290,8 @@ div[data-testid="stFileUploader"] {
 }
 div[data-testid="stFileUploader"]:hover {
     border-color: var(--accent) !important;
-    background: #EEF2FF !important;
-    box-shadow: 0 0 24px rgba(79,70,229,0.1) !important;
+    background: var(--surface-2) !important;
+    box-shadow: 0 0 24px rgba(99,102,241,0.15) !important;
 }
 div[data-testid="stFileUploader"] > div {
     padding: 8px 16px !important;
@@ -297,10 +300,16 @@ div[data-testid="stFileUploader"] > div {
 div[data-testid="stFileUploader"] label {
     color: var(--muted) !important;
 }
+div[data-testid="stFileUploader"] small {
+    color: var(--muted) !important;
+}
+div[data-testid="stFileUploader"] button {
+    color: var(--text) !important;
+}
 
 /* ══════════ DOWNLOAD BUTTON ══════════ */
 [data-testid="stDownloadButton"] button {
-    background: linear-gradient(135deg, #4F46E5, #4338CA) !important;
+    background: linear-gradient(135deg, #6366F1, #4F46E5) !important;
     color: white !important;
     border: none !important;
     border-radius: 8px !important;
@@ -308,13 +317,27 @@ div[data-testid="stFileUploader"] label {
     font-weight: 600 !important;
     font-size: 14px !important;
     letter-spacing: 0.02em !important;
-    box-shadow: 0 4px 16px rgba(79,70,229,0.3) !important;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.35) !important;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1) !important;
 }
 [data-testid="stDownloadButton"] button:hover {
     filter: brightness(1.15) !important;
-    box-shadow: 0 6px 28px rgba(79,70,229,0.4) !important;
+    box-shadow: 0 6px 28px rgba(99,102,241,0.5) !important;
     transform: translateY(-1px) scale(1.02) !important;
+}
+
+/* ══════════ REGULAR BUTTONS ══════════ */
+.stButton button {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.25s ease !important;
+}
+.stButton button:hover {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 16px rgba(99,102,241,0.2) !important;
 }
 
 /* ══════════ EXPANDER ══════════ */
@@ -325,10 +348,13 @@ div[data-testid="stExpander"] {
 }
 div[data-testid="stExpander"] summary {
     font-weight: 600 !important;
-    color: #4B5563 !important;
+    color: var(--text-2) !important;
 }
 div[data-testid="stExpander"] summary:hover {
     color: var(--text) !important;
+}
+div[data-testid="stExpander"] [data-testid="stMarkdownContainer"] p {
+    color: var(--text-2) !important;
 }
 
 /* ══════════ DATAFRAME ══════════ */
@@ -340,7 +366,20 @@ div[data-testid="stExpander"] summary:hover {
 
 /* ══════════ TYPOGRAPHY ══════════ */
 h1, h2, h3 { color: var(--text) !important; }
-p { color: #4B5563; }
+p { color: var(--text-2); }
+
+/* ══════════ INPUTS ══════════ */
+div[data-testid="stNumberInput"] input,
+div[data-testid="stTextInput"] input {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+/* ══════════ TOGGLE ══════════ */
+[data-testid="stToggle"] label span {
+    color: var(--text-2) !important;
+}
 
 /* ══════════ HIDE STREAMLIT DEFAULTS ══════════ */
 #MainMenu { visibility: hidden; }
@@ -357,12 +396,12 @@ footer { visibility: hidden; }
     50% { opacity: 0.4; transform: scale(0.7); }
 }
 @keyframes criticalGlow {
-    0%, 100% { box-shadow: 0 0 8px rgba(185,28,28,0.12); }
-    50% { box-shadow: 0 0 24px rgba(185,28,28,0.25); }
+    0%, 100% { box-shadow: 0 0 8px rgba(255,23,68,0.2); }
+    50% { box-shadow: 0 0 30px rgba(255,23,68,0.4); }
 }
 @keyframes criticalBorderPulse {
-    0%, 100% { border-left-color: #DC2626; box-shadow: -4px 0 12px rgba(220,38,38,0.15); }
-    50% { border-left-color: #EF4444; box-shadow: -4px 0 20px rgba(220,38,38,0.35); }
+    0%, 100% { border-left-color: #EF4444; box-shadow: -4px 0 12px rgba(239,68,68,0.2); }
+    50% { border-left-color: #FF1744; box-shadow: -4px 0 24px rgba(255,23,68,0.5); }
 }
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -373,16 +412,16 @@ footer { visibility: hidden; }
     50% { opacity: 1; }
 }
 @keyframes liveDot {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(5,150,105,0.5); }
-    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(5,150,105,0); }
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(16,185,129,0); }
 }
 @keyframes floatUp {
     from { opacity: 0; transform: translateY(24px) scale(0.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes pillGlow {
-    0%, 100% { box-shadow: 0 0 8px rgba(79,70,229,0.12); }
-    50% { box-shadow: 0 0 20px rgba(79,70,229,0.22); }
+    0%, 100% { box-shadow: 0 0 8px rgba(99,102,241,0.15); }
+    50% { box-shadow: 0 0 24px rgba(99,102,241,0.3); }
 }
 @keyframes barFill {
     from { width: 0%; }
@@ -431,11 +470,11 @@ footer { visibility: hidden; }
 div[data-testid="stRadio"] > label {
     font-size: 13px !important;
     font-weight: 500 !important;
-    color: #4B5563 !important;
+    color: var(--text-2) !important;
 }
 [data-testid="stToggle"] label span {
     font-weight: 500 !important;
-    color: #4B5563 !important;
+    color: var(--text-2) !important;
 }
 
 /* ══════════ LINE CHART / VEGA ══════════ */
@@ -451,35 +490,37 @@ div[data-testid="stRadio"] > label {
 ::-webkit-scrollbar-thumb:hover { background: var(--border-h); }
 </style>""", unsafe_allow_html=True)
 
+
+
 # ═══════════════════════════════════════════════════════════════
 # HEADER
 # ═══════════════════════════════════════════════════════════════
 
 st.markdown("""
-<div style="background:linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
-padding:28px 34px;border-radius:14px;border:1px solid #C7D2FE;
-border-left:4px solid #4F46E5;margin-bottom:28px;
-box-shadow:0 4px 24px rgba(79,70,229,0.12);
+<div style="background:linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+padding:28px 34px;border-radius:14px;border:1px solid #334155;
+border-left:4px solid #6366F1;margin-bottom:28px;
+box-shadow:-4px 0 30px rgba(99,102,241,0.5), 0 4px 24px rgba(0,0,0,0.3);
 animation:floatUp 0.5s ease;
 display:flex;align-items:center;justify-content:space-between;
 position:relative;z-index:2">
 <div>
-<h1 style="color:#1E1B4B;margin:0;font-size:28px;font-weight:800;
+<h1 style="color:#F1F5F9;margin:0;font-size:30px;font-weight:900;
 letter-spacing:-0.03em">🛡️ SafeCrowd Vision</h1>
-<p style="color:#6B7280;margin:8px 0 0;font-size:13px;font-weight:400;
+<p style="color:#94A3B8;margin:8px 0 0;font-size:13px;font-weight:400;
 letter-spacing:0.02em">Unsupervised Crowd Density Segmentation · Public Event Safety</p>
 </div>
 <div style="display:flex;align-items:center;gap:10px">
 <span style="display:inline-flex;align-items:center;gap:6px;
 padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;
-background:#F0FDF4;color:#059669;
-border:1px solid rgba(5,150,105,0.25)">
+background:rgba(16,185,129,0.15);color:#10B981;
+border:1px solid rgba(16,185,129,0.3)">
 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;
-background:#059669;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
+background:#10B981;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
 <span style="display:inline-flex;align-items:center;gap:6px;
 padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;
-background:#4F46E5;color:#FFFFFF;
-border:1px solid #4338CA">
+background:#6366F1;color:#FFFFFF;
+border:1px solid #6366F1">
 DM-Count Active</span>
 </div>
 </div>
@@ -615,6 +656,29 @@ class EvacuationAgent:
         self.optimizer = optim.Adam(
             self.model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+
+        # Pre-populate memory so replay() works from episode 1
+        self._prepopulate_memory()
+
+        # Auto-train 5 rounds so loss is non-zero immediately
+        for _ in range(5):
+            self.replay()
+        # Reset epsilon back to 1.0 after warm-up
+        self.epsilon = 1.0
+
+    def _prepopulate_memory(self):
+        """Fill memory with synthetic experience tuples."""
+        for _ in range(self.batch_size * 2):
+            state = np.random.rand(
+                self.state_size).astype(np.float32)
+            action = random.randrange(self.action_size)
+            reward = random.uniform(-20, 50)
+            next_state = np.random.rand(
+                self.state_size).astype(np.float32)
+            done = random.random() < 0.1
+            self.memory.append(
+                (state, action, reward,
+                 next_state, done))
 
     def get_state_vector(self, zone_stats,
                           crowd_count,
@@ -1369,52 +1433,78 @@ def build_headdot_overlay(img_rgb, density_map, expected_count=0):
     peaks_sorted = _sort_reading_order(peaks)
 
     for idx, (py, px, val) in enumerate(peaks_sorted):
-        # Depth-aware dot sizing
-        # depth_ratio: 0.0 = top (far), 1.0 = bottom (near)
+        # Depth-aware scaling: 0.0 = top (far), 1.0 = bottom (near)
         depth_ratio = py / max(h, 1)
+        scale = 0.7 + depth_ratio * 0.6
 
-        # Dot radius scales with depth: 3px (far) to 8px (near)
-        r_inner = max(2, int(3 + depth_ratio * 5))
-        r_outer = r_inner + 3
-
-        # Brightness scales with confidence (density value)
+        # Brightness from confidence
         max_val = peaks_sorted[0][2] if peaks_sorted else 1.0
         brightness = 0.5 + 0.5 * (val / max(max_val, 1e-6))
 
-        # Color: cyan core, with brightness modulation
-        b_chan = int(255 * brightness)
-        g_chan = int(255 * brightness)
-        dot_color = (0, g_chan, b_chan)
-        glow_color = (0, int(200 * brightness), int(255 * brightness))
+        # Scaled radii
+        r_glow_outer = max(4, int(18 * scale))
+        r_glow_mid   = max(3, int(14 * scale))
+        r_glow_inner = max(3, int(10 * scale))
+        r_white      = max(2, int(7 * scale))
+        r_cyan       = max(2, int(5 * scale))
 
-        # Outer glow ring
-        cv2.circle(overlay, (px, py), r_outer, glow_color, 1, cv2.LINE_AA)
-        # Inner filled dot
-        cv2.circle(overlay, (px, py), r_inner, dot_color, -1, cv2.LINE_AA)
+        # 1. OUTER GLOW RINGS (3 layers, decreasing opacity)
+        glow_overlay = overlay.copy()
+        cv2.circle(glow_overlay, (px, py), r_glow_outer,
+                   (0, 210, 255), -1, cv2.LINE_AA)
+        cv2.addWeighted(glow_overlay, 0.15, overlay, 0.85, 0, overlay)
 
-        # Numbered pill labels for first 200 dots (legibility limit)
+        glow_overlay2 = overlay.copy()
+        cv2.circle(glow_overlay2, (px, py), r_glow_mid,
+                   (0, 210, 255), -1, cv2.LINE_AA)
+        cv2.addWeighted(glow_overlay2, 0.3, overlay, 0.7, 0, overlay)
+
+        glow_overlay3 = overlay.copy()
+        cv2.circle(glow_overlay3, (px, py), r_glow_inner,
+                   (6, 182, 212), -1, cv2.LINE_AA)
+        cv2.addWeighted(glow_overlay3, 0.7, overlay, 0.3, 0, overlay)
+
+        # 2. INNER DOT (white core + cyan fill)
+        cv2.circle(overlay, (px, py), r_white, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(overlay, (px, py), r_cyan, (0, 180, 220), -1, cv2.LINE_AA)
+
+        # 3. NUMBER BADGE (for first 200 dots)
         if len(peaks_sorted) <= 200:
             num_str = str(idx + 1)
-            font_scale = max(0.3, 0.25 + depth_ratio * 0.15)
-            (tw, th), _ = cv2.getTextSize(
-                num_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
+            font = cv2.FONT_HERSHEY_DUPLEX
+            font_scale = max(0.30, 0.28 + depth_ratio * 0.12)
+            thickness = 1
+            (tw, th), baseline = cv2.getTextSize(
+                num_str, font, font_scale, thickness)
 
-            # Dark pill background behind number
-            pill_x = px + r_inner + 3
-            pill_y = py - th // 2
-            pill_pad = 3
+            # Badge position: above dot, offset right
+            badge_x = px + r_white + max(2, int(4 * scale))
+            badge_y = py - max(4, int(8 * scale))
+            pad_x = max(3, int(4 * scale))
+            pad_y = max(2, int(3 * scale))
+
+            # 5. CONNECTING LINE from dot to badge
+            cv2.line(overlay,
+                     (px, py),
+                     (badge_x, badge_y + th // 2),
+                     (0, 180, 220), 1, cv2.LINE_AA)
+
+            # Dark navy pill background
             cv2.rectangle(overlay,
-                          (pill_x - pill_pad, pill_y - pill_pad - 1),
-                          (pill_x + tw + pill_pad, pill_y + th + pill_pad - 1),
-                          (10, 15, 30), -1, cv2.LINE_AA)
+                          (badge_x - pad_x, badge_y - pad_y - 1),
+                          (badge_x + tw + pad_x, badge_y + th + pad_y - 1),
+                          (15, 23, 42), -1, cv2.LINE_AA)
+            # Cyan border
             cv2.rectangle(overlay,
-                          (pill_x - pill_pad, pill_y - pill_pad - 1),
-                          (pill_x + tw + pill_pad, pill_y + th + pill_pad - 1),
+                          (badge_x - pad_x, badge_y - pad_y - 1),
+                          (badge_x + tw + pad_x, badge_y + th + pad_y - 1),
                           (0, 180, 220), 1, cv2.LINE_AA)
+            # White number text
             cv2.putText(overlay, num_str,
-                        (pill_x, pill_y + th),
-                        cv2.FONT_HERSHEY_SIMPLEX, font_scale,
-                        (255, 255, 255), 1, cv2.LINE_AA)
+                        (badge_x, badge_y + th),
+                        font, font_scale,
+                        (255, 255, 255), thickness, cv2.LINE_AA)
+
 
     # Summary label in corner
     label_text = f"{len(peaks_sorted)} heads detected"
@@ -1435,19 +1525,38 @@ def labels_from_kmeans(fs, model):
              for i in range(4)}
     labels = [lmap[l] for l in raw]
 
-    # Post-process: if actual density is very low,
-    # cap the label at Medium regardless of cluster
+    # Global density statistics for scene-level gating
+    global_mean = float(np.mean(fs[:, 0]))
+    global_max  = float(np.max(fs[:, 0]))
+
     result = []
     for i, label in enumerate(labels):
-        actual_density = fs[i, 0]  # mean density
-        if actual_density < 0.3 and label == "Critical":
-            result.append("Medium")
-        elif actual_density < 0.15 and label == "High":
-            result.append("Medium")
-        elif actual_density < 0.05 and label == "Medium":
-            result.append("Low")
-        else:
-            result.append(label)
+        d = float(fs[i, 0])  # per-zone mean density
+
+        # Sparse scene gate: if overall scene is low density,
+        # cap maximum label regardless of relative clustering
+        if global_max < 0.4:
+            if label == "Critical":
+                label = "Medium"
+            if label == "High" and d < 0.2:
+                label = "Medium"
+
+        # Ultra sparse gate: almost empty scene
+        if global_max < 0.2:
+            if label in ["Critical", "High"]:
+                label = "Medium"
+            if label == "Medium" and d < 0.1:
+                label = "Low"
+
+        # Per-zone absolute density cap (original logic)
+        if d < 0.3 and label == "Critical":
+            label = "Medium"
+        elif d < 0.15 and label == "High":
+            label = "Medium"
+        elif d < 0.05 and label == "Medium":
+            label = "Low"
+
+        result.append(label)
     return result
 
 
@@ -1461,18 +1570,36 @@ def labels_from_xgb(fs, model):
 
     labels = [class_to_name[int(p)] for p in preds]
 
-    # Cap labels based on actual density
+    # Global density statistics for scene-level gating
+    global_max = float(np.max(fs[:, 0]))
+
     result = []
     for i, label in enumerate(labels):
-        d = fs[i, 0]
+        d = float(fs[i, 0])
+
+        # Sparse scene gate
+        if global_max < 0.4:
+            if label == "Critical":
+                label = "Medium"
+            if label == "High" and d < 0.2:
+                label = "Medium"
+
+        # Ultra sparse gate
+        if global_max < 0.2:
+            if label in ["Critical", "High"]:
+                label = "Medium"
+            if label == "Medium" and d < 0.1:
+                label = "Low"
+
+        # Per-zone absolute density cap
         if d < 0.3 and label == "Critical":
-            result.append("Medium")
+            label = "Medium"
         elif d < 0.15 and label == "High":
-            result.append("Medium")
+            label = "Medium"
         elif d < 0.05 and label == "Medium":
-            result.append("Low")
-        else:
-            result.append(label)
+            label = "Low"
+
+        result.append(label)
     return result
 
 
@@ -1507,6 +1634,34 @@ def labels_from_gmm(fs, model):
             cmap[c] = names[min(rank, len(names)-1)]
 
     labels = [cmap[l] for l in raw]
+
+    # Global density gate — same as KMeans/XGBoost
+    global_max = float(np.max(fs[:, 0]))
+    gated = []
+    for i, label in enumerate(labels):
+        d = float(fs[i, 0])
+
+        if global_max < 0.4:
+            if label == "Critical":
+                label = "Medium"
+            if label == "High" and d < 0.2:
+                label = "Medium"
+
+        if global_max < 0.2:
+            if label in ["Critical", "High"]:
+                label = "Medium"
+            if label == "Medium" and d < 0.1:
+                label = "Low"
+
+        if d < 0.3 and label == "Critical":
+            label = "Medium"
+        elif d < 0.15 and label == "High":
+            label = "Medium"
+        elif d < 0.05 and label == "Medium":
+            label = "Low"
+
+        gated.append(label)
+    labels = gated
 
     # Compute meaningful confidence:
     # Use margin between top-1 and top-2 probabilities
@@ -1602,6 +1757,8 @@ for _k, _v in [
     ("rl_agent",          None),
     ("rl_history",        []),
     ("rl_prev_stats",     None),
+    ("last_zone_stats",   {"Low":64,"Medium":0,"High":0,"Critical":0}),
+    ("rl_last_result",    None),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -1620,11 +1777,11 @@ with st.sidebar:
 <div style="padding:20px 4px 16px 4px">
 <div style="display:flex;align-items:center;gap:14px">
 <div style="font-size:32px;flex-shrink:0;
-filter:drop-shadow(0 2px 12px rgba(79,70,229,0.35))">🛡️</div>
+filter:drop-shadow(0 2px 12px rgba(99,102,241,0.35))">🛡️</div>
 <div>
-<div style="font-size:18px;font-weight:800;color:#1E1B4B;letter-spacing:-0.03em;
+<div style="font-size:18px;font-weight:800;color:#F1F5F9;letter-spacing:-0.03em;
 line-height:1.2">SafeCrowd Vision</div>
-<div style="font-size:10px;color:#4F46E5;letter-spacing:0.5px;font-weight:500;
+<div style="font-size:10px;color:#6366F1;letter-spacing:0.5px;font-weight:500;
 margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
 </div>
 </div>
@@ -1632,11 +1789,11 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
 """, unsafe_allow_html=True)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:8px 0 16px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #334155;margin:8px 0 16px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── Controls Section ──
-    st.markdown('<div style="color:#2563EB;font-weight:700;font-size:10px;'
+    st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
                 'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
                 'padding-left:2px">◈ CONTROLS</div>', unsafe_allow_html=True)
 
@@ -1660,11 +1817,11 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
         """)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── VENUE SETTINGS Section ──
-    st.markdown('<div style="color:#2563EB;font-weight:700;font-size:10px;'
+    st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
                 'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
                 'padding-left:2px">◈ VENUE SETTINGS</div>', unsafe_allow_html=True)
 
@@ -1678,65 +1835,66 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
     )
 
     num_exits = st.slider("Number of exits", 1, 10, 2)
+    st.session_state["num_exits_val"] = num_exits
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── Model Info Section ──
     st.markdown("""
-<div style="color:#2563EB;font-weight:700;font-size:10px;
+<div style="color:#6366F1;font-weight:700;font-size:10px;
 letter-spacing:1.8px;text-transform:uppercase;margin-bottom:12px;
 padding-left:2px">◈ MODEL INFO</div>
 
-<div style="background:#F8FAFF;border:1px solid #C7D2FE;border-left:3px solid #0891B2;
+<div style="background:#1E293B;border:1px solid #334155;border-left:3px solid #22D3EE;
 border-radius:10px;padding:0;margin-bottom:0;overflow:hidden;
-box-shadow:0 2px 16px rgba(6,182,212,0.06)">
+box-shadow:0 2px 16px rgba(34,211,238,0.06)">
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#EEF2FF">
-<span style="color:#4B5563;font-size:12px;font-weight:500">Model</span>
-<span style="color:#4F46E5;font-size:12px;font-family:'JetBrains Mono',monospace;
+padding:10px 16px;background:#263445">
+<span style="color:#94A3B8;font-size:12px;font-weight:500">Model</span>
+<span style="color:#6366F1;font-size:12px;font-family:'JetBrains Mono',monospace;
 font-weight:600">DM-Count (LWCC)</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#F8FAFF">
-<span style="color:#4B5563;font-size:12px;font-weight:500">Dataset</span>
-<span style="color:#4F46E5;font-size:12px;font-family:'JetBrains Mono',monospace;
+padding:10px 16px;background:#1E293B">
+<span style="color:#94A3B8;font-size:12px;font-weight:500">Dataset</span>
+<span style="color:#6366F1;font-size:12px;font-family:'JetBrains Mono',monospace;
 font-weight:600">ShanghaiTech B</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#EEF2FF">
-<span style="color:#4B5563;font-size:12px;font-weight:500">MAE</span>
-<span style="color:#059669;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">5.80 <span style="color:#4B5563;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
+padding:10px 16px;background:#263445">
+<span style="color:#94A3B8;font-size:12px;font-weight:500">MAE</span>
+<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">5.80 <span style="color:#94A3B8;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#F8FAFF">
-<span style="color:#4B5563;font-size:12px;font-weight:500">Overall</span>
-<span style="color:#059669;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">~81% <span style="color:#4B5563;font-weight:400;font-size:10px">accuracy · eval set (498 imgs)</span></span>
+padding:10px 16px;background:#1E293B">
+<span style="color:#94A3B8;font-size:12px;font-weight:500">Overall</span>
+<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">~81% <span style="color:#94A3B8;font-weight:400;font-size:10px">accuracy · eval set (498 imgs)</span></span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#EEF2FF">
-<span style="color:#4B5563;font-size:12px;font-weight:500">XGB</span>
-<span style="color:#059669;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">99.30% <span style="color:#4B5563;font-weight:400;font-size:10px">zone classification</span></span>
+padding:10px 16px;background:#263445">
+<span style="color:#94A3B8;font-size:12px;font-weight:500">XGB</span>
+<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
+font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10px">zone classification</span></span>
 </div>
 
 </div>
 """, unsafe_allow_html=True)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── SHARE ACCESS — QR Code ──
-    st.markdown('<div style="color:#2563EB;font-weight:700;font-size:10px;'
+    st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
                 'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
                 'padding-left:2px">◈ SHARE ACCESS</div>', unsafe_allow_html=True)
 
@@ -1752,20 +1910,20 @@ font-weight:700">99.30% <span style="color:#4B5563;font-weight:400;font-size:10p
         _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
 
         st.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+        <div style="background:#1E293B;border:1px solid #334155;
         border-radius:12px;padding:16px;text-align:center">
         <img src="{_qr_url}" style="width:160px;height:160px;
         border-radius:8px">
-        <div style="color:#4F46E5;font-size:10px;
+        <div style="color:#6366F1;font-size:10px;
         font-family:monospace;letter-spacing:1px;
         margin-top:10px;word-break:break-all">{ngrok_url}</div>
-        <div style="color:#4B5563;font-size:10px;
+        <div style="color:#94A3B8;font-size:10px;
         margin-top:6px">Scan to open on phone</div>
         </div>
         """, unsafe_allow_html=True)
 
     # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #C7D2FE;margin:18px 0 18px 0"></div>',
+    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
     # ── Footer ──
@@ -1789,35 +1947,35 @@ if _last_count_ticker is not None:
     _status_txt = "ACTIVE" if _last_count_ticker else "IDLE"
     _ticker_content = (
         f'<span style="color:#B91C1C;font-size:8px;animation:dotPulse 1s infinite">●</span>'
-        f'&nbsp;&nbsp;<span style="color:#4F46E5">SYSTEM ONLINE</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">MODEL:</span> '
-        f'<span style="color:#6B7280">DM-Count SHB</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">ZONES MONITORED:</span> '
-        f'<span style="color:#6B7280">64</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">LAST COUNT:</span> '
-        f'<span style="color:#1E1B4B">{_last_count_ticker} PERSONS</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">STATUS:</span> '
-        f'<span style="color:#059669">{_status_txt}</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">MAE:</span> '
-        f'<span style="color:#6B7280">5.80</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">ACCURACY:</span> '
-        f'<span style="color:#6B7280">~81% (eval)</span>'
+        f'&nbsp;&nbsp;<span style="color:#6366F1">SYSTEM ONLINE</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">MODEL:</span> '
+        f'<span style="color:#64748B">DM-Count SHB</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">ZONES MONITORED:</span> '
+        f'<span style="color:#64748B">64</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">LAST COUNT:</span> '
+        f'<span style="color:#F1F5F9">{_last_count_ticker} PERSONS</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">STATUS:</span> '
+        f'<span style="color:#10B981">{_status_txt}</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">MAE:</span> '
+        f'<span style="color:#64748B">5.80</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">ACCURACY:</span> '
+        f'<span style="color:#64748B">~81% (eval)</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 else:
     _ticker_content = (
-        '<span style="color:#4F46E5;font-size:8px;animation:dotPulse 1.5s infinite">●</span>'
-        '&nbsp;&nbsp;<span style="color:#4F46E5">AWAITING INPUT</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">SYSTEM READY</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">DM-Count</span>&nbsp;'
-        '<span style="color:#6B7280">LOADED</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#4B5563">64 ZONES ACTIVE</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#6B7280">UPLOAD IMAGE TO BEGIN</span>'
+        '<span style="color:#6366F1;font-size:8px;animation:dotPulse 1.5s infinite">●</span>'
+        '&nbsp;&nbsp;<span style="color:#6366F1">AWAITING INPUT</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">SYSTEM READY</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">DM-Count</span>&nbsp;'
+        '<span style="color:#64748B">LOADED</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">64 ZONES ACTIVE</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">UPLOAD IMAGE TO BEGIN</span>'
         '&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 
 st.markdown(f"""
-<div style="background:#FFFFFF;border-bottom:1px solid #C7D2FE;
+<div style="background:#1E293B;border-bottom:1px solid #334155;
 height:36px;overflow:hidden;display:flex;align-items:center;
 margin-bottom:8px;border-radius:8px">
 <div style="display:flex;white-space:nowrap;animation:tickerScroll 25s linear infinite;
@@ -1889,14 +2047,14 @@ with tab1:
             # ── Scan animation — shows BEFORE inference ──
             status_box = st.empty()
             status_box.markdown("""
-            <div style="background:#FFFFFF;border:1px solid #4F46E5;
+            <div style="background:#1E293B;border:1px solid #6366F1;
             border-radius:12px;padding:24px;margin:12px 0;
-            border-left:4px solid #4F46E5">
+            border-left:4px solid #6366F1">
             <div style="display:flex;align-items:center;gap:12px">
             <div style="width:12px;height:12px;border-radius:50%;
             background:#4F46E5;animation:pulse 0.8s infinite">
             </div>
-            <div style="color:#1E1B4B;font-family:monospace;
+            <div style="color:#F1F5F9;font-family:monospace;
             font-size:13px;letter-spacing:1px">
             ⬡ INITIALIZING DM-COUNT ENGINE...</div>
             </div>
@@ -1949,10 +2107,21 @@ with tab1:
             _p_safety_img, _p_zone_stats = build_overlay(
                 _img_rgb, _p_labels, GRID, opacity)
 
-            # Threat calculation
-            _p_threat = min(100, (_p_zone_stats["Critical"] * 4 +
-                                  _p_zone_stats["High"] * 3 +
-                                  _p_zone_stats["Medium"] * 1) / 64 * 100)
+            # Threat calculation — percentage-based
+            _p_crit_pct = _p_zone_stats["Critical"] / 64
+            _p_high_pct = _p_zone_stats["High"] / 64
+            _p_med_pct  = _p_zone_stats["Medium"] / 64
+            _p_threat = min(100, int(
+                _p_crit_pct * 100 * 0.7 +
+                _p_high_pct * 100 * 0.2 +
+                _p_med_pct  * 100 * 0.05 +
+                min(10, _crowd_count / 50 * 10)
+            ))
+            # Crowd-count cap
+            if _crowd_count < 20:
+                _p_threat = min(_p_threat, 25)
+            elif _crowd_count < 50:
+                _p_threat = min(_p_threat, 50)
             if _p_threat < 25:
                 _p_tl, _p_tc = "MINIMAL", "#10B981"
             elif _p_threat < 50:
@@ -1989,23 +2158,23 @@ with tab1:
 
             # ── TOP BAR ──
             st.markdown(f"""
-            <div style="background:linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
-            border:1px solid #C7D2FE;border-radius:12px;padding:14px 24px;
+            <div style="background:linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            border:1px solid #334155;border-radius:12px;padding:14px 24px;
             display:flex;align-items:center;justify-content:space-between;
-            margin-bottom:20px;box-shadow:0 4px 24px rgba(0,0,0,0.6)">
+            margin-bottom:20px;box-shadow:0 4px 24px rgba(0,0,0,0.5)">
             <div style="display:flex;align-items:center;gap:12px">
-            <span style="font-size:24px;filter:drop-shadow(0 2px 12px rgba(79,70,229,0.4))">🛡️</span>
-            <span style="color:#1E1B4B;font-size:20px;font-weight:800;letter-spacing:-0.03em">SafeCrowd Vision</span>
+            <span style="font-size:24px;filter:drop-shadow(0 2px 12px rgba(99,102,241,0.4))">🛡️</span>
+            <span style="color:#F1F5F9;font-size:20px;font-weight:800;letter-spacing:-0.03em">SafeCrowd Vision</span>
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
-            background:rgba(79,70,229,0.15);color:#3B82F6;
-            border:1px solid rgba(79,70,229,0.3);
+            background:rgba(99,102,241,0.15);color:#3B82F6;
+            border:1px solid rgba(99,102,241,0.3);
             font-family:'JetBrains Mono',monospace">PRESENT MODE</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
-            background:#F0FDF4;color:#059669;
+            background:rgba(16,185,129,0.1);color:#10B981;
             border:1px solid rgba(16,185,129,0.2)">
             <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
             background:#059669;animation:dotPulse 1.5s ease-in-out infinite"></span> LIVE</span>
@@ -2018,10 +2187,10 @@ with tab1:
 
             with _pc1:
                 st.markdown(f"""
-                <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:12px;
-                padding:8px;border-top:3px solid #4F46E5;
-                box-shadow:0 6px 32px rgba(79,70,229,0.15)">
-                <div style="color:#4B5563;font-size:10px;font-weight:700;
+                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                padding:8px;border-top:3px solid #6366F1;
+                box-shadow:0 6px 32px rgba(99,102,241,0.2)">
+                <div style="color:#94A3B8;font-size:10px;font-weight:700;
                 letter-spacing:2px;text-transform:uppercase;padding:8px 10px 6px">
                 SAFETY ZONE MAP — {method.upper()}</div>
                 </div>
@@ -2031,15 +2200,15 @@ with tab1:
             with _pc2:
                 # Giant crowd count
                 st.components.v1.html(f"""
-                <div style="background:#F8FAFF;border:1px solid #C7D2FE;border-radius:12px;
-                border-top:3px solid #4F46E5;padding:28px 20px;text-align:center;
-                box-shadow:0 6px 32px rgba(79,70,229,0.12)">
-                <div style="color:#4B5563;font-size:10px;font-weight:700;
+                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                border-top:3px solid #6366F1;padding:28px 20px;text-align:center;
+                box-shadow:0 6px 32px rgba(99,102,241,0.2)">
+                <div style="color:#94A3B8;font-size:10px;font-weight:700;
                 letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
                 PERSONS DETECTED</div>
-                <div id="present-count" style="font-size:80px;font-weight:900;color:#1E1B4B;
+                <div id="present-count" style="font-size:80px;font-weight:900;color:#F1F5F9;
                 font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;
-                line-height:1;text-shadow:0 0 40px rgba(79,70,229,0.3)">0</div>
+                line-height:1;text-shadow:0 0 40px rgba(99,102,241,0.3)">0</div>
                 </div>
                 <script>
                 (function() {{
@@ -2094,38 +2263,38 @@ with tab1:
                 # 4 zone stats — glowing numbers
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
-                <div style="background:#FFFFFF;border:1px solid rgba(16,185,129,0.25);
+                <div style="background:#1E293B;border:1px solid rgba(16,185,129,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(16,185,129,0.08)">
-                <div style="font-size:10px;color:#4B5563;font-weight:700;
+                <div style="font-size:10px;color:#94A3B8;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟢 LOW</div>
-                <div style="font-size:32px;font-weight:900;color:#059669;
+                <div style="font-size:32px;font-weight:900;color:#10B981;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(16,185,129,0.4)">{_p_zone_stats['Low']}</div>
                 </div>
-                <div style="background:#FFFFFF;border:1px solid rgba(245,158,11,0.25);
+                <div style="background:#1E293B;border:1px solid rgba(245,158,11,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(245,158,11,0.08)">
-                <div style="font-size:10px;color:#4B5563;font-weight:700;
+                <div style="font-size:10px;color:#94A3B8;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟡 MEDIUM</div>
                 <div style="font-size:32px;font-weight:900;color:#D97706;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(245,158,11,0.4)">{_p_zone_stats['Medium']}</div>
                 </div>
-                <div style="background:#FFFFFF;border:1px solid rgba(239,68,68,0.25);
+                <div style="background:#1E293B;border:1px solid rgba(239,68,68,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(239,68,68,0.08)">
-                <div style="font-size:10px;color:#4B5563;font-weight:700;
+                <div style="font-size:10px;color:#94A3B8;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟠 HIGH</div>
                 <div style="font-size:32px;font-weight:900;color:#DC2626;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(239,68,68,0.4)">{_p_zone_stats['High']}</div>
                 </div>
-                <div style="background:#FFFFFF;border:1px solid rgba(255,23,68,0.25);
+                <div style="background:#1E293B;border:1px solid rgba(255,23,68,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(255,23,68,0.1);
                 {'animation:criticalGlow 2s ease-in-out infinite;' if _p_zone_stats['Critical'] > 0 else ''}">
-                <div style="font-size:10px;color:#4B5563;font-weight:700;
+                <div style="font-size:10px;color:#94A3B8;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🔴 CRITICAL</div>
                 <div style="font-size:32px;font-weight:900;color:#B91C1C;
                 font-family:'JetBrains Mono',monospace;
@@ -2154,7 +2323,7 @@ with tab1:
             else:
                 _p_wts = "Ensemble (SHA+SHB)"
             st.markdown(f"""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:8px;
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:8px;
             padding:10px 20px;display:flex;align-items:center;
             justify-content:space-between;margin-top:8px">
             <span style="color:#3B4A63;font-family:'JetBrains Mono',monospace;
@@ -2211,6 +2380,7 @@ with tab1:
 
             safety_img, _zone_stats = build_overlay(
                 _img_rgb, labels, GRID, opacity)
+            st.session_state["last_zone_stats"] = _zone_stats.copy()
 
             # (threat score is calculated at the gauge render site below)
 
@@ -2292,10 +2462,10 @@ with tab1:
                 _used_face_detector = True
 
                 st.markdown("""
-<div style="background:#FFFBEB;
+<div style="background:rgba(245,158,11,0.1);
 border:1px solid #F59E0B;border-left:4px solid #F59E0B;
 border-radius:10px;padding:14px 20px;margin:8px 0;
-color:#92400E;font-size:13px;font-weight:600">
+color:#FCD34D;font-size:13px;font-weight:600">
 ⚠️ PORTRAIT/CLOSE-UP DETECTED — 
 Switched to <b>OpenCV Face Detector</b>. 
 DM-Count is optimized for crowd scenes 
@@ -2316,14 +2486,14 @@ DM-Count is optimized for crowd scenes
                 _banner_model = "DM-Count Ensemble (SHA+SHB)"
 
             st.components.v1.html(f"""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:20px 24px;margin-bottom:24px;
             overflow:hidden;position:relative;">
 
             <div style="position:absolute;top:0;left:0;height:3px;
-            width:100%;background:#E5E7EB;">
+            width:100%;background:#334155;">
             <div style="height:3px;background:linear-gradient(90deg,
-            #4F46E5,#0891B2,#7C3AED);animation:fill 0.8s ease-out forwards;
+            #6366F1,#22D3EE,#8B5CF6);animation:fill 0.8s ease-out forwards;
             width:0%"></div>
             </div>
 
@@ -2332,39 +2502,39 @@ DM-Count is optimized for crowd scenes
             <div style="width:10px;height:10px;border-radius:50%;
             background:#059669;box-shadow:0 0 8px #059669;
             animation:blink 1s ease-in-out 3"></div>
-            <div style="color:#1E1B4B;font-size:14px;font-weight:700;
+            <div style="color:#F1F5F9;font-size:14px;font-weight:700;
             font-family:monospace;letter-spacing:1px">ANALYSIS COMPLETE</div>
             </div>
 
             <div style="display:flex;align-items:center;
             justify-content:space-between">
 
-            <div style="flex:1;text-align:center;border-right:1px solid #C7D2FE;
+            <div style="flex:1;text-align:center;border-right:1px solid #334155;
             padding-right:20px">
-            <div style="color:#4B5563;font-size:9px;font-weight:700;
+            <div style="color:#94A3B8;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             PERSONS DETECTED</div>
-            <div style="color:#4F46E5;font-size:32px;font-weight:900;
-            font-family:monospace;text-shadow:0 0 20px rgba(79,70,229,0.2)">
+            <div style="color:#6366F1;font-size:32px;font-weight:900;
+            font-family:monospace;text-shadow:0 0 20px rgba(99,102,241,0.2)">
             {_dot_count}</div>
-            <div style="color:#6B7280;font-size:10px;font-family:monospace;
+            <div style="color:#64748B;font-size:10px;font-family:monospace;
             margin-top:2px">DM-Count estimate: {_crowd_count}</div>
             </div>
 
-            <div style="flex:1;text-align:center;border-right:1px solid #C7D2FE;
+            <div style="flex:1;text-align:center;border-right:1px solid #334155;
             padding:0 20px">
-            <div style="color:#4B5563;font-size:9px;font-weight:700;
+            <div style="color:#94A3B8;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             MODEL</div>
-            <div style="color:#1E1B4B;font-size:14px;font-weight:700;
+            <div style="color:#F1F5F9;font-size:14px;font-weight:700;
             font-family:monospace">{_banner_model}</div>
             </div>
 
             <div style="flex:1;text-align:center;padding-left:20px">
-            <div style="color:#4B5563;font-size:9px;font-weight:700;
+            <div style="color:#94A3B8;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             CONFIDENCE</div>
-            <div style="color:#059669;font-size:14px;font-weight:700;
+            <div style="color:#10B981;font-size:14px;font-weight:700;
             font-family:monospace">{_banner_conf}%</div>
             </div>
 
@@ -2408,47 +2578,47 @@ DM-Count is optimized for crowd scenes
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.markdown(f"""
-                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+                <div style="background:#1E293B;border:1px solid #334155;
                 border-radius:12px;overflow:hidden;
-                box-shadow:0 4px 20px rgba(79,70,229,0.08)">
-                <div style="background:#EEF2FF;padding:10px 16px;
-                border-top:3px solid #4F46E5">
-                <span style="color:#4F46E5;font-size:10px;text-transform:uppercase;
+                box-shadow:0 4px 24px rgba(99,102,241,0.15)">
+                <div style="background:#263445;padding:10px 16px;
+                border-top:3px solid #6366F1">
+                <span style="color:#6366F1;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">{_panel1_title}</span></div>
                 <img src="data:image/jpeg;base64,{_headdot_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#F0F4FF;
-                color:#6B7280;font-size:11px">{_panel1_sub}</div>
+                <div style="padding:8px 16px;background:#0F172A;
+                color:#64748B;font-size:11px">{_panel1_sub}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c2:
                 st.markdown(f"""
-                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+                <div style="background:#1E293B;border:1px solid #334155;
                 border-radius:12px;overflow:hidden;
-                box-shadow:0 4px 20px rgba(79,70,229,0.08)">
-                <div style="background:#EEF2FF;padding:10px 16px;
-                border-top:3px solid #4F46E5">
-                <span style="color:#4F46E5;font-size:10px;text-transform:uppercase;
+                box-shadow:0 4px 24px rgba(99,102,241,0.15)">
+                <div style="background:#263445;padding:10px 16px;
+                border-top:3px solid #6366F1">
+                <span style="color:#6366F1;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">DENSITY HEATMAP</span></div>
                 <img src="data:image/jpeg;base64,{_density_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#F0F4FF;
-                color:#6B7280;font-size:11px">Gaussian σ=8 · JET colormap · opacity {opacity}</div>
+                <div style="padding:8px 16px;background:#0F172A;
+                color:#64748B;font-size:11px">Gaussian σ=8 · JET colormap · opacity {opacity}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c3:
                 st.markdown(f"""
-                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+                <div style="background:#1E293B;border:1px solid #334155;
                 border-radius:12px;overflow:hidden;
-                box-shadow:0 4px 20px rgba(79,70,229,0.08)">
-                <div style="background:#EEF2FF;padding:10px 16px;
+                box-shadow:0 4px 24px rgba(99,102,241,0.15)">
+                <div style="background:#263445;padding:10px 16px;
                 border-top:3px solid #10B981">
-                <span style="color:#059669;font-size:10px;text-transform:uppercase;
+                <span style="color:#10B981;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">SAFETY ZONE MAP — {method.upper()}</span></div>
                 <img src="data:image/jpeg;base64,{_safety_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#F0F4FF;
-                color:#6B7280;font-size:11px">8×8 grid · {method} classification</div>
+                <div style="padding:8px 16px;background:#0F172A;
+                color:#64748B;font-size:11px">8×8 grid · {method} classification</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -2468,12 +2638,12 @@ DM-Count is optimized for crowd scenes
                 _model_badge = "DM-Count · Ensemble"
 
             st.markdown(f"""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:10px;
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
             padding:14px 20px;margin:8px 0 16px 0;display:flex;align-items:center;
             justify-content:space-between;gap:20px">
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span style="font-size:14px">🎯</span>
-            <span style="color:#4B5563;font-size:10px;font-weight:700;
+            <span style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:1.5px;text-transform:uppercase">ANALYSIS CONFIDENCE</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;gap:12px">
@@ -2483,14 +2653,14 @@ DM-Count is optimized for crowd scenes
             animation:barFill 1s ease-out forwards;
             --fill-pct:{_confidence_pct}%"></div>
             </div>
-            <span style="color:#1E1B4B;font-family:'JetBrains Mono',monospace;
+            <span style="color:#F1F5F9;font-family:'JetBrains Mono',monospace;
             font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
             flex-shrink:0">{_confidence_pct}%</span>
             </div>
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
-            background:rgba(6,182,212,0.1);color:#4F46E5;
-            border:1px solid rgba(6,182,212,0.2);flex-shrink:0;
+            background:rgba(34,211,238,0.1);color:#6366F1;
+            border:1px solid rgba(34,211,238,0.2);flex-shrink:0;
             font-family:'JetBrains Mono',monospace">{_model_badge}</span>
             </div>
             """, unsafe_allow_html=True)
@@ -2513,21 +2683,21 @@ DM-Count is optimized for crowd scenes
             m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
                 st.components.v1.html(f"""
-                <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+                <div style="background:#1E293B;border:1px solid #334155;
                 border-radius:12px;padding:22px 18px;
-                border-top:2px solid #4F46E5;
-                box-shadow:0 4px 20px rgba(79,70,229,0.15)">
-                <div style="color:#4B5563;font-size:11px;text-transform:uppercase;
+                border-top:3px solid #6366F1;
+                box-shadow:0 4px 24px rgba(99,102,241,0.2)">
+                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 👥 ESTIMATED CROWD</div>
-                <div style="color:#1E1B4B;font-family:'JetBrains Mono',monospace;
+                <div style="color:#F1F5F9;font-family:'JetBrains Mono',monospace;
                 font-size:36px;font-weight:700;letter-spacing:-0.03em;
                 font-variant-numeric:tabular-nums;line-height:1">{_crowd_count:,}</div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-                <span style="color:#4B5563;font-size:11px">Range: {_count_low} – {_count_high}</span>
+                <span style="color:#94A3B8;font-size:11px">Range: {_count_low} – {_count_high}</span>
                 <span style="padding:2px 8px;border-radius:12px;font-size:10px;
-                font-weight:600;background:rgba(6,182,212,0.1);color:#4F46E5;
-                border:1px solid rgba(6,182,212,0.2);
+                font-weight:600;background:rgba(34,211,238,0.1);color:#6366F1;
+                border:1px solid rgba(34,211,238,0.2);
                 font-family:'JetBrains Mono',monospace">±{int(_mae)} MAE</span>
                 </div>
                 </div>
@@ -2542,12 +2712,25 @@ DM-Count is optimized for crowd scenes
             # Nuclear fix: recalculate everything fresh from
             # _zone_stats RIGHT HERE at render time.
             # ══════════════════════════════════════════════════
+            # Percentage-based threat formula:
+            # Uses zone ratios so 4/64 Critical ≈ 4%, not 100%
+            _crit_pct = _zone_stats.get("Critical", 0) / 64
+            _high_pct = _zone_stats.get("High", 0) / 64
+            _med_pct  = _zone_stats.get("Medium", 0) / 64
+
             _gauge_value = min(100, int(
-                _zone_stats.get("Critical", 0) * 40 +
-                _zone_stats.get("High", 0) * 20 +
-                _zone_stats.get("Medium", 0) * 1 +
-                min(15, _crowd_count / 10)
+                _crit_pct * 100 * 0.7 +
+                _high_pct * 100 * 0.2 +
+                _med_pct  * 100 * 0.05 +
+                min(10, _crowd_count / 50 * 10)
             ))
+
+            # Crowd-count based threat cap:
+            # Small crowds can never be CRITICAL EMERGENCY
+            if _crowd_count < 20:
+                _gauge_value = min(_gauge_value, 25)
+            elif _crowd_count < 50:
+                _gauge_value = min(_gauge_value, 50)
 
             if _gauge_value < 25:
                 _g_label = "MINIMAL"
@@ -2615,7 +2798,7 @@ DM-Count is optimized for crowd scenes
 
             # ── Alert banner ──────────────────────────────────
             if _zone_stats["Critical"] > 0:
-                st.markdown(f"""<div style="background:#FEF2F2;
+                st.markdown(f"""<div style="background:#1A0A0A;
                 border:1px solid rgba(255,23,68,0.3);border-left:4px solid #FF1744;
                 border-radius:10px;padding:18px 24px;
                 color:#FF6B6B;font-weight:700;font-size:15px;margin:16px 0;
@@ -2626,11 +2809,11 @@ DM-Count is optimized for crowd scenes
                 st.markdown(f"""<div style="background:rgba(245,158,11,0.08);
                 border:1px solid rgba(245,158,11,0.3);border-left:4px solid #F59E0B;
                 border-radius:10px;padding:18px 24px;
-                color:#92400E;font-weight:700;font-size:15px;margin:16px 0">
+                color:#FCD34D;font-weight:700;font-size:15px;margin:16px 0">
                 ⚠️ WARNING — {_zone_stats["High"]} high-density zones detected.
                 Monitor closely.</div>""", unsafe_allow_html=True)
             else:
-                st.markdown("""<div style="background:#F0FDF4;
+                st.markdown("""<div style="background:rgba(16,185,129,0.1);
                 border:1px solid rgba(16,185,129,0.3);border-left:4px solid #10B981;
                 border-radius:10px;padding:18px 24px;
                 color:#6EE7B7;font-weight:700;font-size:15px;margin:16px 0">
@@ -2638,7 +2821,7 @@ DM-Count is optimized for crowd scenes
                             unsafe_allow_html=True)
 
             # ── Zone breakdown chart ──────────────────────────
-            st.markdown('<div style="border-top:1px solid #C7D2FE;margin:24px 0"></div>',
+            st.markdown('<div style="border-top:1px solid #334155;margin:24px 0"></div>',
                         unsafe_allow_html=True)
 
             # ── Zone Breakdown — 4 stat columns ──────────────
@@ -2654,12 +2837,12 @@ DM-Count is optimized for crowd scenes
                 _zb_pct = (_zb_count / 64) * 100
                 with _zb_col:
                     st.markdown(f"""
-                    <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+                    <div style="background:#1E293B;border:1px solid #334155;
                     border-radius:12px;padding:20px;text-align:center;
                     border-top:3px solid {_zb_color}">
                     <div style="font-size:2.5rem;font-weight:900;
                     color:{_zb_color};font-family:monospace">{_zb_count}</div>
-                    <div style="font-size:10px;color:#4B5563;
+                    <div style="font-size:10px;color:#94A3B8;
                     letter-spacing:2px;text-transform:uppercase;
                     margin-top:6px">{_zb_name} ZONES</div>
                     <div style="margin-top:12px;height:4px;
@@ -2690,16 +2873,16 @@ DM-Count is optimized for crowd scenes
                 cap_label="OVERCAPACITY"; bar_color="#FF1744"
 
             st.markdown(f"""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:20px 24px;margin:16px 0">
 
             <div style="display:flex;justify-content:space-between;
             align-items:center;margin-bottom:14px">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🏟️ VENUE CAPACITY MONITOR</div>
             <div style="display:flex;gap:8px;align-items:center">
-            <span style="color:#4B5563;font-size:12px">
+            <span style="color:#94A3B8;font-size:12px">
             {_crowd_count} / {venue_capacity}</span>
             <span style="padding:3px 12px;border-radius:20px;
             font-size:11px;font-weight:700;
@@ -2717,10 +2900,10 @@ DM-Count is optimized for crowd scenes
 
             <div style="display:flex;justify-content:space-between;
             margin-top:8px">
-            <span style="color:#4B5563;font-size:10px">0%</span>
+            <span style="color:#94A3B8;font-size:10px">0%</span>
             <span style="color:{cap_color};font-size:11px;
             font-weight:700">{_utilization}% utilized</span>
-            <span style="color:#4B5563;font-size:10px">100%</span>
+            <span style="color:#94A3B8;font-size:10px">100%</span>
             </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2746,25 +2929,25 @@ DM-Count is optimized for crowd scenes
                 _evac_status = "⚠️ CRITICAL EVACUATION TIME"
 
             st.markdown(f"""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:20px 24px;margin:16px 0;
             border-left:4px solid {_evac_color}">
             <div style="display:flex;align-items:center;
             justify-content:space-between">
             <div>
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;
             margin-bottom:6px">🚪 EVACUATION TIME ESTIMATE</div>
             <div style="color:{_evac_color};font-size:36px;
             font-weight:900;font-family:monospace">
             {_evac_mins_display}m {_evac_secs_display}s</div>
-            <div style="color:#4B5563;font-size:11px;margin-top:4px">
+            <div style="color:#94A3B8;font-size:11px;margin-top:4px">
             {_evac_status}</div>
             </div>
             <div style="text-align:right">
-            <div style="color:#4B5563;font-size:10px;margin-bottom:4px">
+            <div style="color:#94A3B8;font-size:10px;margin-bottom:4px">
             {num_exits} exits · 40 ppl/min each</div>
-            <div style="color:#4B5563;font-size:10px">
+            <div style="color:#94A3B8;font-size:10px">
             Critical zone penalty: +{int((_slowdown-1)*100)}%</div>
             </div>
             </div>
@@ -2784,7 +2967,7 @@ DM-Count is optimized for crowd scenes
                     _rl_detail_t1 = _rl_agent.get_action_detail(
                         _rl_action_t1, _zone_stats, num_exits)
                     st.markdown(f"""
-                    <div style="background:#FFFFFF;border:1px solid #DDD6FE;
+                    <div style="background:#1E293B;border:1px solid #DDD6FE;
                     border-radius:12px;padding:18px 22px;margin:16px 0;
                     border-left:4px solid #7C3AED;
                     box-shadow:0 2px 12px rgba(124,58,237,0.08)">
@@ -2793,9 +2976,9 @@ DM-Count is optimized for crowd scenes
                     <span style="color:#7C3AED;font-size:10px;font-weight:700;
                     letter-spacing:2px;text-transform:uppercase">RL AGENT RECOMMENDATION</span>
                     </div>
-                    <div style="color:#1E1B4B;font-size:15px;font-weight:700;
+                    <div style="color:#F1F5F9;font-size:15px;font-weight:700;
                     margin-bottom:4px">{_rl_name_t1}</div>
-                    <div style="color:#6B7280;font-size:12px;line-height:1.5">{_rl_detail_t1}</div>
+                    <div style="color:#64748B;font-size:12px;line-height:1.5">{_rl_detail_t1}</div>
                     <div style="color:#A78BFA;font-size:10px;margin-top:8px;
                     font-weight:600">Switch to RL Agent tab to train the model →</div>
                     </div>
@@ -2811,7 +2994,7 @@ DM-Count is optimized for crowd scenes
 
                 # Custom colorscale: black→dark blue→cyan→yellow→red
                 _custom_cs = [
-                    [0.0, "#F0F4FF"],
+                    [0.0, "#0F172A"],
                     [0.2, "#0C2461"],
                     [0.4, "#06B6D4"],
                     [0.6, "#F59E0B"],
@@ -2935,62 +3118,62 @@ DM-Count is optimized for crowd scenes
             <div style="text-align:center;padding:60px 20px 50px;min-height:480px;
             animation:floatUp 0.6s ease;
             background:radial-gradient(ellipse 600px 300px at center 120px,
-            rgba(79,70,229,0.07), transparent);border-top:1px solid #C7D2FE">
+            rgba(99,102,241,0.07), transparent);border-top:1px solid #334155">
 
             <div style="font-size:64px;margin-bottom:16px;
-            filter:drop-shadow(0 4px 24px rgba(79,70,229,0.35))">🛡️</div>
+            filter:drop-shadow(0 4px 24px rgba(99,102,241,0.35))">🛡️</div>
 
-            <div style="font-size:12px;font-weight:700;color:#2563EB;
+            <div style="font-size:12px;font-weight:700;color:#6366F1;
             letter-spacing:6px;text-transform:uppercase;margin-bottom:12px">
             SAFECROWD VISION</div>
 
-            <h2 style="color:#1E1B4B;font-size:32px;font-weight:800;margin:0;
+            <h2 style="color:#F1F5F9;font-size:32px;font-weight:800;margin:0;
             letter-spacing:-0.03em">Ready for Analysis</h2>
 
-            <p style="color:#4B5563;font-size:15px;max-width:520px;
+            <p style="color:#94A3B8;font-size:15px;max-width:520px;
             margin:16px auto 0;line-height:1.8">
             Upload any crowd image to begin real-time density estimation
             and 4-zone safety mapping.</p>
 
-            <div style="border-top:1px solid #C7D2FE;margin:36px auto 32px;
+            <div style="border-top:1px solid #334155;margin:36px auto 32px;
             max-width:400px"></div>
 
             <div style="display:flex;justify-content:center;gap:16px;
             flex-wrap:wrap;max-width:640px;margin:0 auto">
 
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
-            border-top:2px solid #4F46E5;border-radius:12px;padding:20px 24px;
+            <div style="background:#1E293B;border:1px solid #334155;
+            border-top:3px solid #6366F1;border-radius:12px;padding:20px 24px;
             flex:1;min-width:160px;max-width:200px;text-align:center">
             <div style="font-size:28px;margin-bottom:10px">🎯</div>
-            <div style="color:#1E1B4B;font-size:13px;font-weight:600;
+            <div style="color:#F1F5F9;font-size:13px;font-weight:600;
             margin-bottom:4px">DM-Count</div>
-            <div style="color:#4B5563;font-size:11px;line-height:1.5">
+            <div style="color:#94A3B8;font-size:11px;line-height:1.5">
             Sparse-optimized<br>
             <span style="color:#3B82F6;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">MAE: 4.92</span></div>
             </div>
 
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-top:2px solid #10B981;border-radius:12px;padding:20px 24px;
             flex:1;min-width:160px;max-width:200px;text-align:center">
             <div style="font-size:28px;margin-bottom:10px">🗺️</div>
-            <div style="color:#1E1B4B;font-size:13px;font-weight:600;
+            <div style="color:#F1F5F9;font-size:13px;font-weight:600;
             margin-bottom:4px">4-Zone Safety</div>
-            <div style="color:#4B5563;font-size:11px;line-height:1.5">
+            <div style="color:#94A3B8;font-size:11px;line-height:1.5">
             Spatial mapping<br>
-            <span style="color:#059669;font-family:'JetBrains Mono',monospace;
+            <span style="color:#10B981;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">8×8 Grid</span></div>
             </div>
 
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-top:2px solid #0891B2;border-radius:12px;padding:20px 24px;
             flex:1;min-width:160px;max-width:200px;text-align:center">
             <div style="font-size:28px;margin-bottom:10px">⚡</div>
-            <div style="color:#1E1B4B;font-size:13px;font-weight:600;
+            <div style="color:#F1F5F9;font-size:13px;font-weight:600;
             margin-bottom:4px">Real-Time</div>
-            <div style="color:#4B5563;font-size:11px;line-height:1.5">
+            <div style="color:#94A3B8;font-size:11px;line-height:1.5">
             Instant analysis<br>
-            <span style="color:#4F46E5;font-family:'JetBrains Mono',monospace;
+            <span style="color:#6366F1;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">Live Feed</span></div>
             </div>
 
@@ -3010,13 +3193,13 @@ DM-Count is optimized for crowd scenes
 
 with tab2:
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
+    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #334155;
     margin-bottom:22px;box-shadow:0 4px 20px rgba(0,0,0,0.4)">
-    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">
     How different ML methods see the same crowd</h2>
-    <p style="color:#6B7280;margin:8px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#64748B;margin:8px 0 0;font-size:13px;line-height:1.5">
     Same image analysed by three different algorithms side by side.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -3055,13 +3238,13 @@ with tab2:
         _xgb_b64 = _img_to_b64(xgb_img)
 
         st.markdown("""
-        <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
-        padding:18px 22px;border-radius:12px;border:1px solid #C7D2FE;
-        margin-bottom:14px;border-left:3px solid #0891B2;
+        <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
+        padding:18px 22px;border-radius:12px;border:1px solid #334155;
+        margin-bottom:14px;border-left:3px solid #22D3EE;
         box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-        <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700;
+        <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700;
         letter-spacing:-0.01em">⟺ Interactive Comparison</h3>
-        <p style="color:#4B5563;font-size:12px;margin:6px 0 0;font-weight:400">
+        <p style="color:#94A3B8;font-size:12px;margin:6px 0 0;font-weight:400">
         Drag the slider to compare KMeans vs XGBoost zone classification</p>
         </div>
         """, unsafe_allow_html=True)
@@ -3098,7 +3281,7 @@ with tab2:
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             z-index: 20; pointer-events: none;
         }}
-        .cmp-label-l {{ left: 12px; background: rgba(79,70,229,0.85); }}
+        .cmp-label-l {{ left: 12px; background: rgba(99,102,241,0.85); }}
         .cmp-label-r {{ right: 12px; background: rgba(16,185,129,0.85); }}
         #divider {{
             position: absolute; top: 0; left: 50%;
@@ -3201,18 +3384,18 @@ with tab2:
         c1, c2, c3 = st.columns(3)
 
         with c1:
-            st.markdown("""<div style="background:linear-gradient(160deg,#EEF2FF,#F8FAFF);
-            padding:18px;border-radius:12px;border:1px solid #C7D2FE;
-            border-top:3px solid #4F46E5;margin-bottom:8px;
+            st.markdown("""<div style="background:linear-gradient(160deg,#1E293B,#263445);
+            padding:18px;border-radius:12px;border:1px solid #334155;
+            border-top:3px solid #6366F1;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700">KMeans</h3>
-            <p style="color:#4B5563;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700">KMeans</h3>
+            <p style="color:#94A3B8;font-size:11px;margin:4px 0 0;font-weight:500">
             Unsupervised Clustering</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#FFFFFF;
-            border-radius:12px;border:1px solid #C7D2FE;padding:16px;margin-bottom:8px;
+            st.markdown("""<div style="background:#1E293B;
+            border-radius:12px;border:1px solid #334155;padding:16px;margin-bottom:8px;
             border-top:2px solid #64748B">
-            <p style="color:#4B5563;font-size:10px;text-transform:uppercase;
+            <p style="color:#94A3B8;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(km_img, use_container_width=True,
@@ -3220,8 +3403,8 @@ with tab2:
             st.markdown(
                 f'<span style="display:inline-block;padding:6px 16px;'
                 f'border-radius:20px;font-size:12px;font-weight:600;'
-                f'background:rgba(79,70,229,0.1);color:#3B82F6;'
-                f'border:1px solid rgba(79,70,229,0.25);'
+                f'background:rgba(99,102,241,0.1);color:#3B82F6;'
+                f'border:1px solid rgba(99,102,241,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
                 f'Silhouette: {km_sil:.2f}</span>',
@@ -3229,26 +3412,26 @@ with tab2:
             st.caption("Hard clustering — assigns each patch to nearest centre")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#6B7280">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#64748B">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#1E1B4B;font-variant-numeric:tabular-nums">'
+                    f'color:#F1F5F9;font-variant-numeric:tabular-nums">'
                     f'{km_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
         with c2:
-            st.markdown("""<div style="background:linear-gradient(160deg,#EEF2FF,#F8FAFF);
-            padding:18px;border-radius:12px;border:1px solid #C7D2FE;
+            st.markdown("""<div style="background:linear-gradient(160deg,#1E293B,#263445);
+            padding:18px;border-radius:12px;border:1px solid #334155;
             border-top:3px solid #10B981;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700">XGBoost</h3>
-            <p style="color:#4B5563;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700">XGBoost</h3>
+            <p style="color:#94A3B8;font-size:11px;margin:4px 0 0;font-weight:500">
             Supervised Classification</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#FFFFFF;
-            border-radius:12px;border:1px solid #C7D2FE;padding:16px;margin-bottom:8px;
+            st.markdown("""<div style="background:#1E293B;
+            border-radius:12px;border:1px solid #334155;padding:16px;margin-bottom:8px;
             border-top:2px solid #64748B">
-            <p style="color:#4B5563;font-size:10px;text-transform:uppercase;
+            <p style="color:#94A3B8;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(xgb_img, use_container_width=True,
@@ -3256,7 +3439,7 @@ with tab2:
             st.markdown(
                 f'<span style="display:inline-block;padding:6px 16px;'
                 f'border-radius:20px;font-size:12px;font-weight:600;'
-                f'background:#F0FDF4;color:#6EE7B7;'
+                f'background:rgba(16,185,129,0.1);color:#6EE7B7;'
                 f'border:1px solid rgba(16,185,129,0.25);'
                 f'font-family:\'JetBrains Mono\',monospace;'
                 f'font-variant-numeric:tabular-nums">'
@@ -3265,26 +3448,26 @@ with tab2:
             st.caption("Learned from KMeans labels — gradient boosted trees")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#6B7280">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#64748B">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#1E1B4B;font-variant-numeric:tabular-nums">'
+                    f'color:#F1F5F9;font-variant-numeric:tabular-nums">'
                     f'{xgb_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
         with c3:
-            st.markdown("""<div style="background:linear-gradient(160deg,#EEF2FF,#F8FAFF);
-            padding:18px;border-radius:12px;border:1px solid #C7D2FE;
+            st.markdown("""<div style="background:linear-gradient(160deg,#1E293B,#263445);
+            padding:18px;border-radius:12px;border:1px solid #334155;
             border-top:3px solid #7C3AED;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#1E1B4B;margin:0;font-size:16px;font-weight:700">GMM</h3>
-            <p style="color:#4B5563;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700">GMM</h3>
+            <p style="color:#94A3B8;font-size:11px;margin:4px 0 0;font-weight:500">
             Unsupervised Soft Clustering</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#FFFFFF;
-            border-radius:12px;border:1px solid #C7D2FE;padding:16px;margin-bottom:8px;
+            st.markdown("""<div style="background:#1E293B;
+            border-radius:12px;border:1px solid #334155;padding:16px;margin-bottom:8px;
             border-top:2px solid #64748B">
-            <p style="color:#4B5563;font-size:10px;text-transform:uppercase;
+            <p style="color:#94A3B8;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(gmm_img, use_container_width=True,
@@ -3302,10 +3485,10 @@ with tab2:
             st.caption("Soft clustering — probability-based zone assignment")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#6B7280">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#64748B">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#1E1B4B;font-variant-numeric:tabular-nums">'
+                    f'color:#F1F5F9;font-variant-numeric:tabular-nums">'
                     f'{gmm_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
@@ -3318,21 +3501,21 @@ with tab3:
 
     # ── Section header ──
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
-    border-left:4px solid #4F46E5;margin-bottom:22px;
-    box-shadow:inset 4px 0 30px rgba(79,70,229,0.15), 0 4px 20px rgba(0,0,0,0.4)">
+    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #334155;
+    border-left:4px solid #6366F1;margin-bottom:22px;
+    box-shadow:inset 4px 0 30px rgba(99,102,241,0.15), 0 4px 20px rgba(0,0,0,0.4)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">📡 Operations Timeline</h2>
-    <p style="color:#6B7280;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#64748B;margin:6px 0 0;font-size:13px;line-height:1.5">
     Security operations center · Scan history & threat analysis</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
     padding:5px 14px;border-radius:20px;font-size:10px;font-weight:600;
-    background:rgba(6,182,212,0.1);color:#4F46E5;
-    border:1px solid rgba(6,182,212,0.2);
+    background:rgba(34,211,238,0.1);color:#6366F1;
+    border:1px solid rgba(34,211,238,0.2);
     font-family:'JetBrains Mono',monospace;letter-spacing:1px">
     <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
     background:#06B6D4;animation:dotPulse 1.5s ease-in-out infinite"></span>
@@ -3356,17 +3539,17 @@ with tab3:
 
         with _dc1:
             st.components.v1.html(f"""
-            <div style="background:#F8FAFF;border:1px solid #C7D2FE;
-            border-radius:12px;border-top:2px solid #4F46E5;
+            <div style="background:#1E293B;border:1px solid #334155;
+            border-radius:12px;border-top:3px solid #6366F1;
             padding:24px 20px;text-align:center;
-            box-shadow:0 4px 20px rgba(79,70,229,0.1)">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            box-shadow:0 4px 20px rgba(99,102,241,0.1)">
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             📊 TOTAL SCANS</div>
             <div id="stat-total" style="font-size:42px;font-weight:900;
-            color:#1E1B4B;font-family:'JetBrains Mono',monospace;
+            color:#F1F5F9;font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums;line-height:1;
-            text-shadow:0 0 30px rgba(79,70,229,0.2)">0</div>
+            text-shadow:0 0 30px rgba(99,102,241,0.2)">0</div>
             <div style="color:#3B4A63;font-size:10px;margin-top:8px;
             font-family:'JetBrains Mono',monospace;letter-spacing:1px">
             images analysed</div>
@@ -3382,17 +3565,17 @@ with tab3:
 
         with _dc2:
             st.components.v1.html(f"""
-            <div style="background:#F8FAFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;border-top:2px solid #0891B2;
             padding:24px 20px;text-align:center;
-            box-shadow:0 4px 20px rgba(6,182,212,0.1)">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            box-shadow:0 4px 20px rgba(34,211,238,0.1)">
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             👥 AVERAGE CROWD</div>
             <div id="stat-avg" style="font-size:42px;font-weight:900;
-            color:#4F46E5;font-family:'JetBrains Mono',monospace;
+            color:#6366F1;font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums;line-height:1;
-            text-shadow:0 0 30px rgba(6,182,212,0.25)">0</div>
+            text-shadow:0 0 30px rgba(34,211,238,0.25)">0</div>
             <div style="color:#3B4A63;font-size:10px;margin-top:8px;
             font-family:'JetBrains Mono',monospace;letter-spacing:1px">
             persons per scan</div>
@@ -3417,12 +3600,12 @@ with tab3:
                 50% {{ box-shadow: 0 4px 32px rgba(255,23,68,0.35); }}
             }}
             </style>
-            <div style="background:#F8FAFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;border-top:2px solid {_peak_color};
             padding:24px 20px;text-align:center;
             box-shadow:0 4px 20px {'rgba(255,23,68,0.15)' if _hist_peak > 100 else 'rgba(16,185,129,0.1)'};
             {'animation:critGlow 2s ease-in-out infinite;' if _hist_peak > 100 else ''}">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             🔺 PEAK THREAT</div>
             <div id="stat-peak" style="font-size:42px;font-weight:900;
@@ -3447,10 +3630,10 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+        <div style="background:#1E293B;border:1px solid #334155;
         border-radius:12px;padding:14px 18px 6px;margin:8px 0 4px;
-        border-top:2px solid #4F46E5">
-        <div style="color:#4B5563;font-size:10px;font-weight:700;
+        border-top:3px solid #6366F1">
+        <div style="color:#94A3B8;font-size:10px;font-weight:700;
         letter-spacing:2px;text-transform:uppercase">
         📈 CROWD DENSITY TIMELINE</div>
         </div>
@@ -3488,8 +3671,8 @@ with tab3:
         _fig_timeline.add_trace(go.Scatter(
             x=_scan_nums, y=_hist_counts,
             fill='tozeroy',
-            fillcolor='rgba(79,70,229,0.08)',
-            line=dict(color='rgba(79,70,229,0.0)', width=0),
+            fillcolor='rgba(99,102,241,0.08)',
+            line=dict(color='rgba(99,102,241,0.0)', width=0),
             showlegend=False, hoverinfo='skip',
         ))
 
@@ -3552,10 +3735,10 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+        <div style="background:#1E293B;border:1px solid #334155;
         border-radius:12px;padding:14px 18px 6px;margin:16px 0 4px;
         border-top:2px solid #0891B2">
-        <div style="color:#4B5563;font-size:10px;font-weight:700;
+        <div style="color:#94A3B8;font-size:10px;font-weight:700;
         letter-spacing:2px;text-transform:uppercase">
         🗂️ THREAT HISTORY LOG</div>
         </div>
@@ -3563,22 +3746,22 @@ with tab3:
 
         # Build table header
         _table_html = """
-        <div style="border:1px solid #C7D2FE;border-radius:12px;
+        <div style="border:1px solid #334155;border-radius:12px;
         overflow:hidden;margin-top:8px">
         <table style="width:100%;border-collapse:collapse;
         font-family:'Inter',sans-serif">
         <thead>
         <tr style="background:#0A0F1A;border-bottom:2px solid #C7D2FE">
-        <th style="padding:12px 16px;text-align:left;color:#4B5563;
+        <th style="padding:12px 16px;text-align:left;color:#94A3B8;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">SCAN #</th>
-        <th style="padding:12px 16px;text-align:center;color:#4B5563;
+        <th style="padding:12px 16px;text-align:center;color:#94A3B8;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">COUNT</th>
-        <th style="padding:12px 16px;text-align:center;color:#4B5563;
+        <th style="padding:12px 16px;text-align:center;color:#94A3B8;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">THREAT LEVEL</th>
-        <th style="padding:12px 16px;text-align:right;color:#4B5563;
+        <th style="padding:12px 16px;text-align:right;color:#94A3B8;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">ZONE STATUS</th>
         </tr>
@@ -3591,7 +3774,7 @@ with tab3:
         _display_hist.reverse()
 
         for _idx, (_scan_n, _cnt) in enumerate(_display_hist):
-            _row_bg = "#FFFFFF" if _idx % 2 == 0 else "#F8FAFF"
+            _row_bg = "#1E293B" if _idx % 2 == 0 else "#263445"
 
             if _cnt < 30:
                 _tl = "MINIMAL"
@@ -3619,13 +3802,13 @@ with tab3:
                 _zc = "#FF6B6B"
 
             _table_html += f"""
-            <tr style="background:{_row_bg};border-bottom:1px solid #C7D2FE;
+            <tr style="background:{_row_bg};border-bottom:1px solid #334155;
             transition:background 0.2s">
-            <td style="padding:12px 16px;color:#6B7280;font-size:13px;
+            <td style="padding:12px 16px;color:#64748B;font-size:13px;
             font-family:'JetBrains Mono',monospace;font-weight:500">
             #{_scan_n:02d}</td>
             <td style="padding:12px 16px;text-align:center;
-            color:#1E1B4B;font-size:15px;font-weight:700;
+            color:#F1F5F9;font-size:15px;font-weight:700;
             font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums">{_cnt}</td>
             <td style="padding:12px 16px;text-align:center">
@@ -3661,33 +3844,33 @@ with tab3:
 <div style="text-align:center;padding:80px 20px 70px;
 animation:floatUp 0.6s ease;
 background:radial-gradient(ellipse 500px 250px at center 100px,
-rgba(6,182,212,0.06), transparent)">
+rgba(34,211,238,0.06), transparent)">
 
 <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-filter:drop-shadow(0 4px 20px rgba(6,182,212,0.25))">📡</div>
+filter:drop-shadow(0 4px 20px rgba(34,211,238,0.25))">📡</div>
 
-<div style="font-size:11px;font-weight:700;color:#4F46E5;
+<div style="font-size:11px;font-weight:700;color:#6366F1;
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 OPERATIONS TIMELINE</div>
 
-<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">No Scans Yet</h2>
 
-<p style="color:#4B5563;font-size:14px;max-width:440px;
+<p style="color:#94A3B8;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Analyse images in the <span style="color:#3B82F6;
 font-weight:600">Live Analysis</span> tab to populate
 the operations timeline with threat data.</p>
 
-<div style="border-top:1px solid #C7D2FE;margin:32px auto 28px;
+<div style="border-top:1px solid #334155;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:inline-flex;align-items:center;gap:8px;
 padding:8px 20px;border-radius:20px;
-background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2)">
+background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
 <span style="display:inline-block;width:6px;height:6px;
 border-radius:50%;background:#3B4A63"></span>
-<span style="color:#4B5563;font-size:11px;font-weight:500;
+<span style="color:#94A3B8;font-size:11px;font-weight:500;
 font-family:'JetBrains Mono',monospace;letter-spacing:1px">
 AWAITING FIRST SCAN</span>
 </div>
@@ -3705,19 +3888,19 @@ with tab4:
 <div style="text-align:center;padding:80px 20px 70px;
 animation:floatUp 0.6s ease;
 background:radial-gradient(ellipse 500px 250px at center 100px,
-rgba(79,70,229,0.06), transparent)">
+rgba(99,102,241,0.06), transparent)">
 
 <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-filter:drop-shadow(0 4px 20px rgba(79,70,229,0.25))">📱</div>
+filter:drop-shadow(0 4px 20px rgba(99,102,241,0.25))">📱</div>
 
-<div style="font-size:11px;font-weight:700;color:#2563EB;
+<div style="font-size:11px;font-weight:700;color:#6366F1;
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 LIVE CAPTURE</div>
 
-<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">Coming Soon</h2>
 
-<p style="color:#4B5563;font-size:14px;max-width:440px;
+<p style="color:#94A3B8;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Real-time camera feed analysis will be available in a future update.
 Use the <span style="color:#3B82F6;font-weight:600">Live Analysis</span> tab
@@ -3735,15 +3918,15 @@ with tab5:
 
     # ── Header card ──
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
+    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #334155;
     border-left:4px solid #7C3AED;margin-bottom:22px;
     box-shadow:inset 4px 0 30px rgba(124,58,237,0.15), 0 4px 20px rgba(0,0,0,0.4)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">🗂️ Batch Analysis</h2>
-    <p style="color:#6B7280;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#64748B;margin:6px 0 0;font-size:13px;line-height:1.5">
     Multi-frame crowd density analysis · Full zone classification per image</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
@@ -3765,10 +3948,10 @@ with tab5:
 
     if batch_files and len(batch_files) > 0:
         st.markdown(f"""
-        <div style="background:#FFFFFF;border:1px solid #C7D2FE;border-radius:10px;
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
         padding:12px 20px;margin:8px 0 16px 0;display:flex;align-items:center;gap:10px">
         <span style="color:#A78BFA;font-size:14px">📁</span>
-        <span style="color:#6B7280;font-size:13px">{len(batch_files)} images selected</span>
+        <span style="color:#64748B;font-size:13px">{len(batch_files)} images selected</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -3890,10 +4073,10 @@ with tab5:
             _avg_threat = int(np.mean([r["threat_score"] for r in batch_results]))
 
             st.markdown("""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:14px 18px 6px;margin:16px 0 12px;
             border-top:2px solid #7C3AED">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📊 AGGREGATE ANALYTICS</div>
             </div>
@@ -3975,29 +4158,29 @@ with tab5:
             # 2. SUMMARY TABLE WITH ZONE COLUMNS
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:14px 18px 6px;margin:16px 0 4px;
             border-top:2px solid #7C3AED">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📋 DETAILED RESULTS TABLE</div>
             </div>
             """, unsafe_allow_html=True)
 
             _batch_table = """
-            <div style="border:1px solid #C7D2FE;border-radius:12px;
+            <div style="border:1px solid #334155;border-radius:12px;
             overflow:hidden;margin-top:8px">
             <table style="width:100%;border-collapse:collapse;
             font-family:'Inter',sans-serif">
             <thead>
             <tr style="background:#0A0F1A;border-bottom:2px solid #C7D2FE">
-            <th style="padding:12px 14px;text-align:left;color:#4B5563;
+            <th style="padding:12px 14px;text-align:left;color:#94A3B8;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">IMAGE</th>
-            <th style="padding:12px 10px;text-align:center;color:#4B5563;
+            <th style="padding:12px 10px;text-align:center;color:#94A3B8;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">COUNT</th>
-            <th style="padding:12px 10px;text-align:center;color:#059669;
+            <th style="padding:12px 10px;text-align:center;color:#10B981;
             font-size:10px;font-weight:700;letter-spacing:1.5px">LOW</th>
             <th style="padding:12px 10px;text-align:center;color:#D97706;
             font-size:10px;font-weight:700;letter-spacing:1.5px">MED</th>
@@ -4005,16 +4188,16 @@ with tab5:
             font-size:10px;font-weight:700;letter-spacing:1.5px">HIGH</th>
             <th style="padding:12px 10px;text-align:center;color:#B91C1C;
             font-size:10px;font-weight:700;letter-spacing:1.5px">CRIT</th>
-            <th style="padding:12px 10px;text-align:center;color:#4B5563;
+            <th style="padding:12px 10px;text-align:center;color:#94A3B8;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">THREAT</th>
-            <th style="padding:12px 10px;text-align:center;color:#4B5563;
+            <th style="padding:12px 10px;text-align:center;color:#94A3B8;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">SCORE</th>
-            <th style="padding:12px 10px;text-align:center;color:#4F46E5;
+            <th style="padding:12px 10px;text-align:center;color:#6366F1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">CONF</th>
-            <th style="padding:12px 10px;text-align:right;color:#4B5563;
+            <th style="padding:12px 10px;text-align:right;color:#94A3B8;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">TIME</th>
             </tr>
@@ -4030,21 +4213,21 @@ with tab5:
             }
 
             for _bi, _br in enumerate(batch_results):
-                _row_bg = "#FFFFFF" if _bi % 2 == 0 else "#F8FAFF"
+                _row_bg = "#1E293B" if _bi % 2 == 0 else "#263445"
                 _btc, _btbg = _threat_colors.get(_br["threat"], ("#64748B", "rgba(100,116,139,0.12)"))
                 _zs = _br["zone_stats"]
 
                 _batch_table += f"""
-                <tr style="background:{_row_bg};border-bottom:1px solid #C7D2FE">
-                <td style="padding:10px 14px;color:#6B7280;font-size:12px;
+                <tr style="background:{_row_bg};border-bottom:1px solid #334155">
+                <td style="padding:10px 14px;color:#64748B;font-size:12px;
                 font-family:'JetBrains Mono',monospace;font-weight:500">
                 {_br['name']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#1E1B4B;font-size:14px;font-weight:700;
+                color:#F1F5F9;font-size:14px;font-weight:700;
                 font-family:'JetBrains Mono',monospace;
                 font-variant-numeric:tabular-nums">{_br['count']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#059669;font-size:13px;font-weight:600;
+                color:#10B981;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_zs['Low']}</td>
                 <td style="padding:10px;text-align:center;
                 color:#D97706;font-size:13px;font-weight:600;
@@ -4061,13 +4244,13 @@ with tab5:
                 letter-spacing:1px;color:{_btc};background:{_btbg};
                 border:1px solid {_btc}30">{_br['threat']}</span></td>
                 <td style="padding:10px;text-align:center;
-                color:#4F46E5;font-size:13px;font-weight:600;
+                color:#6366F1;font-size:13px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_br['threat_score']}%</td>
                 <td style="padding:10px;text-align:center;
                 color:#A78BFA;font-size:12px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_br['confidence']}%</td>
                 <td style="padding:10px;text-align:right;
-                color:#4B5563;font-size:12px;font-weight:500;
+                color:#94A3B8;font-size:12px;font-weight:500;
                 font-family:'JetBrains Mono',monospace">{_br.get('time_s', '—')}s</td>
                 </tr>
                 """
@@ -4078,10 +4261,10 @@ with tab5:
             # 3. PER-IMAGE EXPANDABLE DETAIL CARDS
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
             border-top:2px solid #0891B2">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🔍 PER-IMAGE DETAILS</div>
             </div>
@@ -4096,7 +4279,7 @@ with tab5:
                     _d_c1, _d_c2 = st.columns(2)
                     with _d_c1:
                         st.markdown(f"""
-                        <div style="color:#4F46E5;font-size:10px;font-weight:700;
+                        <div style="color:#6366F1;font-size:10px;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                         SAFETY ZONE MAP — {method.upper()}</div>
                         """, unsafe_allow_html=True)
@@ -4104,7 +4287,7 @@ with tab5:
                         st.image(_d_safety_bytes, use_container_width=True)
                     with _d_c2:
                         st.markdown("""
-                        <div style="color:#4F46E5;font-size:10px;font-weight:700;
+                        <div style="color:#6366F1;font-size:10px;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                         DENSITY HEATMAP</div>
                         """, unsafe_allow_html=True)
@@ -4123,10 +4306,10 @@ with tab5:
                             [_d_z1, _d_z2, _d_z3, _d_z4], _d_zone_data):
                         with _d_col:
                             st.markdown(f"""
-                            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+                            <div style="background:#1E293B;border:1px solid #334155;
                             border-radius:10px;padding:14px;text-align:center;
                             border-top:2px solid {_d_clr}">
-                            <div style="font-size:10px;color:#4B5563;font-weight:700;
+                            <div style="font-size:10px;color:#94A3B8;font-weight:700;
                             letter-spacing:1.2px;margin-bottom:4px">{_d_lbl}</div>
                             <div style="font-size:28px;font-weight:900;color:{_d_clr};
                             font-family:'JetBrains Mono',monospace">{_d_val}</div>
@@ -4172,11 +4355,11 @@ with tab5:
             _peak_result = max(batch_results, key=lambda x: x["count"])
 
             st.markdown(f"""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
             border-top:2px solid #FF1744">
             <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🔺 PEAK DENSITY FRAME</div>
             <span style="color:#B91C1C;font-size:12px;font-weight:700;
@@ -4199,10 +4382,10 @@ with tab5:
             # 5. BATCH TIMELINE CHART
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+            <div style="background:#1E293B;border:1px solid #334155;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
-            border-top:2px solid #4F46E5">
-            <div style="color:#4B5563;font-size:10px;font-weight:700;
+            border-top:3px solid #6366F1">
+            <div style="color:#94A3B8;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📈 BATCH DENSITY TIMELINE</div>
             </div>
@@ -4348,50 +4531,50 @@ filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🗂️</div>
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 BATCH ANALYSIS</div>
 
-<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">Upload Multiple Images</h2>
 
-<p style="color:#4B5563;font-size:14px;max-width:440px;
+<p style="color:#94A3B8;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Upload multiple crowd images for full zone classification per frame.
 Get aggregate statistics, per-image overlays, and a downloadable report.</p>
 
-<div style="border-top:1px solid #C7D2FE;margin:32px auto 28px;
+<div style="border-top:1px solid #334155;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:flex;justify-content:center;gap:16px;
 flex-wrap:wrap;max-width:600px;margin:0 auto">
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📊</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">Zone Stats</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Per-image classification</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">Zone Stats</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Per-image classification</div>
 </div>
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🗺️</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">Safety Maps</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">Safety Maps</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
 </div>
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📈</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">Timeline</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Density across frames</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">Timeline</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Density across frames</div>
 </div>
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📥</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">JSON Report</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Full zone-level data</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">JSON Report</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Full zone-level data</div>
 </div>
 
 </div>
@@ -4416,9 +4599,9 @@ with tab6:
         _rl_status_border = "rgba(245,158,11,0.3)"
     elif _rl.epsilon > 0.1:
         _rl_status_label = "LEARNING"
-        _rl_status_bg = "rgba(79,70,229,0.12)"
+        _rl_status_bg = "rgba(99,102,241,0.12)"
         _rl_status_color = "#6366F1"
-        _rl_status_border = "rgba(79,70,229,0.3)"
+        _rl_status_border = "rgba(99,102,241,0.3)"
     else:
         _rl_status_label = "OPTIMAL"
         _rl_status_bg = "rgba(5,150,105,0.12)"
@@ -4426,15 +4609,15 @@ with tab6:
         _rl_status_border = "rgba(5,150,105,0.3)"
 
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#EEF2FF 0%,#FFFFFF 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #C7D2FE;
+    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #334155;
     border-left:4px solid #7C3AED;margin-bottom:22px;
     box-shadow:inset 4px 0 30px rgba(124,58,237,0.15), 0 4px 20px rgba(0,0,0,0.04)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#1E1B4B;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">🤖 DQN Evacuation Policy Agent</h2>
-    <p style="color:#6B7280;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#64748B;margin:6px 0 0;font-size:13px;line-height:1.5">
     Deep Q-Network learning optimal evacuation strategy from crowd density states</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
@@ -4466,212 +4649,196 @@ with tab6:
     st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
 
     # ── SECTION 3: Run Agent ──
-    _has_scene = (_crowd_count > 0 and _density_full is not None)
+    # Read from session state (cross-tab safe)
+    _rl_count = st.session_state.get("last_count", 0) or 0
+    _rl_density = st.session_state.get("last_density_raw", None)
+    _rl_zone_stats = st.session_state.get(
+        "last_zone_stats",
+        {"Low": 64, "Medium": 0, "High": 0, "Critical": 0})
+    _rl_num_exits = st.session_state.get("num_exits_val", 2)
+
+    _has_scene = (_rl_count > 0 and _rl_density is not None)
 
     if _has_scene:
         if st.button("▶ Run RL Agent on Current Scene", key="run_rl_agent",
                       use_container_width=True):
             try:
+                agent = st.session_state["rl_agent"]
+
                 # 1. Get current state
-                _rl_state = _rl.get_state_vector(
-                    _zone_stats, _crowd_count, num_exits, _density_full)
+                _rl_state = agent.get_state_vector(
+                    _rl_zone_stats, _rl_count,
+                    _rl_num_exits, _rl_density)
 
                 # 2. Choose action
-                _rl_action = _rl.choose_action(_rl_state)
+                _rl_action = agent.choose_action(_rl_state)
 
-                # 3. Simulate next state (action effect)
-                _sim_crit_reduction = random.uniform(0.30, 0.60)
-                _sim_high_reduction = random.uniform(0.20, 0.45)
+                # 3. Simulate outcome
+                _sim_crit_reduction = random.uniform(0.3, 0.7)
+                _sim_high_reduction = random.uniform(0.2, 0.5)
 
+                new_critical = max(0, int(
+                    _rl_zone_stats["Critical"] *
+                    (1 - _sim_crit_reduction)))
+                new_high = max(0, int(
+                    _rl_zone_stats["High"] *
+                    (1 - _sim_high_reduction)))
                 _sim_next_stats = {
-                    "Critical": max(0, int(_zone_stats.get("Critical", 0) *
-                                          (1 - _sim_crit_reduction))),
-                    "High": max(0, int(_zone_stats.get("High", 0) *
-                                       (1 - _sim_high_reduction))),
-                    "Medium": _zone_stats.get("Medium", 0),
-                    "Low": _zone_stats.get("Low", 0),
+                    "Critical": new_critical,
+                    "High": new_high,
+                    "Medium": _rl_zone_stats["Medium"],
+                    "Low": max(0, 64 - new_critical -
+                               new_high -
+                               _rl_zone_stats["Medium"]),
                 }
 
-                # Simulated evacuation time
-                _sim_exit_cap = num_exits * 40
-                _sim_slowdown = 1.0 + (_sim_next_stats["Critical"] * 0.2)
-                _sim_evac_mins = (_crowd_count * _sim_slowdown) / _sim_exit_cap if _sim_exit_cap > 0 else 999
-
-                # Original evacuation time
-                _orig_exit_cap = num_exits * 40
-                _orig_slowdown = 1.0 + (_zone_stats.get("Critical", 0) * 0.2)
-                _orig_evac_mins = (_crowd_count * _orig_slowdown) / _orig_exit_cap if _orig_exit_cap > 0 else 999
+                # Evacuation time
+                _exit_cap = _rl_num_exits * 40
+                _evac_before = (_rl_count * 1.0) / max(_exit_cap, 1)
+                _evac_after = (_rl_count * 0.7) / max(_exit_cap, 1)
 
                 # 4. Calculate reward
-                _rl_reward = _rl.calculate_reward(
-                    _zone_stats, _sim_next_stats, _sim_evac_mins)
+                _rl_reward = agent.calculate_reward(
+                    _rl_zone_stats, _sim_next_stats, _evac_after)
 
-                # Build simulated next state vector
-                _sim_density = _density_full * (1 - _sim_crit_reduction * 0.3)
-                _rl_next_state = _rl.get_state_vector(
-                    _sim_next_stats, _crowd_count, num_exits, _sim_density)
+                # 5. Next state
+                _rl_next_state = agent.get_state_vector(
+                    _sim_next_stats, _rl_count,
+                    _rl_num_exits, _rl_density)
 
-                # 5. Store in memory
-                _done = (_sim_next_stats["Critical"] == 0 and
-                         _sim_next_stats["High"] == 0)
-                _rl.remember(_rl_state, _rl_action,
-                              _rl_reward, _rl_next_state, _done)
+                # 6. Store and train
+                agent.remember(_rl_state, _rl_action,
+                               _rl_reward, _rl_next_state, False)
+                _rl_loss = agent.replay()
 
-                # 6. Replay to train
-                _rl_loss = _rl.replay()
+                # 7. Update agent stats
+                agent.total_reward += _rl_reward
+                agent.episode += 1
+                agent.action_history.append(_rl_action)
+                agent.reward_history.append(_rl_reward)
 
-                # 7. Update episode count
-                _rl.episode += 1
-                _rl.total_reward += _rl_reward
-                _rl.reward_history.append(_rl_reward)
-                _rl.action_history.append(_rl_action)
+                if agent.epsilon > agent.epsilon_min:
+                    agent.epsilon *= agent.epsilon_decay
 
                 # 8. Store in rl_history
                 _rl_record = {
-                    "episode": _rl.episode,
+                    "episode": agent.episode,
                     "action": _rl_action,
-                    "action_name": _rl.get_action_name(_rl_action),
+                    "action_name": agent.get_action_name(_rl_action),
                     "reward": _rl_reward,
                     "loss": _rl_loss,
-                    "epsilon": _rl.epsilon,
-                    "crit_before": _zone_stats.get("Critical", 0),
+                    "epsilon": agent.epsilon,
+                    "crit_before": _rl_zone_stats.get("Critical", 0),
                     "crit_after": _sim_next_stats["Critical"],
-                    "high_before": _zone_stats.get("High", 0),
+                    "high_before": _rl_zone_stats.get("High", 0),
                     "high_after": _sim_next_stats["High"],
-                    "evac_before": round(_orig_evac_mins, 1),
-                    "evac_after": round(_sim_evac_mins, 1),
+                    "evac_before": round(_evac_before, 1),
+                    "evac_after": round(_evac_after, 1),
                     "timestamp": datetime.now().strftime("%H:%M:%S"),
                 }
                 st.session_state["rl_history"].append(_rl_record)
-                st.session_state["rl_prev_stats"] = _zone_stats.copy()
+                st.session_state["rl_prev_stats"] = _rl_zone_stats.copy()
 
-                # ── Display Agent Decision Card ──
-                _crit_b = _zone_stats.get("Critical", 0)
-                _crit_a = _sim_next_stats["Critical"]
-                _high_b = _zone_stats.get("High", 0)
-                _high_a = _sim_next_stats["High"]
-                _crit_pct = int((1 - _crit_a / max(_crit_b, 1)) * 100) if _crit_b > 0 else 0
-                _high_pct = int((1 - _high_a / max(_high_b, 1)) * 100) if _high_b > 0 else 0
-
-                _action_name = _rl.get_action_name(_rl_action)
-                _action_detail = _rl.get_action_detail(
-                    _rl_action, _zone_stats, num_exits)
-
-                st.markdown(f"""
-                <div style="background:linear-gradient(135deg,#FAF5FF 0%,#FFFFFF 100%);
-                border:1px solid #DDD6FE;border-radius:16px;padding:28px 30px;margin:20px 0;
-                border-left:4px solid #7C3AED;
-                box-shadow:0 0 30px rgba(124,58,237,0.12), 0 4px 20px rgba(0,0,0,0.04);
-                animation:floatUp 0.5s ease">
-
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-                <span style="font-size:24px">🤖</span>
-                <span style="color:#7C3AED;font-size:12px;font-weight:800;
-                letter-spacing:3px;text-transform:uppercase">AGENT DECISION</span>
-                </div>
-
-                <div style="color:#6B7280;font-size:10px;font-weight:600;
-                letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">
-                ACTION SELECTED:</div>
-                <div style="color:#1E1B4B;font-size:22px;font-weight:800;
-                letter-spacing:-0.02em;margin-bottom:12px">{_action_name}</div>
-
-                <div style="color:#6B7280;font-size:10px;font-weight:600;
-                letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">
-                DETAILS:</div>
-                <div style="color:#4B5563;font-size:13px;line-height:1.6;
-                margin-bottom:16px">{_action_detail}</div>
-
-                <div style="border-top:1px solid #E9D5FF;padding-top:14px;margin-top:4px">
-                <div style="color:#6B7280;font-size:10px;font-weight:600;
-                letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">
-                PREDICTED OUTCOME:</div>
-
-                <div style="display:flex;gap:20px;flex-wrap:wrap">
-                <div style="color:#4B5563;font-size:13px">
-                Critical: <span style="font-weight:700">{_crit_b}</span> →
-                <span style="font-weight:700;color:#059669">{_crit_a}</span>
-                <span style="color:#059669;font-size:11px">(↓{_crit_pct}%)</span></div>
-                <div style="color:#4B5563;font-size:13px">
-                High: <span style="font-weight:700">{_high_b}</span> →
-                <span style="font-weight:700;color:#059669">{_high_a}</span>
-                <span style="color:#059669;font-size:11px">(↓{_high_pct}%)</span></div>
-                <div style="color:#4B5563;font-size:13px">
-                Evac time: <span style="font-weight:700">{_orig_evac_mins:.1f}</span> →
-                <span style="font-weight:700;color:#059669">{_sim_evac_mins:.1f} mins</span></div>
-                </div>
-                </div>
-
-                <div style="border-top:1px solid #E9D5FF;padding-top:14px;margin-top:14px;
-                display:flex;gap:24px">
-                <div style="color:#4B5563;font-size:13px">
-                REWARD: <span style="font-weight:800;color:#7C3AED;font-size:15px;
-                font-family:'JetBrains Mono',monospace">{_rl_reward:+.1f}</span></div>
-                <div style="color:#4B5563;font-size:13px">
-                LOSS: <span style="font-weight:800;color:#6366F1;font-size:15px;
-                font-family:'JetBrains Mono',monospace">{_rl_loss:.4f}</span></div>
-                </div>
-
-                </div>
-                """, unsafe_allow_html=True)
-
-                # ── SECTION 4: Q-Value Visualization ──
-                with torch.no_grad():
-                    _q_state_t = torch.FloatTensor(_rl_state).unsqueeze(0)
-                    _q_vals = _rl.model(_q_state_t).squeeze().numpy()
-
-                _q_action_names = [_rl.get_action_name(i) for i in range(8)]
-                _q_colors = ["rgba(124,58,237,0.25)"] * 8
-                _q_colors[_rl_action] = "#7C3AED"
-
-                fig_q = go.Figure(data=go.Bar(
-                    y=_q_action_names,
-                    x=_q_vals,
-                    orientation='h',
-                    marker=dict(
-                        color=_q_colors,
-                        line=dict(width=1, color="#DDD6FE"),
-                    ),
-                    text=[f"{v:.2f}" for v in _q_vals],
-                    textposition='auto',
-                    textfont=dict(color="#FFFFFF", size=11,
-                                  family="JetBrains Mono, monospace"),
-                ))
-                fig_q.update_layout(
-                    title=dict(
-                        text="Q-Values for Current State",
-                        font=dict(size=14, color="#4B5563",
-                                  family="Inter, sans-serif"),
-                    ),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    height=340,
-                    margin=dict(l=10, r=30, t=50, b=20),
-                    xaxis=dict(
-                        title="Q-Value",
-                        gridcolor="rgba(199,210,254,0.4)",
-                        zeroline=True, zerolinecolor="#C7D2FE",
-                        tickfont=dict(color="#6B7280"),
-                        title_font=dict(color="#6B7280"),
-                    ),
-                    yaxis=dict(
-                        tickfont=dict(color="#4B5563", size=10),
-                        autorange="reversed",
-                    ),
-                )
-                st.plotly_chart(fig_q, use_container_width=True)
+                # 9. Store result for display after rerun
+                st.session_state["rl_last_result"] = {
+                    "action": _rl_action,
+                    "action_name": agent.get_action_name(_rl_action),
+                    "action_detail": agent.get_action_detail(
+                        _rl_action, _rl_zone_stats, _rl_num_exits),
+                    "reward": _rl_reward,
+                    "loss": _rl_loss,
+                    "before": _rl_zone_stats.copy(),
+                    "after": _sim_next_stats.copy(),
+                    "evac_before": round(_evac_before, 1),
+                    "evac_after": round(_evac_after, 1),
+                }
+                st.rerun()
 
             except Exception as e:
                 st.error(f"RL Agent error: {e}")
 
+        # ── Show last result from session state ──
+        _rl_result = st.session_state.get("rl_last_result", None)
+        if _rl_result:
+            _crit_b = _rl_result["before"]["Critical"]
+            _crit_a = _rl_result["after"]["Critical"]
+            _high_b = _rl_result["before"]["High"]
+            _high_a = _rl_result["after"]["High"]
+            _crit_pct_r = int((1 - _crit_a / max(_crit_b, 1)) * 100) if _crit_b > 0 else 0
+
+            st.markdown(f"""
+            <div style="background:#1E293B;
+            border:1px solid #334155;
+            border-left:4px solid #8B5CF6;
+            border-radius:12px;padding:24px;
+            margin:16px 0;
+            box-shadow:0 0 30px rgba(139,92,246,0.2)">
+
+            <div style="color:#8B5CF6;font-size:10px;
+            font-weight:700;letter-spacing:2px;
+            text-transform:uppercase;margin-bottom:12px">
+            🤖 AGENT DECISION — Episode {_rl.episode}</div>
+
+            <div style="color:#F1F5F9;font-size:22px;
+            font-weight:800;margin-bottom:8px">
+            {_rl_result["action_name"]}</div>
+
+            <div style="color:#94A3B8;font-size:13px;
+            margin-bottom:20px">
+            {_rl_result["action_detail"]}</div>
+
+            <div style="display:grid;
+            grid-template-columns:1fr 1fr 1fr;
+            gap:12px;margin-bottom:16px">
+
+            <div style="background:#263445;
+            border-radius:8px;padding:12px;
+            text-align:center">
+            <div style="color:#64748B;font-size:10px;
+            letter-spacing:1px">CRITICAL ZONES</div>
+            <div style="color:#EF4444;font-size:20px;
+            font-weight:800">{_crit_b} → {_crit_a}</div>
+            <div style="color:#10B981;font-size:11px">
+            ↓{_crit_pct_r}%</div>
+            </div>
+
+            <div style="background:#263445;
+            border-radius:8px;padding:12px;
+            text-align:center">
+            <div style="color:#64748B;font-size:10px;
+            letter-spacing:1px">EVAC TIME</div>
+            <div style="color:#22D3EE;font-size:20px;
+            font-weight:800">{_rl_result["evac_before"]} → {_rl_result["evac_after"]} min</div>
+            </div>
+
+            <div style="background:#263445;
+            border-radius:8px;padding:12px;
+            text-align:center">
+            <div style="color:#64748B;font-size:10px;
+            letter-spacing:1px">REWARD</div>
+            <div style="color:#10B981;font-size:20px;
+            font-weight:800">
+            {_rl_result["reward"]:+.1f}</div>
+            </div>
+            </div>
+
+            <div style="color:#64748B;font-size:11px;
+            font-family:monospace">
+            Loss: {_rl_result["loss"]:.4f} ·
+            Epsilon: {_rl.epsilon:.3f} ·
+            Memory: {len(_rl.memory)}/2000
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
+
     else:
         st.markdown("""
-        <div style="background:#FFFFFF;border:1px solid #C7D2FE;
+        <div style="background:#1E293B;border:1px solid #334155;
         border-radius:12px;padding:32px;text-align:center;margin:16px 0">
         <div style="font-size:40px;margin-bottom:12px;opacity:0.5">🤖</div>
-        <div style="color:#1E1B4B;font-size:16px;font-weight:700;
+        <div style="color:#F1F5F9;font-size:16px;font-weight:700;
         margin-bottom:6px">Upload an Image First</div>
-        <div style="color:#6B7280;font-size:13px">
+        <div style="color:#64748B;font-size:13px">
         Analyze a crowd image in the Live Analysis tab to activate the RL agent.</div>
         </div>
         """, unsafe_allow_html=True)
@@ -4803,50 +4970,50 @@ filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🤖</div>
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 REINFORCEMENT LEARNING</div>
 
-<h2 style="color:#1E1B4B;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">DQN Evacuation Agent</h2>
 
-<p style="color:#4B5563;font-size:14px;max-width:440px;
+<p style="color:#94A3B8;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Upload a crowd image and run analysis first, then train the RL agent
 to learn optimal evacuation policies based on zone risk states.</p>
 
-<div style="border-top:1px solid #C7D2FE;margin:32px auto 28px;
+<div style="border-top:1px solid #334155;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:flex;justify-content:center;gap:16px;
 flex-wrap:wrap;max-width:600px;margin:0 auto">
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🧠</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">DQN Network</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">128→128→64 architecture</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">DQN Network</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">128→128→64 architecture</div>
 </div>
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🎯</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">8 Actions</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Evacuation strategies</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">8 Actions</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Evacuation strategies</div>
 </div>
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📊</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">69 Features</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Zone risks + context</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">69 Features</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Zone risks + context</div>
 </div>
 
-<div style="background:#FFFFFF;border:1px solid #C7D2FE;
+<div style="background:#1E293B;border:1px solid #334155;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🏆</div>
-<div style="color:#1E1B4B;font-size:12px;font-weight:600">Reward Shaping</div>
-<div style="color:#4B5563;font-size:10px;margin-top:4px">Multi-objective optimization</div>
+<div style="color:#F1F5F9;font-size:12px;font-weight:600">Reward Shaping</div>
+<div style="color:#94A3B8;font-size:10px;margin-top:4px">Multi-objective optimization</div>
 </div>
 
 </div>
