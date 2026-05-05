@@ -462,6 +462,11 @@ footer { visibility: hidden; }
     50%  { opacity: 1.0; }
     100% { opacity: 0.6; }
 }
+@keyframes successPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+    70%  { box-shadow: 0 0 0 12px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
 
 
 
@@ -1144,6 +1149,31 @@ LIVE_CAPTURE_ROOT = os.path.join(
     tempfile.gettempdir(), "safecrowd_live_capture")
 
 
+def _get_local_ip():
+    """Auto-detect the laptop's local WiFi/LAN IP address."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "localhost"
+
+
+def _build_local_capture_url(session_id, port=8501):
+    """Build phone capture portal URL using local IP — no ngrok needed."""
+    ip = _get_local_ip()
+    base = f"http://{ip}:{port}"
+    query = urllib.parse.urlencode({
+        "mobile_capture": "1",
+        "capture_session": _normalize_capture_session_id(session_id),
+    })
+    return f"{base}?{query}"
+
+
 def _new_capture_session_id():
     return f"scv-{uuid.uuid4().hex[:8]}"
 
@@ -1332,6 +1362,47 @@ def _render_mobile_capture_portal():
         _normalize_capture_session_id(_capture_session_param)
         if _capture_session_param else ""
     )
+
+    # ── Mobile-optimized CSS ──
+    st.markdown("""<style>
+    /* Mobile portal overrides */
+    .stApp { background: linear-gradient(180deg, #0F172A 0%, #1A1A2E 100%) !important; }
+    section[data-testid="stSidebar"] { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
+    [data-testid="stHeader"] { display: none !important; }
+    @keyframes successPulse {
+        0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+        70%  { box-shadow: 0 0 0 16px rgba(16,185,129,0); }
+        100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+    }
+    @keyframes slideInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    </style>""", unsafe_allow_html=True)
+
+    # ── Header ──
+    st.markdown(f"""
+    <div style="text-align:center;padding:24px 16px 12px">
+    <div style="display:inline-flex;align-items:center;gap:8px;
+    padding:6px 16px;border-radius:999px;border:1px solid rgba(34,211,238,0.3);
+    background:rgba(34,211,238,0.08);color:#22D3EE;font-size:11px;
+    font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    animation:slideInUp 0.4s ease">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:#22D3EE;animation:dotPulse 1.5s ease-in-out infinite"></span>
+    Phone Capture Relay</div>
+    <h1 style="color:#F1F5F9;margin:18px 0 8px;font-size:26px;
+    letter-spacing:-0.03em;font-weight:800;animation:slideInUp 0.5s ease">
+    📸 Capture & Send</h1>
+    <p style="color:#94A3B8;font-size:14px;line-height:1.7;
+    max-width:480px;margin:0 auto 8px;animation:slideInUp 0.6s ease">
+    Take a crowd photo below. It will be sent instantly to the
+    laptop for DM-Count analysis.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Channel code input ──
     capture_session = st.text_input(
         "Laptop channel code",
         value=_capture_session_default,
@@ -1344,114 +1415,161 @@ def _render_mobile_capture_portal():
         if capture_session else ""
     )
 
-    st.markdown(f"""
-    <div style="padding:22px 18px 8px;text-align:center">
-    <div style="display:inline-flex;align-items:center;gap:8px;
-    padding:6px 14px;border-radius:999px;border:1px solid rgba(34,211,238,0.28);
-    background:rgba(34,211,238,0.08);color:#22D3EE;font-size:11px;
-    font-weight:700;letter-spacing:1.8px;text-transform:uppercase">
-    Phone Capture Relay</div>
-    <h1 style="color:#F1F5F9;margin:16px 0 8px;font-size:30px;
-    letter-spacing:-0.03em">Send Crowd Photos To Laptop</h1>
-    <p style="color:#94A3B8;font-size:14px;line-height:1.7;
-    max-width:520px;margin:0 auto 12px">
-    Capture a classroom or crowd image here. The photo is delivered to the
-    laptop inbox for DM-Count analysis in the Live Capture dashboard.</p>
-    <div style="color:#6366F1;font-size:12px;font-family:'JetBrains Mono',monospace">
-    Channel: {capture_session or 'enter code from laptop'}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-    padding:14px 16px;margin-bottom:14px">
-    <div style="color:#22D3EE;font-size:11px;font-weight:700;letter-spacing:1.8px;
-    text-transform:uppercase;margin-bottom:6px">Phone Only Capture</div>
-    <div style="color:#94A3B8;font-size:13px;line-height:1.8">
-    Use your phone camera here. The laptop does not capture the image in this mode;
-    it only receives the frame and runs analysis.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
     if not capture_session:
-        st.info("Scan the QR code from the laptop or type the laptop channel code above to start sending photos.")
+        st.markdown("""
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+        padding:24px 18px;text-align:center;margin-top:12px;animation:slideInUp 0.7s ease">
+        <div style="font-size:40px;margin-bottom:12px;opacity:0.7">🔗</div>
+        <div style="color:#F59E0B;font-size:15px;font-weight:600;margin-bottom:8px">
+        Enter Channel Code</div>
+        <div style="color:#94A3B8;font-size:13px;line-height:1.7">
+        Scan the QR code from the laptop <b>Live Capture</b> tab,
+        or type the channel code shown there into the field above.</div>
+        </div>
+        """, unsafe_allow_html=True)
         return
 
+    # ── Connected status ──
+    st.markdown(f"""
+    <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);
+    border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;
+    align-items:center;gap:10px;animation:slideInUp 0.5s ease">
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+    background:#10B981;animation:successPulse 2s infinite"></span>
+    <span style="color:#10B981;font-size:13px;font-weight:600">
+    Connected to channel: <span style="font-family:'JetBrains Mono',monospace;
+    letter-spacing:0.5px">{capture_session.upper()}</span></span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Optional label ──
     _mobile_label = st.text_input(
         "Optional label",
         placeholder="Classroom A / Back row / Exit gate",
         key=f"mobile_capture_label_{capture_session}",
     )
-    _mobile_cam = st.camera_input(
-        "Take a photo and relay it to the laptop",
+
+    # ── Option 1: Camera (native iOS camera via file input with capture) ──
+    st.markdown("""
+    <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+    padding:12px 14px;margin-bottom:8px">
+    <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;margin-bottom:4px">📷 Take Photo With Camera</div>
+    <div style="color:#64748B;font-size:12px">
+    Opens your phone camera directly.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _mobile_cam_upload = st.file_uploader(
+        "📷 Open Camera",
+        type=["jpg", "jpeg", "png"],
         key=f"mobile_camera_{capture_session}",
     )
-    _mobile_upload = st.file_uploader(
-        "Or upload from gallery",
+
+    # ── Option 2: Gallery ──
+    st.markdown("""
+    <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+    padding:12px 14px;margin-bottom:8px;margin-top:12px">
+    <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;margin-bottom:4px">📁 Upload From Gallery</div>
+    <div style="color:#64748B;font-size:12px">
+    Pick an existing photo from your phone gallery.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _mobile_gallery_upload = st.file_uploader(
+        "📁 Choose from Gallery",
         type=["jpg", "jpeg", "png"],
-        key=f"mobile_upload_{capture_session}",
+        key=f"mobile_gallery_{capture_session}",
     )
 
-    _capture_file = _mobile_cam if _mobile_cam is not None else _mobile_upload
+    # ── Process capture ──
+    _capture_file = _mobile_cam_upload if _mobile_cam_upload is not None else _mobile_gallery_upload
     if _capture_file is not None:
         _record, _is_new = _queue_live_capture_bytes(
             _capture_file.getvalue(),
             capture_session,
-            source="phone-camera" if _mobile_cam is not None else "phone-upload",
+            source="phone-camera" if _mobile_cam_upload is not None else "phone-gallery",
             mime_type=getattr(_capture_file, "type", "image/jpeg"),
             label=_mobile_label,
         )
         if _is_new:
-            st.success(
-                f"Delivered to laptop inbox at {_format_capture_time(_record['created_at'])}."
-            )
+            st.markdown(f"""
+            <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);
+            border-radius:12px;padding:18px;text-align:center;margin:12px 0;
+            animation:successPulse 1s ease">
+            <div style="font-size:36px;margin-bottom:8px">✅</div>
+            <div style="color:#10B981;font-size:16px;font-weight:700;margin-bottom:4px">
+            Photo Delivered!</div>
+            <div style="color:#94A3B8;font-size:12px">
+            Sent to laptop at {_format_capture_time(_record['created_at'])}.
+            The laptop will analyze it automatically.</div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.info("This photo is already in the laptop inbox.")
+            st.markdown("""
+            <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);
+            border-radius:10px;padding:12px 14px;text-align:center;margin:8px 0;color:#94A3B8;
+            font-size:13px">
+            ℹ️ This photo is already in the laptop inbox.</div>
+            """, unsafe_allow_html=True)
 
-        st.image(_capture_file.getvalue(), use_container_width=True)
+        st.image(_capture_file.getvalue(), caption="Captured image", use_container_width=True)
 
-    _recent = _list_live_capture_records(capture_session, limit=4)
+    # ── Recent relays ──
+    _recent = _list_live_capture_records(capture_session, limit=6)
+
     st.markdown("""
-    <div style="margin-top:18px;margin-bottom:8px;color:#94A3B8;
-    font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase">
-    Recent Relays</div>
+    <div style="margin-top:20px;margin-bottom:8px;color:#94A3B8;
+    font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase">
+    Recent Captures</div>
     """, unsafe_allow_html=True)
 
     if not _recent:
         st.markdown("""
         <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-        padding:16px;color:#64748B;font-size:13px">
-        No photos sent yet. Capture one above and then refresh the laptop inbox.</div>
+        padding:20px 16px;color:#64748B;font-size:13px;text-align:center">
+        📷 No photos sent yet. Take one above!</div>
         """, unsafe_allow_html=True)
     else:
         for _rec in _recent:
-            _status_color = "#22D3EE" if _rec.get("status") == "pending" else "#10B981"
-            _status_text = _rec.get("status", "pending").upper()
+            _status = _rec.get("status", "pending")
+            if _status == "analyzed":
+                _st_color = "#10B981"
+                _st_icon = "✅"
+                _st_text = "ANALYZED"
+                _count_text = f" · Count: {_rec.get('analysis', {}).get('count', '—')}"
+            else:
+                _st_color = "#22D3EE"
+                _st_icon = "⏳"
+                _st_text = "PENDING"
+                _count_text = ""
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-            padding:12px 14px;margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
+            padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;
+            align-items:center">
             <div>
             <div style="color:#F1F5F9;font-size:13px;font-weight:600">
-            {_rec.get('label') or 'Crowd capture'}</div>
-            <div style="color:#64748B;font-size:11px;margin-top:4px">
-            {_rec.get('source', 'phone')} · {_format_capture_time(_rec.get('created_at'))}</div>
+            {_st_icon} {_rec.get('label') or 'Crowd capture'}</div>
+            <div style="color:#64748B;font-size:11px;margin-top:3px">
+            {_rec.get('source', 'phone')} · {_format_capture_time(_rec.get('created_at'))}{_count_text}</div>
             </div>
-            <div style="color:{_status_color};font-size:11px;font-weight:700;
-            letter-spacing:1px">{_status_text}</div>
-            </div>
+            <div style="color:{_st_color};font-size:10px;font-weight:700;
+            letter-spacing:1px">{_st_text}</div>
             </div>
             """, unsafe_allow_html=True)
 
+    # ── Workflow reminder ──
     st.markdown("""
     <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-    padding:16px 18px;margin-top:10px">
-    <div style="color:#6366F1;font-size:11px;font-weight:700;letter-spacing:1.8px;
-    text-transform:uppercase;margin-bottom:8px">Workflow</div>
+    padding:14px 16px;margin-top:14px">
+    <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;margin-bottom:6px">How It Works</div>
     <div style="color:#94A3B8;font-size:13px;line-height:1.8">
-    1. Scan the laptop QR or enter the laptop channel code.<br>
-    2. Take a photo here with the phone camera.<br>
-    3. Switch back to the laptop and analyze the new frame in <b>Live Capture</b>.</div>
+    <b style="color:#22D3EE">1.</b> Take a photo above with your phone camera.<br>
+    <b style="color:#22D3EE">2.</b> Photo is instantly sent to the laptop inbox.<br>
+    <b style="color:#22D3EE">3.</b> Laptop auto-analyzes and shows crowd results.<br>
+    <b style="color:#22D3EE">4.</b> Take more photos — each is analyzed automatically!</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2587,6 +2705,10 @@ for _k, _v in [
     ("share_ngrok_url",   ""),
     ("live_capture_session_id", None),
     ("live_capture_selected_id", None),
+    ("live_capture_auto_refresh", True),
+    ("live_capture_auto_analyze", True),
+    ("live_capture_known_count", 0),
+    ("live_capture_last_received", None),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -2727,38 +2849,26 @@ font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10p
     # ── SHARE ACCESS — QR Code ──
     st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
                 'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
-                'padding-left:2px">◈ SHARE ACCESS</div>', unsafe_allow_html=True)
+                'padding-left:2px">◈ PHONE CAPTURE</div>', unsafe_allow_html=True)
 
-    ngrok_url = st.text_input(
-        "ngrok URL",
-        value=st.session_state.get("share_ngrok_url", ""),
-        placeholder="https://abc123.ngrok-free.app",
-        help="Paste your ngrok URL to generate a phone capture portal QR code"
-    )
-    st.session_state["share_ngrok_url"] = ngrok_url.strip()
+    _sidebar_capture_url = _build_local_capture_url(
+        st.session_state["live_capture_session_id"])
+    _sidebar_qr_data = urllib.parse.quote(_sidebar_capture_url)
+    _sidebar_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_sidebar_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
 
-    if ngrok_url and ngrok_url.startswith("https://"):
-        _capture_portal_url = _build_mobile_capture_url(
-            ngrok_url,
-            st.session_state["live_capture_session_id"],
-        )
-        _qr_data = urllib.parse.quote(_capture_portal_url)
-        _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
-
-        st.markdown(f"""
-        <div style="background:#1E293B;border:1px solid #334155;
-        border-radius:12px;padding:16px;text-align:center">
-        <img src="{_qr_url}" style="width:160px;height:160px;
-        border-radius:8px">
-        <div style="color:#6366F1;font-size:10px;
-        font-family:monospace;letter-spacing:1px;
-        margin-top:10px;word-break:break-all">{_capture_portal_url}</div>
-        <div style="color:#94A3B8;font-size:10px;
-        margin-top:6px">Scan to open phone capture portal</div>
-        <div style="color:#64748B;font-size:10px;margin-top:4px">
-        Channel: {st.session_state["live_capture_session_id"]}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="background:#1E293B;border:1px solid #334155;
+    border-radius:12px;padding:16px;text-align:center">
+    <img src="{_sidebar_qr_url}" style="width:160px;height:160px;
+    border-radius:8px">
+    <div style="color:#10B981;font-size:10px;font-weight:600;
+    margin-top:10px">📱 Scan with phone (same WiFi)</div>
+    <div style="color:#64748B;font-size:9px;font-family:monospace;
+    margin-top:6px;word-break:break-all">{_sidebar_capture_url}</div>
+    <div style="color:#64748B;font-size:10px;margin-top:4px">
+    Channel: {st.session_state["live_capture_session_id"]}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── Divider ──
     st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
@@ -4771,7 +4881,7 @@ AWAITING FIRST SCAN</span>
 
 
 # ═══════════════════════════════════════════════════════════════
-# TAB 4 — LIVE CAPTURE (placeholder)
+# TAB 4 — LIVE CAPTURE
 # ═══════════════════════════════════════════════════════════════
 
 with tab4:
@@ -4780,19 +4890,61 @@ with tab4:
             st.session_state["live_capture_session_id"]
         )
 
-    _capture_session_input = st.text_input(
-        "Capture channel",
-        key="live_capture_channel_input",
-        help="Phone and laptop must use the same channel to exchange captures.",
-    )
+    # ── Config in expander ──
+    with st.expander("⚙️ Channel Settings", expanded=False):
+        _capture_session_input = st.text_input(
+            "Capture channel",
+            key="live_capture_channel_input",
+            help="Phone and laptop must use the same channel.",
+        )
+
     _capture_session = _normalize_capture_session_id(_capture_session_input)
     if _capture_session != st.session_state["live_capture_session_id"]:
         st.session_state["live_capture_session_id"] = _capture_session
         st.session_state["live_capture_selected_id"] = None
 
-    _share_url = st.session_state.get("share_ngrok_url", "").strip()
-    _capture_portal_url = _build_mobile_capture_url(_share_url, _capture_session)
+    _capture_portal_url = _build_local_capture_url(_capture_session)
 
+    # ── Fetch inbox BEFORE rendering UI so we can detect new arrivals ──
+    _capture_records = _list_live_capture_records(_capture_session)
+    _pending_records = [r for r in _capture_records if r.get("status") != "analyzed"]
+    _analyzed_records = [
+        r for r in _capture_records
+        if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)
+    ]
+    _current_inbox_count = len(_capture_records)
+
+    # ── Auto-analyze on arrival ──
+    if st.session_state.get("live_capture_auto_analyze", True) and _pending_records:
+        _new_arrivals = _current_inbox_count - st.session_state.get("live_capture_known_count", 0)
+        if _new_arrivals > 0:
+            for _auto_rec in _pending_records:
+                _analyze_live_capture_record(_auto_rec, method, opacity)
+            # Re-fetch after auto-analysis
+            _capture_records = _list_live_capture_records(_capture_session)
+            _pending_records = [r for r in _capture_records if r.get("status") != "analyzed"]
+            _analyzed_records = [
+                r for r in _capture_records
+                if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)
+            ]
+    st.session_state["live_capture_known_count"] = len(_capture_records)
+
+    # ── Update last received timestamp ──
+    if _capture_records:
+        st.session_state["live_capture_last_received"] = _capture_records[0].get("created_at")
+
+    # ── Connection status bar ──
+    _last_recv = st.session_state.get("live_capture_last_received")
+    if _last_recv:
+        _conn_color = "#10B981"
+        _conn_text = f"Last photo received: {_format_capture_time(_last_recv)}"
+        _conn_dot = "successPulse 2s infinite"
+    else:
+        _conn_color = "#F59E0B"
+        _conn_text = "Waiting for phone connection..."
+        _conn_dot = "dotPulse 1.5s ease-in-out infinite"
+
+    # ── Hero header with connection status ──
     st.markdown(f"""
     <div style="background:linear-gradient(135deg,#1E293B 0%,#111827 100%);
     border:1px solid #334155;border-left:4px solid #22D3EE;border-radius:14px;
@@ -4804,18 +4956,70 @@ with tab4:
     <div style="color:#F1F5F9;font-size:28px;font-weight:800;letter-spacing:-0.03em">
     Phone Captures. Laptop Analyzes.</div>
     <div style="color:#94A3B8;font-size:14px;line-height:1.8;margin-top:10px">
-    Use your phone camera to capture classroom or crowd images. The frame is
-    relayed to this laptop, and all counting, overlays, safety zoning, and
-    threat analysis run here.</div>
+    Use your phone camera to capture crowd images. Photos are relayed here
+    for DM-Count analysis, safety zoning, and threat assessment.</div>
     </div>
-    <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;
-    border-radius:999px;background:rgba(16,185,129,0.10);
-    border:1px solid rgba(16,185,129,0.28);color:#10B981;font-size:11px;
-    font-weight:700;letter-spacing:1.4px;text-transform:uppercase">
-    Phone Relay Only</div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+    <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;
+    border-radius:999px;background:rgba({16 if _last_recv else 245},{185 if _last_recv else 158},{129 if _last_recv else 11},0.10);
+    border:1px solid rgba({16 if _last_recv else 245},{185 if _last_recv else 158},{129 if _last_recv else 11},0.28);
+    color:{_conn_color};font-size:11px;font-weight:700;letter-spacing:1px">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:{_conn_color};animation:{_conn_dot}"></span>
+    {_conn_text}</div>
+    <div style="color:#64748B;font-size:10px;font-family:'JetBrains Mono',monospace;
+    letter-spacing:0.5px">Channel: {_capture_session.upper()}</div>
+    </div>
     </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # ── Auto-analyze + Direct upload toggles ──
+    _toggle_c1, _toggle_c2 = st.columns([1, 1])
+    with _toggle_c1:
+        st.session_state["live_capture_auto_analyze"] = st.toggle(
+            "⚡ Auto-Analyze", value=st.session_state.get("live_capture_auto_analyze", True),
+            key="lc_auto_analyze_toggle")
+    with _toggle_c2:
+        _lc_direct_upload_mode = st.toggle("📁 Direct Upload", value=False, key="lc_direct_upload_toggle",
+            help="Upload an image directly from this laptop for testing")
+
+    # ── Direct upload fallback (for testing without phone) ──
+    if _lc_direct_upload_mode:
+        st.markdown("""
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+        padding:14px 16px;margin:10px 0">
+        <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+        text-transform:uppercase;margin-bottom:6px">Direct Laptop Upload</div>
+        <div style="color:#94A3B8;font-size:12px">
+        Upload an image directly from this laptop. Useful for testing without a phone.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        _direct_label = st.text_input("Label (optional)", placeholder="Test image / Location",
+            key="lc_direct_label")
+        _direct_upload = st.file_uploader("Upload crowd image", type=["jpg", "jpeg", "png"],
+            key="lc_direct_upload")
+        if _direct_upload is not None:
+            _d_rec, _d_new = _queue_live_capture_bytes(
+                _direct_upload.getvalue(), _capture_session,
+                source="laptop-upload", mime_type=getattr(_direct_upload, "type", "image/jpeg"),
+                label=_direct_label)
+            if _d_new:
+                if st.session_state.get("live_capture_auto_analyze", True):
+                    _analyze_live_capture_record(_d_rec, method, opacity)
+                    st.success(f"✅ Uploaded and analyzed: {_direct_upload.name}")
+                else:
+                    st.success(f"✅ Uploaded to inbox: {_direct_upload.name}")
+                # Re-fetch records
+                _capture_records = _list_live_capture_records(_capture_session)
+                _pending_records = [r for r in _capture_records if r.get("status") != "analyzed"]
+                _analyzed_records = [
+                    r for r in _capture_records
+                    if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)]
+                st.session_state["live_capture_known_count"] = len(_capture_records)
+                st.rerun()
+            else:
+                st.info("This image is already in the inbox.")
 
     _lc_top1, _lc_top2 = st.columns([1.05, 0.95])
     with _lc_top1:
@@ -4823,97 +5027,71 @@ with tab4:
         <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
         padding:18px 20px;min-height:248px">
         <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-        text-transform:uppercase;margin-bottom:10px">Channel Pairing</div>
-        <div style="background:#0F172A;border:1px solid #334155;border-radius:12px;
-        padding:16px 18px;margin-bottom:16px">
-        <div style="color:#64748B;font-size:10px;font-weight:700;letter-spacing:1.6px;
-        text-transform:uppercase">Channel Code</div>
-        <div style="color:#F1F5F9;font-size:28px;font-weight:800;
-        font-family:'JetBrains Mono',monospace;letter-spacing:-0.02em;margin-top:8px">
-        {_capture_session.upper()}</div>
-        <div style="color:#94A3B8;font-size:12px;line-height:1.7;margin-top:8px">
-        Use this same code on the phone if you open the portal manually.</div>
-        </div>
+        text-transform:uppercase;margin-bottom:10px">How To Use</div>
         <div style="display:grid;grid-template-columns:1fr;gap:10px">
         <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
-        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">1. Open On Phone</div>
+        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">1. Scan QR Code</div>
         <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
-        Scan the QR code, or open the portal link and enter the channel code.</div>
+        Scan the QR code on your phone, or open the portal link manually.</div>
         </div>
         <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
-        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">2. Capture</div>
+        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">2. Capture On Phone</div>
         <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
-        Take the crowd photo on the phone. The laptop does not capture anything.</div>
+        Take a crowd photo on your phone. It's sent to this laptop instantly.</div>
         </div>
         <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
-        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">3. Analyze Here</div>
+        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">3. Results Appear Here</div>
         <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
-        Refresh the inbox and run analysis on the newest frame on this laptop.</div>
+        {"Auto-analyze is ON — results appear automatically!" if st.session_state.get("live_capture_auto_analyze") else "Click 'Analyze' on any pending frame below."}</div>
         </div>
         </div>
         </div>
         """, unsafe_allow_html=True)
 
     with _lc_top2:
-        if _capture_portal_url:
-            _capture_qr = (
-                "https://api.qrserver.com/v1/create-qr-code/?size=180x180"
-                f"&data={urllib.parse.quote(_capture_portal_url)}"
-                "&bgcolor=0C1220&color=06B6D4&qzone=2"
-            )
-            st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-            padding:18px;text-align:center;min-height:248px">
-            <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-            text-transform:uppercase;margin-bottom:12px">Phone Capture Portal</div>
-            <img src="{_capture_qr}" style="width:180px;height:180px;border-radius:12px">
-            <div style="color:#94A3B8;font-size:11px;margin-top:12px;line-height:1.7">
-            Scan on phone to open camera mode directly.</div>
-            <div style="color:#64748B;font-size:10px;font-family:'JetBrains Mono',monospace;
-            margin-top:10px;word-break:break-all">{_capture_portal_url}</div>
-            <div style="color:#22D3EE;font-size:11px;font-family:'JetBrains Mono',monospace;
-            margin-top:10px">Code: {_capture_session.upper()}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-            padding:18px;min-height:248px;display:flex;align-items:center">
-            <div>
-            <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-            text-transform:uppercase;margin-bottom:12px">Phone Capture Portal</div>
-            <div style="color:#F59E0B;font-size:14px;font-weight:600;line-height:1.8">
-            Add your ngrok URL in the sidebar to generate a phone QR code and
-            remote capture link for this laptop.</div>
-            <div style="color:#22D3EE;font-size:12px;font-family:'JetBrains Mono',monospace;
-            margin-top:12px">Manual code: {_capture_session.upper()}</div>
-            </div>
-            </div>
-            """, unsafe_allow_html=True)
+        _capture_qr = (
+            "https://api.qrserver.com/v1/create-qr-code/?size=180x180"
+            f"&data={urllib.parse.quote(_capture_portal_url)}"
+            "&bgcolor=0C1220&color=06B6D4&qzone=2"
+        )
+        st.markdown(f"""
+        <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
+        padding:18px;text-align:center;min-height:248px">
+        <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
+        text-transform:uppercase;margin-bottom:12px">Scan With Phone</div>
+        <img src="{_capture_qr}" style="width:180px;height:180px;border-radius:12px">
+        <div style="color:#10B981;font-size:11px;font-weight:600;margin-top:12px">
+        📱 Same WiFi · No setup needed</div>
+        <div style="color:#64748B;font-size:10px;font-family:'JetBrains Mono',monospace;
+        margin-top:10px;word-break:break-all">{_capture_portal_url}</div>
+        <div style="color:#22D3EE;font-size:11px;font-family:'JetBrains Mono',monospace;
+        margin-top:10px">Code: {_capture_session.upper()}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     _lc_actions = st.columns([1.0, 1.0, 1.2])
-    if _lc_actions[0].button("Refresh Inbox", key="live_capture_refresh", use_container_width=True):
-        pass
-    if _lc_actions[1].button("New Channel Code", key="live_capture_new_channel", use_container_width=True):
+    if _lc_actions[0].button("🔄 Refresh Inbox", key="live_capture_refresh", use_container_width=True):
+        st.rerun()
+    if _lc_actions[1].button("🆕 New Channel", key="live_capture_new_channel", use_container_width=True):
         _new_session_id = _new_capture_session_id()
         st.session_state["live_capture_session_id"] = _new_session_id
         st.session_state["live_capture_channel_input"] = _new_session_id
         st.session_state["live_capture_selected_id"] = None
+        st.session_state["live_capture_known_count"] = 0
+        st.session_state["live_capture_last_received"] = None
         st.rerun()
-    if _lc_actions[2].button("Clear Inbox", key="live_capture_clear_channel", use_container_width=True):
+    if _lc_actions[2].button("🗑️ Clear Inbox", key="live_capture_clear_channel", use_container_width=True):
         _clear_live_capture_session(_capture_session)
         st.session_state["live_capture_selected_id"] = None
+        st.session_state["live_capture_known_count"] = 0
         st.rerun()
 
-    _capture_records = _list_live_capture_records(_capture_session)
-    _pending_records = [
-        r for r in _capture_records
-        if r.get("status") != "analyzed"
-    ]
-    _analyzed_records = [
-        r for r in _capture_records
-        if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)
-    ]
+    # ── Refresh hint ──
+    st.markdown(
+        '<div style="color:#64748B;font-size:10px;text-align:right;margin:-8px 0 4px">'
+        '💡 Click <b>🔄 Refresh Inbox</b> after sending a photo from your phone</div>',
+        unsafe_allow_html=True)
+
 
     if not _capture_records:
         st.markdown("""
