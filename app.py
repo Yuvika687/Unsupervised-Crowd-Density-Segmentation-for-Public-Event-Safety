@@ -548,298 +548,187 @@ ZONE_HEX = {"Low": "#10B981", "Medium": "#F59E0B",
 ZONE_RGB = {"Low": (16, 185, 129), "Medium": (245, 158, 11),
              "High": (239, 68, 68), "Critical": (255, 23, 68)}
 
-# ── OpenCV Face Detector (fallback for portraits) ──
+# ── Face Detector: YUNET DNN (primary) + Haar cascade (fallback) ──
+_YUNET_MODEL_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "models", "face_detection_yunet_2023mar.onnx")
+_YUNET_AVAILABLE = os.path.isfile(_YUNET_MODEL_PATH)
+
+# Haar cascades kept as fallback only
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades +
     'haarcascade_frontalface_default.xml')
-face_cascade_alt = cv2.CascadeClassifier(
-    cv2.data.haarcascades +
-    'haarcascade_frontalface_alt.xml')
 face_cascade_alt2 = cv2.CascadeClassifier(
     cv2.data.haarcascades +
     'haarcascade_frontalface_alt2.xml')
-eye_cascade = cv2.CascadeClassifier(
-    cv2.data.haarcascades +
-    'haarcascade_eye.xml')
-eye_glasses_cascade = cv2.CascadeClassifier(
-    cv2.data.haarcascades +
-    'haarcascade_eye_tree_eyeglasses.xml')
 
 
-def _box_iou(box_a, box_b):
-    ax, ay, aw, ah = box_a
-    bx, by, bw, bh = box_b
-    ax2, ay2 = ax + aw, ay + ah
-    bx2, by2 = bx + bw, by + bh
+def _detect_faces_yunet(img_bgr, conf_threshold=0.45, nms_threshold=0.3):
+    """Detect faces using YUNET deep learning model.
 
-    inter_x1 = max(ax, bx)
-    inter_y1 = max(ay, by)
-    inter_x2 = min(ax2, bx2)
-    inter_y2 = min(ay2, by2)
-    inter_w = max(0, inter_x2 - inter_x1)
-    inter_h = max(0, inter_y2 - inter_y1)
-    inter_area = inter_w * inter_h
-    if inter_area <= 0:
-        return 0.0
+    Returns list of (x, y, w, h) tuples for each detected face,
+    sorted left-to-right. Much more accurate than Haar cascades
+    for side profiles, partial occlusion, and varying lighting.
+    """
+    img_h, img_w = img_bgr.shape[:2]
 
-    area_a = aw * ah
-    area_b = bw * bh
-    denom = area_a + area_b - inter_area
-    return inter_area / max(denom, 1)
+    detector = cv2.FaceDetectorYN.create(
+        _YUNET_MODEL_PATH, "", (img_w, img_h),
+        conf_threshold, nms_threshold, 5000)
+    detector.setInputSize((img_w, img_h))
 
+    retval, raw_faces = detector.detect(img_bgr)
 
-def _intersection_over_smaller(box_a, box_b):
-    ax, ay, aw, ah = box_a
-    bx, by, bw, bh = box_b
-    ax2, ay2 = ax + aw, ay + ah
-    bx2, by2 = bx + bw, by + bh
-
-    inter_x1 = max(ax, bx)
-    inter_y1 = max(ay, by)
-    inter_x2 = min(ax2, bx2)
-    inter_y2 = min(ay2, by2)
-    inter_w = max(0, inter_x2 - inter_x1)
-    inter_h = max(0, inter_y2 - inter_y1)
-    inter_area = inter_w * inter_h
-    smaller = max(1, min(aw * ah, bw * bh))
-    return inter_area / smaller
-
-
-def _count_eye_hits(gray_roi):
-    """Count lightweight eye detections inside the upper face region."""
-    if gray_roi is None or gray_roi.size == 0:
-        return 0
-
-    roi_eq = cv2.equalizeHist(gray_roi)
-    upper_h = max(1, int(round(roi_eq.shape[0] * 0.72)))
-    upper_roi = roi_eq[:upper_h, :]
-    min_side = max(8, int(round(min(upper_roi.shape[:2]) * 0.12)))
-    hit_count = 0
-
-    for cascade in (eye_cascade, eye_glasses_cascade):
-        if cascade is None or cascade.empty():
-            continue
-        try:
-            hits = cascade.detectMultiScale(
-                upper_roi,
-                scaleFactor=1.08,
-                minNeighbors=3,
-                minSize=(min_side, min_side),
-            )
-            hit_count = max(hit_count, len(hits))
-        except Exception:
-            continue
-
-    return int(hit_count)
-
-
-def _merge_face_boxes(boxes):
-    """Group near-duplicate Haar detections without collapsing nearby faces."""
-    if not boxes:
+    if raw_faces is None or len(raw_faces) == 0:
         return []
 
-    prepared = [
-        [int(x), int(y), int(w), int(h)]
-        for (x, y, w, h) in boxes
-        if w > 0 and h > 0
-    ]
-    if not prepared:
-        return []
+    faces = []
+    for face in raw_faces:
+        x  = int(face[0])
+        y  = int(face[1])
+        w  = int(face[2])
+        h  = int(face[3])
+        conf = float(face[-1])
 
-    grouped = []
-    weights = []
-    try:
-        repeated = []
-        for rect in prepared:
-            repeated.extend([rect, rect, rect])
-        grouped, weights = cv2.groupRectangles(
-            repeated, groupThreshold=1, eps=0.22)
-    except Exception:
-        grouped = []
-        weights = []
+        # Clamp to image bounds
+        x = max(0, x)
+        y = max(0, y)
+        w = min(w, img_w - x)
+        h = min(h, img_h - y)
 
-    if len(grouped) == 0:
-        grouped = [tuple(rect) for rect in prepared]
-        weights = [3] * len(grouped)
-    else:
-        grouped = [tuple(int(v) for v in rect) for rect in grouped]
+        if w < 15 or h < 15:
+            continue
+        if w * h > (img_h * img_w) * 0.35:
+            continue
 
-    candidates = []
-    for box, weight in zip(grouped, weights):
-        candidates.append({
-            "box": box,
-            "support": max(1, int(round(float(weight) / 3.0))),
-        })
+        faces.append((x, y, w, h))
 
-    deduped = []
-    for item in sorted(
-            candidates,
-            key=lambda candidate: (
-                candidate["support"],
-                candidate["box"][2] * candidate["box"][3],
-            ),
-            reverse=True):
-        box = item["box"]
-        bx, by, bw, bh = box
-        matched = False
-        for kept in deduped:
-            kx, ky, kw, kh = kept["box"]
-            center_dist = np.hypot(
-                (bx + bw / 2.0) - (kx + kw / 2.0),
-                (by + bh / 2.0) - (ky + kh / 2.0),
-            )
-            size_gate = max(8.0, min(bw, bh, kw, kh) * 0.18)
-            if (_box_iou(box, (kx, ky, kw, kh)) > 0.35 or
-                    _intersection_over_smaller(box, (kx, ky, kw, kh)) > 0.65 or
-                    center_dist < size_gate):
-                if (item["support"] > kept["support"] or
-                        (item["support"] == kept["support"] and
-                         (bw * bh) > (kw * kh))):
-                    kept["box"] = box
-                    kept["support"] = item["support"]
-                matched = True
-                break
-        if not matched:
-            deduped.append({
-                "box": box,
-                "support": item["support"],
-            })
-
-    deduped.sort(key=lambda item: (item["box"][0], item["box"][1]))
-    return deduped
+    # Sort left-to-right
+    faces.sort(key=lambda f: (f[0], f[1]))
+    return faces
 
 
-def _detect_faces_multi_pass(img_bgr):
-    """Run several lightweight face-detector passes and merge stable results."""
+def _detect_faces_haar_fallback(img_bgr):
+    """Fallback face detection using Haar cascades (less accurate)."""
     img_h, img_w = img_bgr.shape[:2]
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     gray_eq = cv2.equalizeHist(gray)
 
-    detectors = [face_cascade]
-    for cascade in (face_cascade_alt, face_cascade_alt2):
-        if cascade is not None and not cascade.empty():
-            detectors.append(cascade)
-
-    passes = [
-        (gray, 1.0, False),
-        (gray_eq, 1.0, False),
-        (cv2.flip(gray, 1), 1.0, True),
-        (cv2.flip(gray_eq, 1), 1.0, True),
-    ]
-
-    if min(img_h, img_w) < 1200:
-        up_scale = 1.25
-        gray_up = cv2.resize(
-            gray, None, fx=up_scale, fy=up_scale,
-            interpolation=cv2.INTER_CUBIC)
-        gray_eq_up = cv2.resize(
-            gray_eq, None, fx=up_scale, fy=up_scale,
-            interpolation=cv2.INTER_CUBIC)
-        passes.extend([
-            (gray_up, up_scale, False),
-            (gray_eq_up, up_scale, False),
-            (cv2.flip(gray_up, 1), up_scale, True),
-            (cv2.flip(gray_eq_up, 1), up_scale, True),
-        ])
-
-    params = [
-        (1.10, 5, 36),
-        (1.07, 4, 30),
-        (1.04, 3, 26),
-    ]
-
-    boxes = []
-    min_dim = min(img_h, img_w)
-    for cascade in detectors:
+    all_boxes = []
+    for cascade in (face_cascade, face_cascade_alt2):
         if cascade is None or cascade.empty():
             continue
-        for source, scale, flipped in passes:
-            for scale_factor, min_neighbors, min_size in params:
-                detected = cascade.detectMultiScale(
-                    source,
-                    scaleFactor=scale_factor,
-                    minNeighbors=min_neighbors,
-                    minSize=(min_size, min_size),
-                )
-                for (x, y, w, h) in detected:
-                    x = int(round(x / scale))
-                    y = int(round(y / scale))
-                    w = int(round(w / scale))
-                    h = int(round(h / scale))
-                    if flipped:
-                        x = img_w - (x + w)
-                    aspect = w / max(h, 1)
-                    if aspect < 0.55 or aspect > 1.55:
-                        continue
-                    if min(w, h) < max(24, int(min_dim * 0.055)):
-                        continue
-                    if w * h > (img_h * img_w) * 0.35:
-                        continue
-                    boxes.append((x, y, w, h))
+        for source in (gray, gray_eq):
+            detected = cascade.detectMultiScale(
+                source, scaleFactor=1.08,
+                minNeighbors=5, minSize=(30, 30))
+            for (x, y, w, h) in detected:
+                aspect = w / max(h, 1)
+                if aspect < 0.6 or aspect > 1.45:
+                    continue
+                all_boxes.append((x, y, w, h))
 
-    candidates = _merge_face_boxes(boxes)
-    if not candidates:
+    if not all_boxes:
         return []
 
-    areas = [item["box"][2] * item["box"][3] for item in candidates]
-    median_area = float(np.median(areas)) if areas else 0.0
-    validated = []
-
-    for item in sorted(
-            candidates,
-            key=lambda candidate: (
-                candidate["support"],
-                candidate["box"][2] * candidate["box"][3],
-            ),
-            reverse=True):
-        x, y, w, h = item["box"]
-        support = item["support"]
-        area = w * h
-
-        if y > img_h * 0.78 and support < 3:
-            continue
-        if median_area > 1.0 and area < median_area * 0.42 and support < 3:
-            continue
-        if (x <= 2 or y <= 2 or x + w >= img_w - 2 or y + h >= img_h - 2) and support < 3:
-            continue
-
-        roi = gray[y:min(img_h, y + h), x:min(img_w, x + w)]
-        eye_hits = _count_eye_hits(roi)
-        if eye_hits <= 0:
-            if support <= 1:
-                continue
-            if median_area > 1.0 and area < median_area * 0.58 and support < 3:
-                continue
-
-        shadowed = False
-        for kept in validated:
-            if _intersection_over_smaller(item["box"], kept["box"]) > 0.72:
-                shadowed = True
+    # Simple NMS: keep strongest, remove overlaps
+    kept = []
+    for box in all_boxes:
+        bx, by, bw, bh = box
+        duplicate = False
+        for kx, ky, kw, kh in kept:
+            cx_dist = abs((bx + bw/2) - (kx + kw/2))
+            cy_dist = abs((by + bh/2) - (ky + kh/2))
+            if cx_dist < min(bw, kw) * 0.5 and cy_dist < min(bh, kh) * 0.5:
+                duplicate = True
                 break
-        if shadowed:
-            continue
+        if not duplicate:
+            kept.append(box)
 
-        validated.append({
-            "box": item["box"],
-            "support": support,
-            "eye_hits": eye_hits,
-        })
+    kept.sort(key=lambda f: (f[0], f[1]))
+    return kept
 
-    validated.sort(key=lambda item: (item["box"][0], item["box"][1]))
-    return [item["box"] for item in validated]
+
+def _detect_faces_multi_pass(img_bgr):
+    """Detect faces using YUNET DNN (primary) or Haar cascade (fallback).
+
+    YUNET is a deep learning face detector that accurately detects
+    frontal faces, side profiles, and partially occluded faces.
+    Falls back to Haar cascades only if the YUNET model is unavailable.
+    """
+    if _YUNET_AVAILABLE:
+        # Try YUNET at multiple confidence thresholds
+        faces = _detect_faces_yunet(img_bgr, conf_threshold=0.45)
+
+        # If very few faces found, try with lower confidence
+        if len(faces) < 3:
+            faces_low = _detect_faces_yunet(img_bgr, conf_threshold=0.30)
+            if len(faces_low) > len(faces):
+                faces = faces_low
+
+        return faces
+
+    # Fallback to Haar cascades if YUNET model not available
+    return _detect_faces_haar_fallback(img_bgr)
 
 
 def _draw_faces_on_image(base_img, faces, label="Face"):
-    """Draw face rectangles on top of an RGB image and return a copy."""
+    """Draw clean, precise face markers on detected face regions.
+
+    Each face gets:
+      • A thin cyan rounded-corner rectangle tightly around the face
+      • A soft glow dot centered on the face (forehead region)
+      • A compact center marker for visibility
+    The result looks polished and clearly marks actual human faces
+    rather than producing random-looking boxes.
+    """
     overlay = base_img.copy()
+    img_h = overlay.shape[0]
+
     for (fx, fy, fw, fh) in faces:
-        cv2.rectangle(
-            overlay, (fx, fy), (fx + fw, fy + fh),
-            (0, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(
-            overlay, label, (fx, max(14, fy - 6)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.42,
-            (0, 255, 255), 1, cv2.LINE_AA)
+        # ── Cyan border rectangle ──
+        # Use a slightly inset rectangle so it sits neatly on the face
+        pad = max(2, int(min(fw, fh) * 0.05))
+        x1 = max(0, fx - pad)
+        y1 = max(0, fy - pad)
+        x2 = min(overlay.shape[1], fx + fw + pad)
+        y2 = min(img_h, fy + fh + pad)
+
+        # Semi-transparent fill to highlight face region
+        face_fill = overlay.copy()
+        cv2.rectangle(face_fill, (x1, y1), (x2, y2),
+                      (0, 255, 255), -1, cv2.LINE_AA)
+        cv2.addWeighted(face_fill, 0.08, overlay, 0.92, 0, overlay)
+
+        # Crisp border
+        cv2.rectangle(overlay, (x1, y1), (x2, y2),
+                      (0, 255, 255), 2, cv2.LINE_AA)
+
+        # ── Center dot on forehead area (upper-center of face box) ──
+        cx = fx + fw // 2
+        cy = fy + int(fh * 0.3)  # ~30% from top = forehead
+
+        # Depth-aware sizing (same logic as head-dot overlay)
+        depth_ratio = cy / max(img_h, 1)
+        scale = 0.75 + depth_ratio * 0.35
+        r_glow = max(5, int(10 * scale))
+        r_ring = max(4, int(7 * scale))
+        r_core = max(2, int(3 * scale))
+
+        # Soft glow
+        glow_layer = overlay.copy()
+        cv2.circle(glow_layer, (cx, cy), r_glow,
+                   (0, 210, 255), -1, cv2.LINE_AA)
+        cv2.addWeighted(glow_layer, 0.18, overlay, 0.82, 0, overlay)
+
+        # Ring + core dot
+        cv2.circle(overlay, (cx, cy), r_ring,
+                   (210, 248, 255), 1, cv2.LINE_AA)
+        cv2.circle(overlay, (cx, cy), r_core + 1,
+                   (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(overlay, (cx, cy), r_core,
+                   (0, 186, 222), -1, cv2.LINE_AA)
+
     return overlay
 
 # ═══════════════════════════════════════════════════════════════
@@ -2556,7 +2445,7 @@ def _model_label_for_scene(crowd_count, used_face_detector=False,
     if portrait_hybrid_mode:
         return "Portrait Hybrid (Face + Density)"
     if used_face_detector:
-        return "OpenCV Face Detector"
+        return "YUNET Face Detector"
     if crowd_count < 80:
         return "DM-Count SHB"
     if crowd_count < 200:
@@ -2630,8 +2519,11 @@ def _analyze_scene_frame(img_rgb, img_bgr, method, opacity):
                 used_face_detector = True
                 marker_note = "Face-detector fallback active for portrait scene"
             else:
-                head_overlay = _draw_faces_on_image(head_overlay, faces)
+                # Hybrid mode: draw faces on CLEAN image (not density-dot overlay)
+                # to avoid random density dots that don't match actual people
+                head_overlay = _draw_faces_on_image(img_rgb, faces)
                 crowd_count = portrait_estimate
+                marker_count = face_count
                 portrait_hybrid_mode = True
                 marker_note = (
                     f"Portrait hybrid fallback active — face detector found "
@@ -3385,9 +3277,11 @@ with tab1:
                         _used_face_detector = True
                         _marker_note = "Face-detector fallback active for portrait scene"
                     else:
+                        # Hybrid: draw on clean image, not density-dot overlay
                         headdot_overlay = _draw_faces_on_image(
-                            headdot_overlay, _faces)
+                            _img_rgb, _faces)
                         _crowd_count = _portrait_estimate
+                        _dot_count = _face_count
                         _portrait_hybrid_mode = True
                         _marker_note = (
                             f"Portrait hybrid fallback active — face detector "
@@ -3420,7 +3314,7 @@ DM-Count is optimized for crowd scenes
             if _portrait_hybrid_mode:
                 _banner_model = "Portrait Hybrid (Face + Density)"
             elif _used_face_detector:
-                _banner_model = "OpenCV Face Detector"
+                _banner_model = "YUNET Face Detector"
             elif _crowd_count < 80:
                 _banner_model = "DM-Count SHB"
             elif _crowd_count < 200:
