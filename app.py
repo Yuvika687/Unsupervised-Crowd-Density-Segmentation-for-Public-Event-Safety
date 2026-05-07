@@ -1052,6 +1052,31 @@ def _get_local_ip():
         return "localhost"
 
 
+def get_ngrok_url():
+    """Auto-detect ngrok tunnel URL by querying the local ngrok API.
+
+    Returns the HTTPS public URL if ngrok is running, else None.
+    """
+    import urllib.request
+    try:
+        with urllib.request.urlopen(
+            "http://localhost:4040/api/tunnels",
+            timeout=2) as r:
+            data = json.loads(r.read())
+            tunnels = data.get("tunnels", [])
+            for t in tunnels:
+                url = t.get("public_url", "")
+                if url.startswith("https://"):
+                    return url
+            # Try http if no https
+            for t in tunnels:
+                url = t.get("public_url", "")
+                if url.startswith("http://"):
+                    return url.replace("http://", "https://")
+    except Exception:
+        return None
+
+
 def _build_local_capture_url(session_id, port=8501):
     """Build phone capture portal URL using local IP — no ngrok needed."""
     ip = _get_local_ip()
@@ -2595,6 +2620,7 @@ for _k, _v in [
     ("batch_results_signature", None),
     ("batch_summary",     None),
     ("share_ngrok_url",   ""),
+    ("ngrok_url_input",   ""),
     ("live_capture_session_id", None),
     ("live_capture_selected_id", None),
     ("live_capture_auto_refresh", True),
@@ -2738,13 +2764,41 @@ font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10p
     st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
                 unsafe_allow_html=True)
 
-    # ── SHARE ACCESS — QR Code ──
+    # ── SHARE ACCESS — QR Code (with auto ngrok detection) ──
     st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
                 'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
                 'padding-left:2px">◈ PHONE CAPTURE</div>', unsafe_allow_html=True)
 
-    _sidebar_capture_url = _build_local_capture_url(
-        st.session_state["live_capture_session_id"])
+    _sidebar_ngrok_url = get_ngrok_url()
+    if _sidebar_ngrok_url:
+        _sidebar_capture_url = _build_mobile_capture_url(
+            _sidebar_ngrok_url, st.session_state["live_capture_session_id"])
+        st.markdown(f"""
+        <div style="background:#0D2818;
+        border:1px solid #10B981;
+        border-radius:8px;padding:10px 14px;margin-bottom:10px">
+        <div style="color:#10B981;font-size:10px;
+        font-weight:700;letter-spacing:1px">
+        ● NGROK ACTIVE</div>
+        <div style="color:#6EE7B7;font-size:11px;
+        font-family:monospace;margin-top:4px;
+        word-break:break-all">{_sidebar_ngrok_url}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        _sidebar_capture_url = _build_local_capture_url(
+            st.session_state["live_capture_session_id"])
+        st.caption("Run: `ngrok http 8501`")
+        _sidebar_manual = st.text_input(
+            "Manual URL",
+            placeholder="https://abc.ngrok-free.app",
+            label_visibility="collapsed",
+            key="sidebar_manual_ngrok")
+        if _sidebar_manual:
+            st.session_state["ngrok_url_input"] = _sidebar_manual.strip()
+            _sidebar_capture_url = _build_mobile_capture_url(
+                _sidebar_manual.strip(), st.session_state["live_capture_session_id"])
+
     _sidebar_qr_data = urllib.parse.quote(_sidebar_capture_url)
     _sidebar_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_sidebar_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
 
@@ -2754,7 +2808,7 @@ font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10p
     <img src="{_sidebar_qr_url}" style="width:160px;height:160px;
     border-radius:8px">
     <div style="color:#10B981;font-size:10px;font-weight:600;
-    margin-top:10px">📱 Scan with phone (same WiFi)</div>
+    margin-top:10px">📱 Scan with phone{' (ngrok)' if _sidebar_ngrok_url else ' (same WiFi)'}</div>
     <div style="color:#64748B;font-size:9px;font-family:monospace;
     margin-top:6px;word-break:break-all">{_sidebar_capture_url}</div>
     <div style="color:#64748B;font-size:10px;margin-top:4px">
@@ -4779,436 +4833,272 @@ AWAITING FIRST SCAN</span>
 # ═══════════════════════════════════════════════════════════════
 
 with tab4:
-    if "live_capture_channel_input" not in st.session_state:
-        st.session_state["live_capture_channel_input"] = (
-            st.session_state["live_capture_session_id"]
-        )
 
-    # ── Config in expander ──
-    with st.expander("⚙️ Channel Settings", expanded=False):
-        _capture_session_input = st.text_input(
-            "Capture channel",
-            key="live_capture_channel_input",
-            help="Phone and laptop must use the same channel.",
-        )
+    # Auto detect ngrok
+    auto_url = get_ngrok_url()
+    if auto_url:
+        st.session_state["ngrok_url_input"] = auto_url
 
-    _capture_session = _normalize_capture_session_id(_capture_session_input)
-    if _capture_session != st.session_state["live_capture_session_id"]:
-        st.session_state["live_capture_session_id"] = _capture_session
-        st.session_state["live_capture_selected_id"] = None
+    ngrok_url = (
+        st.session_state.get("ngrok_url_input", "")
+        or "")
 
-    _capture_portal_url = _build_local_capture_url(_capture_session)
+    is_ready = bool(ngrok_url and
+                    ngrok_url.startswith("https://"))
 
-    # ── Fetch inbox BEFORE rendering UI so we can detect new arrivals ──
-    _capture_records = _list_live_capture_records(_capture_session)
-    _pending_records = [r for r in _capture_records if r.get("status") != "analyzed"]
-    _analyzed_records = [
-        r for r in _capture_records
-        if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)
-    ]
-    _current_inbox_count = len(_capture_records)
-
-    # ── Auto-analyze on arrival ──
-    if st.session_state.get("live_capture_auto_analyze", True) and _pending_records:
-        _new_arrivals = _current_inbox_count - st.session_state.get("live_capture_known_count", 0)
-        if _new_arrivals > 0:
-            for _auto_rec in _pending_records:
-                _analyze_live_capture_record(_auto_rec, method, opacity)
-            # Re-fetch after auto-analysis
-            _capture_records = _list_live_capture_records(_capture_session)
-            _pending_records = [r for r in _capture_records if r.get("status") != "analyzed"]
-            _analyzed_records = [
-                r for r in _capture_records
-                if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)
-            ]
-    st.session_state["live_capture_known_count"] = len(_capture_records)
-
-    # ── Update last received timestamp ──
-    if _capture_records:
-        st.session_state["live_capture_last_received"] = _capture_records[0].get("created_at")
-
-    # ── Connection status bar ──
-    _last_recv = st.session_state.get("live_capture_last_received")
-    if _last_recv:
-        _conn_color = "#10B981"
-        _conn_text = f"Last photo received: {_format_capture_time(_last_recv)}"
-        _conn_dot = "successPulse 2s infinite"
-    else:
-        _conn_color = "#F59E0B"
-        _conn_text = "Waiting for phone connection..."
-        _conn_dot = "dotPulse 1.5s ease-in-out infinite"
-
-    # ── Hero header with connection status ──
+    # ── HEADER ──
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#1E293B 0%,#111827 100%);
-    border:1px solid #334155;border-left:4px solid #22D3EE;border-radius:14px;
-    padding:20px 24px;margin-bottom:18px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
-    <div style="max-width:760px">
-    <div style="color:#22D3EE;font-size:11px;font-weight:700;letter-spacing:2px;
-    text-transform:uppercase;margin-bottom:10px">Live Capture Relay</div>
-    <div style="color:#F1F5F9;font-size:28px;font-weight:800;letter-spacing:-0.03em">
-    Phone Captures. Laptop Analyzes.</div>
-    <div style="color:#94A3B8;font-size:14px;line-height:1.8;margin-top:10px">
-    Use your phone camera to capture crowd images. Photos are relayed here
-    for DM-Count analysis, safety zoning, and threat assessment.</div>
+    <div style="background:#1E293B;border:1px solid
+    #334155;border-left:4px solid #6366F1;
+    border-radius:12px;padding:24px 28px;
+    margin-bottom:24px;display:flex;
+    align-items:center;justify-content:space-between">
+    <div>
+    <h2 style="color:#F1F5F9;margin:0;font-size:22px;
+    font-weight:800">📱 Live Camera Capture</h2>
+    <p style="color:#64748B;margin:6px 0 0;
+    font-size:13px">
+    Scan QR on phone → Take photo →
+    Instant crowd analysis on laptop</p>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
-    <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;
-    border-radius:999px;background:rgba({16 if _last_recv else 245},{185 if _last_recv else 158},{129 if _last_recv else 11},0.10);
-    border:1px solid rgba({16 if _last_recv else 245},{185 if _last_recv else 158},{129 if _last_recv else 11},0.28);
-    color:{_conn_color};font-size:11px;font-weight:700;letter-spacing:1px">
-    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
-    background:{_conn_color};animation:{_conn_dot}"></span>
-    {_conn_text}</div>
-    <div style="color:#64748B;font-size:10px;font-family:'JetBrains Mono',monospace;
-    letter-spacing:0.5px">Channel: {_capture_session.upper()}</div>
-    </div>
-    </div>
+    <span style="padding:6px 16px;border-radius:20px;
+    font-size:12px;font-weight:700;
+    background:{'rgba(16,185,129,0.15)' if is_ready
+    else 'rgba(100,116,139,0.15)'};
+    color:{'#10B981' if is_ready else '#64748B'};
+    border:1px solid {'#10B981' if is_ready
+    else '#334155'}">
+    {'● READY' if is_ready else '○ Setup Required'}
+    </span>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Auto-analyze + Direct upload toggles ──
-    _toggle_c1, _toggle_c2 = st.columns([1, 1])
-    with _toggle_c1:
-        st.session_state["live_capture_auto_analyze"] = st.toggle(
-            "⚡ Auto-Analyze", value=st.session_state.get("live_capture_auto_analyze", True),
-            key="lc_auto_analyze_toggle")
-    with _toggle_c2:
-        _lc_direct_upload_mode = st.toggle("📁 Direct Upload", value=False, key="lc_direct_upload_toggle",
-            help="Upload an image directly from this laptop for testing")
+    if is_ready:
+        # ── READY STATE — show QR prominently ──
+        qr_url = (
+            f"https://api.qrserver.com/v1/"
+            f"create-qr-code/?size=240x240"
+            f"&data={ngrok_url}"
+            f"&bgcolor=1E293B&color=22D3EE&qzone=2")
 
-    # ── Direct upload fallback (for testing without phone) ──
-    if _lc_direct_upload_mode:
-        st.markdown("""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-        padding:14px 16px;margin:10px 0">
-        <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-        text-transform:uppercase;margin-bottom:6px">Direct Laptop Upload</div>
-        <div style="color:#94A3B8;font-size:12px">
-        Upload an image directly from this laptop. Useful for testing without a phone.</div>
-        </div>
-        """, unsafe_allow_html=True)
-        _direct_label = st.text_input("Label (optional)", placeholder="Test image / Location",
-            key="lc_direct_label")
-        _direct_upload = st.file_uploader("Upload crowd image", type=["jpg", "jpeg", "png"],
-            key="lc_direct_upload")
-        if _direct_upload is not None:
-            _d_rec, _d_new = _queue_live_capture_bytes(
-                _direct_upload.getvalue(), _capture_session,
-                source="laptop-upload", mime_type=getattr(_direct_upload, "type", "image/jpeg"),
-                label=_direct_label)
-            if _d_new:
-                if st.session_state.get("live_capture_auto_analyze", True):
-                    _analyze_live_capture_record(_d_rec, method, opacity)
-                    st.success(f"✅ Uploaded and analyzed: {_direct_upload.name}")
-                else:
-                    st.success(f"✅ Uploaded to inbox: {_direct_upload.name}")
-                # Re-fetch records
-                _capture_records = _list_live_capture_records(_capture_session)
-                _pending_records = [r for r in _capture_records if r.get("status") != "analyzed"]
-                _analyzed_records = [
-                    r for r in _capture_records
-                    if r.get("status") == "analyzed" and isinstance(r.get("analysis"), dict)]
-                st.session_state["live_capture_known_count"] = len(_capture_records)
-                st.rerun()
-            else:
-                st.info("This image is already in the inbox.")
+        col_left, col_right = st.columns([3, 2])
 
-    _lc_top1, _lc_top2 = st.columns([1.05, 0.95])
-    with _lc_top1:
-        st.markdown(f"""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-        padding:18px 20px;min-height:248px">
-        <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-        text-transform:uppercase;margin-bottom:10px">How To Use</div>
-        <div style="display:grid;grid-template-columns:1fr;gap:10px">
-        <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
-        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">1. Scan QR Code</div>
-        <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
-        Scan the QR code on your phone, or open the portal link manually.</div>
-        </div>
-        <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
-        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">2. Capture On Phone</div>
-        <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
-        Take a crowd photo on your phone. It's sent to this laptop instantly.</div>
-        </div>
-        <div style="background:#111827;border:1px solid #334155;border-radius:10px;padding:12px 14px">
-        <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase">3. Results Appear Here</div>
-        <div style="color:#94A3B8;font-size:13px;line-height:1.7;margin-top:6px">
-        {"Auto-analyze is ON — results appear automatically!" if st.session_state.get("live_capture_auto_analyze") else "Click 'Analyze' on any pending frame below."}</div>
-        </div>
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with _lc_top2:
-        _capture_qr = (
-            "https://api.qrserver.com/v1/create-qr-code/?size=180x180"
-            f"&data={urllib.parse.quote(_capture_portal_url)}"
-            "&bgcolor=0C1220&color=06B6D4&qzone=2"
-        )
-        st.markdown(f"""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-        padding:18px;text-align:center;min-height:248px">
-        <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-        text-transform:uppercase;margin-bottom:12px">Scan With Phone</div>
-        <img src="{_capture_qr}" style="width:180px;height:180px;border-radius:12px">
-        <div style="color:#10B981;font-size:11px;font-weight:600;margin-top:12px">
-        📱 Same WiFi · No setup needed</div>
-        <div style="color:#64748B;font-size:10px;font-family:'JetBrains Mono',monospace;
-        margin-top:10px;word-break:break-all">{_capture_portal_url}</div>
-        <div style="color:#22D3EE;font-size:11px;font-family:'JetBrains Mono',monospace;
-        margin-top:10px">Code: {_capture_session.upper()}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    _lc_actions = st.columns([1.0, 1.0, 1.2])
-    if _lc_actions[0].button("🔄 Refresh Inbox", key="live_capture_refresh", use_container_width=True):
-        st.rerun()
-    if _lc_actions[1].button("🆕 New Channel", key="live_capture_new_channel", use_container_width=True):
-        _new_session_id = _new_capture_session_id()
-        st.session_state["live_capture_session_id"] = _new_session_id
-        st.session_state["live_capture_channel_input"] = _new_session_id
-        st.session_state["live_capture_selected_id"] = None
-        st.session_state["live_capture_known_count"] = 0
-        st.session_state["live_capture_last_received"] = None
-        st.rerun()
-    if _lc_actions[2].button("🗑️ Clear Inbox", key="live_capture_clear_channel", use_container_width=True):
-        _clear_live_capture_session(_capture_session)
-        st.session_state["live_capture_selected_id"] = None
-        st.session_state["live_capture_known_count"] = 0
-        st.rerun()
-
-    # ── Refresh hint ──
-    st.markdown(
-        '<div style="color:#64748B;font-size:10px;text-align:right;margin:-8px 0 4px">'
-        '💡 Click <b>🔄 Refresh Inbox</b> after sending a photo from your phone</div>',
-        unsafe_allow_html=True)
-
-
-    if not _capture_records:
-        st.markdown("""
-        <div style="text-align:center;padding:72px 20px 60px;
-        background:radial-gradient(ellipse 500px 240px at center 110px,
-        rgba(34,211,238,0.06), transparent)">
-        <div style="font-size:56px;margin-bottom:20px;opacity:0.6;
-        filter:drop-shadow(0 4px 20px rgba(34,211,238,0.25))">📡</div>
-        <div style="font-size:11px;font-weight:700;color:#22D3EE;
-        letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
-        Live Capture Relay</div>
-        <h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
-        letter-spacing:-0.02em">Waiting For Phone Photos</h2>
-        <p style="color:#94A3B8;font-size:14px;max-width:540px;
-        margin:14px auto 0;line-height:1.8">
-        Scan the QR code from a phone, capture a scene, then return here and
-        refresh the inbox. You can also open the phone portal manually and enter the channel code.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        _m1, _m2, _m3, _m4 = st.columns(4)
-        _m1.metric("Inbox Frames", len(_capture_records))
-        _m2.metric("Pending", len(_pending_records))
-        _m3.metric("Analyzed", len(_analyzed_records))
-        _m4.metric(
-            "Latest",
-            _format_capture_time(_capture_records[0]["created_at"])
-            if _capture_records else "—",
-        )
-
-        _selector_options = []
-        for _rec in _capture_records:
-            _status = _rec.get("status", "pending").upper()
-            _label = _rec.get("label") or _rec.get("source", "capture")
-            _selector_options.append(
-                (
-                    _rec["id"],
-                    f"{_format_capture_time(_rec['created_at'])} · {_label} · {_status}"
-                )
-            )
-
-        _selected_id = st.session_state.get("live_capture_selected_id")
-        _option_ids = [_opt_id for _opt_id, _opt_label in _selector_options]
-        if _selected_id not in _option_ids:
-            _selected_id = _option_ids[0]
-        _selected_index = _option_ids.index(_selected_id)
-        _workspace_left, _workspace_right = st.columns([0.82, 1.18])
-
-        with _workspace_left:
+        with col_left:
             st.markdown("""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-            padding:14px 16px;margin-top:12px">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;letter-spacing:2px;
-            text-transform:uppercase;margin-bottom:10px">Inbox Queue</div>
+            <div style="background:#1E293B;
+            border:1px solid #334155;
+            border-radius:12px;padding:24px">
+
+            <div style="color:#6366F1;font-size:10px;
+            font-weight:700;letter-spacing:2px;
+            margin-bottom:20px">◈ HOW TO USE</div>
+
+            <div style="display:flex;gap:14px;
+            align-items:flex-start;margin-bottom:16px">
+            <div style="background:#6366F1;color:white;
+            width:28px;height:28px;border-radius:50%;
+            display:flex;align-items:center;
+            justify-content:center;font-weight:800;
+            font-size:13px;flex-shrink:0">1</div>
+            <div>
+            <div style="color:#F1F5F9;font-weight:600;
+            font-size:14px">Scan the QR code</div>
+            <div style="color:#64748B;font-size:12px;
+            margin-top:2px">
+            Point phone camera at QR →</div>
+            </div></div>
+
+            <div style="display:flex;gap:14px;
+            align-items:flex-start;margin-bottom:16px">
+            <div style="background:#6366F1;color:white;
+            width:28px;height:28px;border-radius:50%;
+            display:flex;align-items:center;
+            justify-content:center;font-weight:800;
+            font-size:13px;flex-shrink:0">2</div>
+            <div>
+            <div style="color:#F1F5F9;font-weight:600;
+            font-size:14px">Tap Browse Files</div>
+            <div style="color:#64748B;font-size:12px;
+            margin-top:2px">
+            Select camera → take crowd photo</div>
+            </div></div>
+
+            <div style="display:flex;gap:14px;
+            align-items:flex-start">
+            <div style="background:#10B981;color:white;
+            width:28px;height:28px;border-radius:50%;
+            display:flex;align-items:center;
+            justify-content:center;font-weight:800;
+            font-size:13px;flex-shrink:0">3</div>
+            <div>
+            <div style="color:#F1F5F9;font-weight:600;
+            font-size:14px">Results appear instantly</div>
+            <div style="color:#64748B;font-size:12px;
+            margin-top:2px">
+            Analysis runs on laptop automatically</div>
+            </div></div>
+
             </div>
             """, unsafe_allow_html=True)
-            _selected_id = st.selectbox(
-                "Choose a relayed frame",
-                options=_option_ids,
-                index=_selected_index,
-                format_func=lambda _id: next(
-                    _label for _opt_id, _label in _selector_options if _opt_id == _id
-                ),
-                key="live_capture_selector",
-            )
-            st.session_state["live_capture_selected_id"] = _selected_id
-            _selected_record = next(
-                rec for rec in _capture_records if rec["id"] == _selected_id
-            )
 
-            _queue_rows = ""
-            for _idx, _rec in enumerate(_capture_records[:8]):
-                _row_bg = "#1E293B" if _idx % 2 == 0 else "#263445"
-                _status = _rec.get("status", "pending")
-                _status_color = "#10B981" if _status == "analyzed" else "#22D3EE"
-                _analysis = _rec.get("analysis") or {}
-                _queue_rows += f"""
-                <tr style="background:{_row_bg};border-bottom:1px solid #334155">
-                <td style="padding:10px 12px;color:#F1F5F9;font-size:12px;font-weight:600">
-                {_rec.get('label') or 'Crowd capture'}</td>
-                <td style="padding:10px 12px;color:#94A3B8;font-size:12px">
-                {_format_capture_time(_rec.get('created_at'))}</td>
-                <td style="padding:10px 12px;color:{_status_color};font-size:11px;font-weight:700;letter-spacing:1px">
-                {_status.upper()}</td>
-                <td style="padding:10px 12px;color:#F1F5F9;font-size:12px;text-align:center">
-                {_analysis.get('count', '—')}</td>
-                </tr>
-                """
-
+        with col_right:
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-            overflow:hidden;margin-top:10px">
-            <table style="width:100%;border-collapse:collapse;font-family:'Inter',sans-serif">
-            <thead>
-            <tr style="background:#0F172A">
-            <th style="padding:10px 12px;text-align:left;color:#64748B;font-size:10px;letter-spacing:1.5px">LABEL</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748B;font-size:10px;letter-spacing:1.5px">TIME</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748B;font-size:10px;letter-spacing:1.5px">STATUS</th>
-            <th style="padding:10px 12px;text-align:center;color:#64748B;font-size:10px;letter-spacing:1.5px">COUNT</th>
-            </tr>
-            </thead>
-            <tbody>{_queue_rows}</tbody>
-            </table>
+            <div style="background:#1E293B;
+            border:1px solid #334155;
+            border-radius:16px;padding:24px;
+            text-align:center;
+            box-shadow:0 0 40px rgba(34,211,238,0.1)">
+
+            <img src="{qr_url}"
+            style="width:200px;height:200px;
+            border-radius:12px;
+            border:2px solid #334155">
+
+            <div style="color:#22D3EE;font-size:11px;
+            font-family:monospace;margin-top:12px;
+            word-break:break-all;padding:0 8px">
+            {ngrok_url.replace('https://','')}</div>
+
+            <div style="color:#64748B;font-size:11px;
+            margin-top:6px">
+            Scan with phone camera</div>
+
+            <div style="background:rgba(16,185,129,0.1);
+            border:1px solid rgba(16,185,129,0.3);
+            border-radius:20px;padding:4px 12px;
+            display:inline-block;margin-top:10px;
+            color:#10B981;font-size:11px;
+            font-weight:600">
+            ● Opens Live Analysis on phone</div>
+
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("Analyze Latest Pending", key="live_capture_analyze_latest", use_container_width=True):
-                if _pending_records:
-                    _analyze_live_capture_record(_pending_records[0], method, opacity)
-                    st.success("Latest pending frame analyzed.")
+    else:
+        # ── NOT READY STATE ──
+        st.markdown("""
+        <div style="background:#1E293B;
+        border:1px solid #334155;
+        border-radius:12px;padding:28px;
+        text-align:center;margin-bottom:20px">
+
+        <div style="font-size:48px;margin-bottom:16px">
+        📡</div>
+
+        <div style="color:#F1F5F9;font-size:18px;
+        font-weight:700;margin-bottom:8px">
+        Start ngrok to enable mobile access</div>
+
+        <div style="color:#64748B;font-size:13px;
+        margin-bottom:20px">
+        Run this command in a new terminal window:
+        </div>
+
+        <div style="background:#0F172A;
+        border:1px solid #334155;border-radius:8px;
+        padding:14px 20px;display:inline-block;
+        font-family:monospace;font-size:16px;
+        color:#22D3EE;letter-spacing:1px;
+        margin-bottom:20px">
+        ngrok http 8501</div>
+
+        <div style="color:#64748B;font-size:12px">
+        Click Check Again after starting ngrok</div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+        _chk1, _chk2 = st.columns([1, 3])
+        with _chk1:
+            if st.button("🔄 Check Again", key="ngrok_recheck_tab4",
+                         use_container_width=True):
+                _re = get_ngrok_url()
+                if _re:
+                    st.session_state["ngrok_url_input"] = _re
                     st.rerun()
                 else:
-                    st.info("No pending captures to analyze.")
-            if st.button("Analyze All Pending", key="live_capture_analyze_all", use_container_width=True):
-                if _pending_records:
-                    _queue_bar = st.progress(0.0, text="Analyzing live capture queue...")
-                    for _idx, _record in enumerate(_pending_records, start=1):
-                        _queue_bar.progress(
-                            _idx / len(_pending_records),
-                            text=f"Analyzing {_record.get('label') or _record['id'][:8]} ({_idx}/{len(_pending_records)})",
-                        )
-                        _analyze_live_capture_record(_record, method, opacity)
-                    _queue_bar.empty()
-                    st.success(f"Analyzed {len(_pending_records)} queued frame(s).")
-                    st.rerun()
-                else:
-                    st.info("The queue is already clear.")
+                    st.warning("ngrok not detected yet.")
 
-        with _workspace_right:
-            _selected_analysis = _selected_record.get("analysis")
-            _status_color = "#10B981" if _selected_record.get("status") == "analyzed" else "#22D3EE"
-            st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-            padding:14px 18px;margin-top:12px;display:flex;flex-wrap:wrap;gap:18px;align-items:center">
-            <span style="color:#F1F5F9;font-size:13px;font-weight:600">
-            {_selected_record.get('label') or 'Live capture'}</span>
-            <span style="color:#94A3B8;font-size:12px">Source: {_selected_record.get('source', 'phone')}</span>
-            <span style="color:#94A3B8;font-size:12px">Captured: {_format_capture_time(_selected_record.get('created_at'))}</span>
-            <span style="color:{_status_color};font-size:12px;font-weight:700;letter-spacing:1px">
-            {_selected_record.get('status', 'pending').upper()}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if st.button("Analyze Selected Frame", key="live_capture_analyze_selected", use_container_width=True):
-                _analyze_live_capture_record(_selected_record, method, opacity)
-                st.success("Selected frame analyzed.")
+        # Manual fallback
+        with st.expander("Or paste URL manually"):
+            manual = st.text_input(
+                "ngrok URL",
+                placeholder="https://abc123.ngrok-free.app",
+                label_visibility="collapsed",
+                key="lc_manual_ngrok_v2")
+            if manual and manual.startswith("https://"):
+                st.session_state["ngrok_url_input"] = manual
                 st.rerun()
 
-            _preview_bytes = _read_capture_bytes(_selected_record)
-            if not isinstance(_selected_analysis, dict):
-                st.image(_preview_bytes, caption="Original capture", use_container_width=True)
-                st.info("This frame is waiting for analysis on the laptop.")
+    # ── DIRECT CAMERA (works on laptop too) ──
+    st.markdown("""
+    <div style="color:#64748B;font-size:11px;
+    font-weight:600;letter-spacing:2px;
+    text-transform:uppercase;
+    margin:24px 0 12px">
+    ◈ OR CAPTURE DIRECTLY
+    </div>
+    """, unsafe_allow_html=True)
+
+    cam_photo = st.camera_input(
+        "Take photo with laptop camera",
+        label_visibility="collapsed")
+
+    if cam_photo:
+        raw_cam = np.asarray(
+            bytearray(cam_photo.read()),
+            dtype=np.uint8)
+        img_bgr_cam = cv2.imdecode(
+            raw_cam, cv2.IMREAD_COLOR)
+        cam_rgb = cv2.cvtColor(
+            img_bgr_cam, cv2.COLOR_BGR2RGB)
+
+        with st.spinner("◈ Analyzing..."):
+            if LWCC_AVAILABLE and lwcc_shb:
+                cam_count, cam_density = \
+                    predict_density_lwcc(cam_rgb)
             else:
-                _info_cols = st.columns(5)
-                _info_cols[0].metric("Estimated Crowd", _selected_analysis["count"])
-                _info_cols[1].metric("Markers", _selected_analysis["marker_count"])
-                _info_cols[2].metric("Threat", _selected_analysis["threat"])
-                _info_cols[3].metric("Confidence", f"{_selected_analysis['confidence']}%")
-                _info_cols[4].metric("Time", f"{_selected_analysis['time_s']}s")
+                cam_den = predict_density_raw(
+                    cnn, img_bgr_cam)
+                h_c, w_c = img_bgr_cam.shape[:2]
+                cam_density = cv2.resize(
+                    cam_den, (w_c, h_c))
+                cam_count = apply_calibration(
+                    float(cam_den.sum()), "small")
 
-                st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-                padding:12px 16px;margin:8px 0 14px;display:flex;flex-wrap:wrap;gap:16px">
-                <span style="color:#94A3B8;font-size:12px">Model: <span style="color:#F1F5F9">{_selected_analysis.get('model', '—')}</span></span>
-                <span style="color:#94A3B8;font-size:12px">Method: <span style="color:#F1F5F9">{_selected_analysis.get('method', method)}</span></span>
-                <span style="color:#94A3B8;font-size:12px">Opacity: <span style="color:#F1F5F9">{_selected_analysis.get('opacity', opacity):.2f}</span></span>
-                <span style="color:#94A3B8;font-size:12px">Threat score: <span style="color:#F1F5F9">{_selected_analysis.get('threat_score', 0)}%</span></span>
-                </div>
-                """, unsafe_allow_html=True)
+        # Show result
+        st.components.v1.html(f"""
+        <div style="background:#1E293B;
+        border:1px solid #334155;
+        border-left:4px solid #10B981;
+        border-radius:12px;padding:20px 24px;
+        margin:16px 0">
+        <div style="color:#10B981;font-size:10px;
+        font-weight:700;letter-spacing:2px;
+        margin-bottom:8px">● CAPTURE ANALYZED</div>
+        <div style="display:flex;gap:32px;
+        align-items:center">
+        <div>
+        <div style="color:#64748B;font-size:10px;
+        letter-spacing:1px">PERSONS DETECTED</div>
+        <div style="color:#22D3EE;font-size:40px;
+        font-weight:900;font-family:monospace">
+        {cam_count}</div>
+        </div>
+        <div>
+        <div style="color:#64748B;font-size:10px;
+        letter-spacing:1px">MODEL</div>
+        <div style="color:#F1F5F9;font-size:14px;
+        font-weight:700;font-family:monospace">
+        DM-Count SHB</div>
+        </div>
+        </div>
+        </div>
+        """, height=120)
 
-                if _selected_analysis.get("marker_note"):
-                    st.markdown(f"""
-                    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.24);
-                    border-radius:10px;padding:10px 14px;margin:0 0 14px 0;
-                    color:#F59E0B;font-size:11px">{_selected_analysis['marker_note']}</div>
-                    """, unsafe_allow_html=True)
-
-                _img_c1, _img_c2 = st.columns(2)
-                with _img_c1:
-                    st.image(_preview_bytes, caption="Original Capture", use_container_width=True)
-                    st.image(
-                        base64.b64decode(_selected_analysis["head_overlay_b64"]),
-                        caption=(
-                            "Portrait Markers"
-                            if _selected_analysis.get("portrait_hybrid_mode")
-                            else ("Face Markers" if _selected_analysis.get("used_face_detector")
-                                  else "Head Markers")
-                        ),
-                        use_container_width=True,
-                    )
-                with _img_c2:
-                    st.image(
-                        base64.b64decode(_selected_analysis["density_overlay_b64"]),
-                        caption="Density Heatmap",
-                        use_container_width=True,
-                    )
-                    _analysis_method = _selected_analysis.get("method", method)
-                    st.image(
-                        base64.b64decode(_selected_analysis["safety_img_b64"]),
-                        caption=f"Safety Zone Map — {_analysis_method}",
-                        use_container_width=True,
-                    )
-
-                _zs = _selected_analysis["zone_stats"]
-                _zone_cols = st.columns(4)
-                for _col, (_lbl, _val, _clr) in zip(
-                        _zone_cols,
-                        [
-                            ("LOW", _zs["Low"], "#10B981"),
-                            ("MEDIUM", _zs["Medium"], "#F59E0B"),
-                            ("HIGH", _zs["High"], "#EF4444"),
-                            ("CRITICAL", _zs["Critical"], "#FF1744"),
-                        ]):
-                    with _col:
-                        st.markdown(f"""
-                        <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
-                        padding:14px;text-align:center;border-top:2px solid {_clr}">
-                        <div style="font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:1.2px;
-                        margin-bottom:4px">{_lbl}</div>
-                        <div style="font-size:28px;font-weight:900;color:{_clr};
-                        font-family:'JetBrains Mono',monospace">{_val}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+        if "cam_history" not in st.session_state:
+            st.session_state["cam_history"] = []
+        st.session_state["cam_history"].append(cam_count)
 
 
 # ═══════════════════════════════════════════════════════════════
