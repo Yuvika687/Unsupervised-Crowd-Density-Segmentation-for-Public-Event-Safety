@@ -2905,9 +2905,24 @@ _crowd_count  = 0
 
 with tab1:
 
-    # ── Present mode button (top-right) ───────────────────────
-    _pres_col_l, _pres_col_r = st.columns([5, 1])
-    with _pres_col_r:
+    # ── Section Header with LIVE indicator + Present button ───
+    _hdr_l, _hdr_r = st.columns([5, 1])
+    with _hdr_l:
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:14px;padding:8px 0 4px 0">
+        <div style="display:flex;align-items:center;gap:8px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+        background:#10B981;box-shadow:0 0 10px rgba(16,185,129,0.6);
+        animation:liveDot 1.5s ease-in-out infinite"></span>
+        <span style="color:#10B981;font-size:10px;font-weight:700;
+        letter-spacing:2px;font-family:'JetBrains Mono',monospace">LIVE</span>
+        </div>
+        <span style="color:#334155">│</span>
+        <span style="color:#94A3B8;font-size:12px;font-weight:600;
+        letter-spacing:0.5px">Upload an image to begin crowd density analysis</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with _hdr_r:
         if st.session_state["present_mode"]:
             if st.button("⛶ Exit", key="exit_present", use_container_width=True):
                 st.session_state["present_mode"] = False
@@ -3260,6 +3275,45 @@ with tab1:
 
         else:
             # ── Normal analysis view ──────────────────────────
+
+            # ── Post-Analysis Section Header ──
+            st.markdown("""
+            <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
+            border:1px solid #334155;border-radius:12px;padding:14px 24px;
+            margin:8px 0 20px 0;display:flex;align-items:center;
+            justify-content:space-between;overflow:hidden;position:relative;
+            box-shadow:0 4px 24px rgba(0,0,0,0.4)">
+            <div style="position:absolute;top:0;left:0;height:2px;width:100%;
+            background:#334155">
+            <div style="height:2px;
+            background:linear-gradient(90deg,#6366F1,#22D3EE,#8B5CF6,#6366F1);
+            background-size:200% 100%;animation:scanLine 2s linear infinite;
+            width:100%"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:inline-block;width:10px;height:10px;
+            border-radius:50%;background:#059669;
+            box-shadow:0 0 12px rgba(5,150,105,0.5);
+            animation:liveDot 1.5s ease-in-out infinite"></span>
+            <span style="color:#F1F5F9;font-size:14px;font-weight:700;
+            font-family:'JetBrains Mono',monospace;letter-spacing:1.5px">
+            ANALYSIS RESULTS</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+            <span style="padding:4px 12px;border-radius:16px;font-size:10px;
+            font-weight:600;background:rgba(16,185,129,0.1);color:#10B981;
+            border:1px solid rgba(16,185,129,0.2);
+            font-family:'JetBrains Mono',monospace">SCAN COMPLETE</span>
+            </div>
+            </div>
+            <style>
+            @keyframes scanLine {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
 
             feats = extract_features(_density_full)
             _features_sc = scaler.transform(feats) if scaler else feats
@@ -3651,10 +3705,75 @@ DM-Count is optimized for crowd scenes
                 </div>
                 </div>
                 """, height=130)
-            m2.metric("🔴 Critical Zones", _zone_stats["Critical"])
-            m3.metric("🟠 High Zones", _zone_stats["High"])
-            m4.metric("🟡 Medium Zones", _zone_stats["Medium"])
-            m5.metric("🟢 Safe Zones", _zone_stats["Low"])
+            with m2:
+                _crit_val = _zone_stats["Critical"]
+                _crit_glow = 'animation:criticalGlow 2s ease-in-out infinite;' if _crit_val > 0 else ''
+                st.markdown(f"""
+                <div style="background:#1E293B;border:1px solid rgba(255,23,68,0.3);
+                border-radius:12px;padding:22px 18px;text-align:center;
+                border-top:3px solid #FF1744;
+                box-shadow:0 4px 24px rgba(255,23,68,0.15);
+                transition:all 0.3s ease;{_crit_glow}">
+                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
+                🔴 CRITICAL ZONES</div>
+                <div style="color:#FF1744;font-family:'JetBrains Mono',monospace;
+                font-size:40px;font-weight:800;letter-spacing:-0.03em;
+                font-variant-numeric:tabular-nums;
+                text-shadow:0 0 20px rgba(255,23,68,0.4)">{_crit_val}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with m3:
+                _high_val = _zone_stats["High"]
+                st.markdown(f"""
+                <div style="background:#1E293B;border:1px solid rgba(239,68,68,0.25);
+                border-radius:12px;padding:22px 18px;text-align:center;
+                border-top:3px solid #EF4444;
+                box-shadow:0 4px 24px rgba(239,68,68,0.15);
+                transition:all 0.3s ease">
+                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
+                🟠 HIGH ZONES</div>
+                <div style="color:#EF4444;font-family:'JetBrains Mono',monospace;
+                font-size:40px;font-weight:800;letter-spacing:-0.03em;
+                font-variant-numeric:tabular-nums;
+                text-shadow:0 0 20px rgba(239,68,68,0.3)">{_high_val}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with m4:
+                _med_val = _zone_stats["Medium"]
+                st.markdown(f"""
+                <div style="background:#1E293B;border:1px solid rgba(245,158,11,0.25);
+                border-radius:12px;padding:22px 18px;text-align:center;
+                border-top:3px solid #F59E0B;
+                box-shadow:0 4px 24px rgba(245,158,11,0.15);
+                transition:all 0.3s ease">
+                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
+                🟡 MEDIUM ZONES</div>
+                <div style="color:#F59E0B;font-family:'JetBrains Mono',monospace;
+                font-size:40px;font-weight:800;letter-spacing:-0.03em;
+                font-variant-numeric:tabular-nums;
+                text-shadow:0 0 20px rgba(245,158,11,0.3)">{_med_val}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with m5:
+                _safe_val = _zone_stats["Low"]
+                st.markdown(f"""
+                <div style="background:#1E293B;border:1px solid rgba(16,185,129,0.25);
+                border-radius:12px;padding:22px 18px;text-align:center;
+                border-top:3px solid #10B981;
+                box-shadow:0 4px 24px rgba(16,185,129,0.15);
+                transition:all 0.3s ease">
+                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
+                🟢 SAFE ZONES</div>
+                <div style="color:#10B981;font-family:'JetBrains Mono',monospace;
+                font-size:40px;font-weight:800;letter-spacing:-0.03em;
+                font-variant-numeric:tabular-nums;
+                text-shadow:0 0 20px rgba(16,185,129,0.3)">{_safe_val}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
             # ══════════════════════════════════════════════════
             # FEATURE 1 — THREAT LEVEL GAUGE
@@ -4064,73 +4183,164 @@ DM-Count is optimized for crowd scenes
                 unsafe_allow_html=True)
         else:
             st.markdown("""
-            <div style="text-align:center;padding:60px 20px 50px;min-height:480px;
-            animation:floatUp 0.6s ease;
-            background:radial-gradient(ellipse 600px 300px at center 120px,
-            rgba(99,102,241,0.07), transparent);border-top:1px solid #334155">
+            <div style="text-align:center;padding:50px 20px 40px;min-height:540px;
+            animation:floatUp 0.7s ease;position:relative;overflow:hidden;
+            background:radial-gradient(ellipse 700px 350px at center 100px,
+            rgba(99,102,241,0.08), transparent)">
 
-            <div style="font-size:64px;margin-bottom:16px;
-            filter:drop-shadow(0 4px 24px rgba(99,102,241,0.35))">🛡️</div>
+            <!-- Animated radar ring -->
+            <div style="position:relative;width:140px;height:140px;margin:0 auto 28px;
+            display:flex;align-items:center;justify-content:center">
+            <div style="position:absolute;width:140px;height:140px;border-radius:50%;
+            border:1px solid rgba(99,102,241,0.15);
+            animation:radarPulse 3s ease-out infinite"></div>
+            <div style="position:absolute;width:100px;height:100px;border-radius:50%;
+            border:1px solid rgba(99,102,241,0.2);
+            animation:radarPulse 3s ease-out 0.7s infinite"></div>
+            <div style="position:absolute;width:60px;height:60px;border-radius:50%;
+            border:1px solid rgba(99,102,241,0.25);
+            animation:radarPulse 3s ease-out 1.4s infinite"></div>
+            <span style="font-size:48px;position:relative;z-index:1;
+            filter:drop-shadow(0 4px 24px rgba(99,102,241,0.4))">🛡️</span>
+            </div>
 
-            <div style="font-size:12px;font-weight:700;color:#6366F1;
-            letter-spacing:6px;text-transform:uppercase;margin-bottom:12px">
-            SAFECROWD VISION</div>
+            <!-- Status pill -->
+            <div style="display:inline-flex;align-items:center;gap:6px;
+            padding:6px 16px;border-radius:20px;margin-bottom:16px;
+            background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);
+            animation:pillGlow 3s ease-in-out infinite">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
+            background:#6366F1;animation:dotPulse 1.5s ease-in-out infinite"></span>
+            <span style="color:#A5B4FC;font-size:10px;font-weight:700;
+            letter-spacing:2.5px;font-family:'JetBrains Mono',monospace">
+            AWAITING INPUT</span>
+            </div>
 
-            <h2 style="color:#F1F5F9;font-size:32px;font-weight:800;margin:0;
-            letter-spacing:-0.03em">Ready for Analysis</h2>
+            <h2 style="color:#F1F5F9;font-size:34px;font-weight:800;margin:0 0 4px 0;
+            letter-spacing:-0.03em;line-height:1.2">Ready for Analysis</h2>
 
-            <p style="color:#94A3B8;font-size:15px;max-width:520px;
-            margin:16px auto 0;line-height:1.8">
-            Upload any crowd image to begin real-time density estimation
-            and 4-zone safety mapping.</p>
+            <p style="color:#94A3B8;font-size:15px;max-width:500px;
+            margin:12px auto 0;line-height:1.8">
+            Upload any crowd image to begin real-time density estimation,
+            threat scoring, and spatial safety mapping.</p>
 
-            <div style="border-top:1px solid #334155;margin:36px auto 32px;
-            max-width:400px"></div>
+            <!-- Divider -->
+            <div style="border-top:1px solid #334155;margin:32px auto 28px;
+            max-width:360px"></div>
 
-            <div style="display:flex;justify-content:center;gap:16px;
-            flex-wrap:wrap;max-width:640px;margin:0 auto">
+            <!-- How it works steps -->
+            <div style="max-width:700px;margin:0 auto">
+            <div style="color:#6366F1;font-size:10px;font-weight:700;
+            letter-spacing:3px;text-transform:uppercase;margin-bottom:20px">
+            HOW IT WORKS</div>
 
-            <div style="background:#1E293B;border:1px solid #334155;
-            border-top:3px solid #6366F1;border-radius:12px;padding:20px 24px;
-            flex:1;min-width:160px;max-width:200px;text-align:center">
-            <div style="font-size:28px;margin-bottom:10px">🎯</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:600;
-            margin-bottom:4px">DM-Count</div>
-            <div style="color:#94A3B8;font-size:11px;line-height:1.5">
-            Sparse-optimized<br>
-            <span style="color:#3B82F6;font-family:'JetBrains Mono',monospace;
+            <div style="display:flex;justify-content:center;gap:12px;
+            flex-wrap:wrap">
+
+            <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            flex:1;min-width:155px;max-width:210px;text-align:center;
+            transition:all 0.3s ease;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;width:100%;height:3px;
+            background:linear-gradient(90deg,transparent,#6366F1,transparent)"></div>
+            <div style="width:36px;height:36px;border-radius:10px;
+            background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);
+            display:flex;align-items:center;justify-content:center;
+            margin:0 auto 12px;font-size:18px">📤</div>
+            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            margin-bottom:6px">1. Upload</div>
+            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            Drop a crowd image<br>
+            <span style="color:#475569;font-size:10px">JPG · PNG</span></div>
+            </div>
+
+            <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            flex:1;min-width:155px;max-width:210px;text-align:center;
+            transition:all 0.3s ease;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;width:100%;height:3px;
+            background:linear-gradient(90deg,transparent,#22D3EE,transparent)"></div>
+            <div style="width:36px;height:36px;border-radius:10px;
+            background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.25);
+            display:flex;align-items:center;justify-content:center;
+            margin:0 auto 12px;font-size:18px">🎯</div>
+            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            margin-bottom:6px">2. Analyze</div>
+            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            DM-Count inference<br>
+            <span style="color:#22D3EE;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">MAE: 4.92</span></div>
             </div>
 
-            <div style="background:#1E293B;border:1px solid #334155;
-            border-top:2px solid #10B981;border-radius:12px;padding:20px 24px;
-            flex:1;min-width:160px;max-width:200px;text-align:center">
-            <div style="font-size:28px;margin-bottom:10px">🗺️</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:600;
-            margin-bottom:4px">4-Zone Safety</div>
-            <div style="color:#94A3B8;font-size:11px;line-height:1.5">
-            Spatial mapping<br>
+            <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            flex:1;min-width:155px;max-width:210px;text-align:center;
+            transition:all 0.3s ease;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;width:100%;height:3px;
+            background:linear-gradient(90deg,transparent,#10B981,transparent)"></div>
+            <div style="width:36px;height:36px;border-radius:10px;
+            background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);
+            display:flex;align-items:center;justify-content:center;
+            margin:0 auto 12px;font-size:18px">🗺️</div>
+            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            margin-bottom:6px">3. Safety Map</div>
+            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            4-zone classification<br>
             <span style="color:#10B981;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">8×8 Grid</span></div>
             </div>
 
-            <div style="background:#1E293B;border:1px solid #334155;
-            border-top:2px solid #0891B2;border-radius:12px;padding:20px 24px;
-            flex:1;min-width:160px;max-width:200px;text-align:center">
-            <div style="font-size:28px;margin-bottom:10px">⚡</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:600;
-            margin-bottom:4px">Real-Time</div>
-            <div style="color:#94A3B8;font-size:11px;line-height:1.5">
-            Instant analysis<br>
-            <span style="color:#6366F1;font-family:'JetBrains Mono',monospace;
-            font-size:10px;font-weight:600">Live Feed</span></div>
+            <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            flex:1;min-width:155px;max-width:210px;text-align:center;
+            transition:all 0.3s ease;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;width:100%;height:3px;
+            background:linear-gradient(90deg,transparent,#8B5CF6,transparent)"></div>
+            <div style="width:36px;height:36px;border-radius:10px;
+            background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);
+            display:flex;align-items:center;justify-content:center;
+            margin:0 auto 12px;font-size:18px">🤖</div>
+            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            margin-bottom:6px">4. RL Agent</div>
+            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            Smart evacuation<br>
+            <span style="color:#8B5CF6;font-family:'JetBrains Mono',monospace;
+            font-size:10px;font-weight:600">Policy AI</span></div>
             </div>
 
             </div>
+            </div>
 
-            <p style="color:#3B4A63;font-size:11px;margin-top:36px;
-            letter-spacing:1.5px;font-weight:500">
-            SUPPORTED: Concerts · Festivals · Stations · Stadiums · Classrooms · Rallies</p>
+            <!-- Supported venues -->
+            <div style="margin-top:32px;display:flex;justify-content:center;
+            gap:8px;flex-wrap:wrap">
+            <span style="padding:4px 12px;border-radius:12px;font-size:10px;
+            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            font-weight:500">🎵 Concerts</span>
+            <span style="padding:4px 12px;border-radius:12px;font-size:10px;
+            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            font-weight:500">🎪 Festivals</span>
+            <span style="padding:4px 12px;border-radius:12px;font-size:10px;
+            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            font-weight:500">🚉 Stations</span>
+            <span style="padding:4px 12px;border-radius:12px;font-size:10px;
+            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            font-weight:500">🏟️ Stadiums</span>
+            <span style="padding:4px 12px;border-radius:12px;font-size:10px;
+            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            font-weight:500">📢 Rallies</span>
+            </div>
+
+            <style>
+            @keyframes radarPulse {
+                0% { transform: scale(0.5); opacity: 0.8; }
+                100% { transform: scale(1.6); opacity: 0; }
+            }
+            </style>
 
             </div>
             """, unsafe_allow_html=True)
