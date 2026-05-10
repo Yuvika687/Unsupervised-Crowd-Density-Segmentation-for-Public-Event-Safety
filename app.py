@@ -2157,6 +2157,7 @@ def build_headdot_overlay(img_rgb, density_map, expected_count=0,
 
 
 def labels_from_kmeans(fs, model):
+    fs = np.asarray(fs, dtype=np.float32)
     raw   = model.predict(fs)
     order = np.argsort(model.cluster_centers_[:, 0])
     lmap  = {order[i]: ["Low", "Medium", "High", "Critical"][i]
@@ -2199,6 +2200,7 @@ def labels_from_kmeans(fs, model):
 
 
 def labels_from_xgb(fs, model):
+    fs = np.asarray(fs, dtype=np.float32)
     preds = model.predict(fs)
     unique_classes = sorted(model.classes_)
     class_to_name = {}
@@ -2242,6 +2244,7 @@ def labels_from_xgb(fs, model):
 
 
 def labels_from_gmm(fs, model):
+    fs = np.asarray(fs, dtype=np.float32)
     raw = model.predict(fs)
     probs = model.predict_proba(fs)
 
@@ -2375,13 +2378,16 @@ def compute_dynamic_confidence(features_sc, method, km_model, xgb_model, gmm_mod
 def _select_zone_labels(features, features_sc, method,
                         km_model, xgb_model, gmm_model):
     """Shared zone-labelling path for live and batch analysis."""
-    if method == "XGBoost" and xgb_model is not None:
-        return labels_from_xgb(features_sc, xgb_model)
-    if method == "GMM" and gmm_model is not None:
-        labels, _ = labels_from_gmm(features_sc, gmm_model)
-        return labels
-    if km_model is not None:
-        return labels_from_kmeans(features_sc, km_model)
+    try:
+        if method == "XGBoost" and xgb_model is not None:
+            return labels_from_xgb(features_sc, xgb_model)
+        if method == "GMM" and gmm_model is not None:
+            labels, _ = labels_from_gmm(features_sc, gmm_model)
+            return labels
+        if km_model is not None:
+            return labels_from_kmeans(features_sc, km_model)
+    except Exception:
+        pass
     return [get_label(float(f[0])) for f in features]
 
 
@@ -3287,13 +3293,16 @@ with tab1:
             _p_feats = extract_features(_density_full)
             _p_feats_sc = scaler.transform(_p_feats) if scaler else _p_feats
 
-            if method == "XGBoost" and xgb:
-                _p_labels = labels_from_xgb(_p_feats_sc, xgb)
-            elif method == "GMM" and gmm:
-                _p_labels, _ = labels_from_gmm(_p_feats_sc, gmm)
-            else:
-                _p_labels = labels_from_kmeans(_p_feats_sc, km) \
-                    if km else [get_label(float(f[0])) for f in _p_feats]
+            try:
+                if method == "XGBoost" and xgb:
+                    _p_labels = labels_from_xgb(_p_feats_sc, xgb)
+                elif method == "GMM" and gmm:
+                    _p_labels, _ = labels_from_gmm(_p_feats_sc, gmm)
+                else:
+                    _p_labels = labels_from_kmeans(_p_feats_sc, km) \
+                        if km else [get_label(float(f[0])) for f in _p_feats]
+            except Exception:
+                _p_labels = [get_label(float(f[0])) for f in _p_feats]
 
             _p_safety_img, _p_zone_stats = build_overlay(
                 _img_rgb, _p_labels, GRID, opacity)
@@ -3688,7 +3697,7 @@ DM-Count is optimized for crowd scenes
                     f'{_marker_note}</div>'
                     if _marker_note else ""
                 )
-            _banner_height = 154 if _banner_note_block else 128
+            _banner_height = 190 if _banner_note_block else 155
 
             st.components.v1.html(f"""
             <div style="background:#3B4A5E;border:1px solid #5A6B7E;
@@ -3990,7 +3999,7 @@ DM-Count is optimized for crowd scenes
                 font-family:'JetBrains Mono',monospace">±{int(_mae)} MAE</span>
                 </div>
                 </div>
-                """, height=130)
+                """, height=155)
             with m2:
                 _crit_val = _zone_stats["Critical"]
                 _crit_glow = 'animation:criticalGlow 2s ease-in-out infinite;' if _crit_val > 0 else ''
@@ -4706,13 +4715,19 @@ with tab2:
 
     if uploaded and _img_rgb is not None and _features_sc is not None:
 
-        km_labels  = labels_from_kmeans(_features_sc, km) \
-                     if km else [get_label(float(f[0]))
-                                 for f in extract_features(_density_full)]
-        xgb_labels = labels_from_xgb(_features_sc, xgb) \
-                     if xgb else km_labels
-        gmm_labels, gmm_conf = labels_from_gmm(_features_sc, gmm) \
-                     if gmm else (km_labels, 0.0)
+        _fallback = [get_label(float(f[0])) for f in extract_features(_density_full)]
+        try:
+            km_labels = labels_from_kmeans(_features_sc, km) if km else _fallback
+        except Exception:
+            km_labels = _fallback
+        try:
+            xgb_labels = labels_from_xgb(_features_sc, xgb) if xgb else km_labels
+        except Exception:
+            xgb_labels = km_labels
+        try:
+            gmm_labels, gmm_conf = labels_from_gmm(_features_sc, gmm) if gmm else (km_labels, 0.0)
+        except Exception:
+            gmm_labels, gmm_conf = km_labels, 0.0
 
         km_img,  km_stats  = build_overlay(_img_rgb, km_labels,  GRID, opacity)
         xgb_img, xgb_stats = build_overlay(_img_rgb, xgb_labels, GRID, opacity)
