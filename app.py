@@ -3697,59 +3697,66 @@ DM-Count is optimized for crowd scenes
                     f'{_marker_note}</div>'
                     if _marker_note else ""
                 )
-            _banner_height = 190 if _banner_note_block else 155
+            _banner_height = 240 if _banner_note_block else 210
 
             st.components.v1.html(f"""
-            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
-            border-radius:12px;padding:20px 24px;margin-bottom:24px;
-            overflow:hidden;position:relative;min-height:102px;">
+            <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3B4E 100%);
+            border:1px solid #5A6B7E;
+            border-radius:16px;padding:28px 32px;margin-bottom:24px;
+            overflow:hidden;position:relative;">
 
-            <div style="position:absolute;top:0;left:0;height:3px;
+            <div style="position:absolute;top:0;left:0;height:4px;
             width:100%;background:#5A6B7E;">
-            <div style="height:3px;background:linear-gradient(90deg,
-            #6366F1,#22D3EE,#8B5CF6);animation:fill 0.8s ease-out forwards;
+            <div style="height:4px;background:linear-gradient(90deg,
+            #6366F1,#22D3EE,#A78BFA,#6366F1);background-size:200% 100%;
+            animation:fill 0.8s ease-out forwards,shimmer 2s linear infinite;
             width:0%"></div>
             </div>
 
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;
             margin-top:4px">
-            <div style="width:10px;height:10px;border-radius:50%;
-            background:#059669;box-shadow:0 0 8px #059669;
+            <div style="width:12px;height:12px;border-radius:50%;
+            background:#059669;box-shadow:0 0 12px #059669,0 0 24px rgba(5,150,105,0.3);
             animation:blink 1s ease-in-out 3"></div>
-            <div style="color:#FFFFFF;font-size:14px;font-weight:700;
-            font-family:monospace;letter-spacing:1px">ANALYSIS COMPLETE</div>
+            <div style="color:#FFFFFF;font-size:18px;font-weight:800;
+            font-family:'JetBrains Mono',monospace;letter-spacing:2px;
+            text-transform:uppercase">✦ ANALYSIS COMPLETE</div>
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-            align-items:start">
+            gap:0;align-items:center">
 
             <div style="text-align:center;border-right:1px solid #5A6B7E;
-            padding:0 20px;min-height:58px">
-            <div style="color:#CBD5E1;font-size:9px;font-weight:700;
-            letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
+            padding:8px 24px">
+            <div style="color:#CBD5E1;font-size:11px;font-weight:700;
+            letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
             {_banner_label}</div>
-            <div style="color:#6366F1;font-size:32px;font-weight:900;
-            font-family:monospace;text-shadow:0 0 20px rgba(99,102,241,0.2)">
+            <div style="color:#6366F1;font-size:48px;font-weight:900;
+            font-family:'JetBrains Mono',monospace;line-height:1;
+            text-shadow:0 0 30px rgba(99,102,241,0.35)">
             {_banner_primary}</div>
-            <div style="color:#9AA8B8;font-size:10px;font-family:monospace;
-            margin-top:2px">{_banner_secondary}</div>
+            <div style="color:#9AA8B8;font-size:11px;font-family:monospace;
+            margin-top:6px">{_banner_secondary}</div>
             </div>
 
             <div style="text-align:center;border-right:1px solid #5A6B7E;
-            padding:0 20px;min-height:58px">
-            <div style="color:#CBD5E1;font-size:9px;font-weight:700;
-            letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
+            padding:8px 24px">
+            <div style="color:#CBD5E1;font-size:11px;font-weight:700;
+            letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
             MODEL</div>
-            <div style="color:#FFFFFF;font-size:14px;font-weight:700;
-            font-family:monospace">{_banner_model}</div>
+            <div style="color:#FFFFFF;font-size:18px;font-weight:700;
+            font-family:'JetBrains Mono',monospace;line-height:1.3">
+            {_banner_model}</div>
             </div>
 
-            <div style="text-align:center;padding:0 20px;min-height:58px">
-            <div style="color:#CBD5E1;font-size:9px;font-weight:700;
-            letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
+            <div style="text-align:center;padding:8px 24px">
+            <div style="color:#CBD5E1;font-size:11px;font-weight:700;
+            letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
             CONFIDENCE</div>
-            <div style="color:#10B981;font-size:14px;font-weight:700;
-            font-family:monospace">{_banner_conf}%</div>
+            <div style="color:#10B981;font-size:36px;font-weight:900;
+            font-family:'JetBrains Mono',monospace;line-height:1;
+            text-shadow:0 0 20px rgba(16,185,129,0.3)">
+            {_banner_conf}%</div>
             </div>
             </div>
             {_banner_note_block}
@@ -3757,6 +3764,9 @@ DM-Count is optimized for crowd scenes
             <style>
             @keyframes fill {{
             0%{{width:0%}} 100%{{width:100%}}
+            }}
+            @keyframes shimmer {{
+            0%{{background-position:200% 0}} 100%{{background-position:-200% 0}}
             }}
             @keyframes blink {{
             0%,100%{{opacity:1}} 50%{{opacity:0.2}}
@@ -3980,26 +3990,29 @@ DM-Count is optimized for crowd scenes
 
             m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
-                st.components.v1.html(f"""
+                st.markdown(f"""
                 <div style="background:#3B4A5E;border:1px solid #5A6B7E;
-                border-radius:12px;padding:22px 18px;
+                border-radius:12px;padding:22px 18px;text-align:center;
                 border-top:3px solid #6366F1;
                 box-shadow:0 4px 24px rgba(99,102,241,0.2)">
                 <div style="color:#CBD5E1;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 👥 ESTIMATED CROWD</div>
-                <div style="color:#FFFFFF;font-family:'JetBrains Mono',monospace;
-                font-size:36px;font-weight:700;letter-spacing:-0.03em;
-                font-variant-numeric:tabular-nums;line-height:1">{_crowd_count:,}</div>
-                <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-                <span style="color:#CBD5E1;font-size:11px">Range: {_count_low} – {_count_high}</span>
-                <span style="padding:2px 8px;border-radius:12px;font-size:10px;
-                font-weight:600;background:rgba(34,211,238,0.1);color:#6366F1;
-                border:1px solid rgba(34,211,238,0.2);
-                font-family:'JetBrains Mono',monospace">±{int(_mae)} MAE</span>
+                <div style="color:#6366F1;font-family:'JetBrains Mono',monospace;
+                font-size:40px;font-weight:800;letter-spacing:-0.03em;
+                font-variant-numeric:tabular-nums;
+                text-shadow:0 0 20px rgba(99,102,241,0.4)">{_crowd_count:,}</div>
+                <div style="display:flex;align-items:center;justify-content:center;
+                gap:8px;margin-top:6px">
+                <span style="color:#9AA8B8;font-size:10px;font-family:monospace">
+                {_count_low} – {_count_high}</span>
+                <span style="padding:2px 8px;border-radius:12px;font-size:9px;
+                font-weight:600;background:rgba(99,102,241,0.15);color:#818CF8;
+                border:1px solid rgba(99,102,241,0.25);
+                font-family:'JetBrains Mono',monospace">±{int(_mae)}</span>
                 </div>
                 </div>
-                """, height=155)
+                """, unsafe_allow_html=True)
             with m2:
                 _crit_val = _zone_stats["Critical"]
                 _crit_glow = 'animation:criticalGlow 2s ease-in-out infinite;' if _crit_val > 0 else ''
