@@ -1,5 +1,5 @@
-streamlit
 --extra-index-url https://download.pytorch.org/whl/cpu
+streamlit
 torch
 torchvision
 opencv-python-headless
@@ -17,5 +17,4 @@ Pillow
 tabulate
 plotly
 joblib
-lwcc
 gdown
