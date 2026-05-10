@@ -3600,12 +3600,21 @@ with tab1:
             _features_sc = scaler.transform(feats) if scaler else feats
 
             if method == "XGBoost" and xgb:
-                labels = labels_from_xgb(_features_sc, xgb)
+                try:
+                    labels = labels_from_xgb(_features_sc, xgb)
+                except Exception:
+                    labels = [get_label(float(f[0])) for f in feats]
             elif method == "GMM" and gmm:
-                labels, _ = labels_from_gmm(_features_sc, gmm)
+                try:
+                    labels, _ = labels_from_gmm(_features_sc, gmm)
+                except Exception:
+                    labels = [get_label(float(f[0])) for f in feats]
             else:
-                labels = labels_from_kmeans(_features_sc, km) \
-                    if km else [get_label(float(f[0])) for f in feats]
+                try:
+                    labels = labels_from_kmeans(_features_sc, km) \
+                        if km else [get_label(float(f[0])) for f in feats]
+                except Exception:
+                    labels = [get_label(float(f[0])) for f in feats]
 
             safety_img, _zone_stats = build_overlay(
                 _img_rgb, labels, GRID, opacity)
