@@ -1,7 +1,10 @@
 {
-  "sparse_a": 2.9174764668189703,
+  "inference_version": 2,
+  "raw_signal": "overlap_weighted_regression",
+  "tta": true,
+  "sparse_a": 0.43356770642699377,
   "sparse_b": 0.0,
-  "dense_a": 4.504410784983521,
-  "dense_b": 0.5451936892099676,
-  "threshold": 34.27619764454642
+  "dense_a": 0.9405557155711326,
+  "dense_b": 0.8562765961307844,
+  "threshold": 230.6444841662544
 }
