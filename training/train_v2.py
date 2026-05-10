@@ -29,12 +29,18 @@ Usage:
 import os
 import copy
 import math
+import sys
 import time
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
-from model_v2 import CrowdDensityNetV2, load_v2_from_v1
-from dataset_v2 import build_dataloaders
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from training.model_v2 import CrowdDensityNetV2, load_v2_from_v1
+from scripts.dataset_v2 import build_dataloaders
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIG

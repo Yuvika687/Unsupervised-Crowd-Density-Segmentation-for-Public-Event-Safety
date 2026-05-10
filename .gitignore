@@ -172,3 +172,14 @@ results/
 training_log.txt
 training_v2_log.txt
 *.log
+
+# Backup files
+*.backup
+*.dark_backup
+*.projector_backup
+
+# Report documents
+COMPLETE_PROJECT_REPORT.*
+DETAILED_PROJECT_REPORT.*
+PROJECT_REPORT.*
+Annexure1Sample.*

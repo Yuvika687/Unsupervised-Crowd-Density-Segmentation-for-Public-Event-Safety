@@ -12,9 +12,28 @@ Outputs saved to results/ and models/.
 """
 
 import os
+import warnings
 import cv2
 import numpy as np
 import joblib
+
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", "1")
+warnings.filterwarnings(
+    "ignore",
+    message="Could not find the number of physical cores.*",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module=r"joblib\.externals\.loky\.backend\.context",
+)
+warnings.filterwarnings(
+    "ignore",
+    message=".*encountered in matmul",
+    category=RuntimeWarning,
+)
+
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
@@ -54,29 +73,36 @@ def extract_patch_features(density_map, grid=GRID):
     for i in range(grid):
         for j in range(grid):
             patch = density_map[i * ph : (i + 1) * ph, j * pw : (j + 1) * pw]
+            patch = np.nan_to_num(
+                patch.astype(np.float32, copy=False),
+                nan=0.0, posinf=0.0, neginf=0.0,
+            )
             
             # Feature calculation with safety for division by zero
-            m = patch.mean()
-            s = patch.std()
-            cv = s / (m + 1e-7)
+            m = float(patch.mean())
+            s = float(patch.std())
+            cv = min(s / max(m, 1e-6), 10.0)
             
             # Gradient feature
             gx = cv2.Sobel(patch, cv2.CV_32F, 1, 0, ksize=3)
             gy = cv2.Sobel(patch, cv2.CV_32F, 0, 1, ksize=3)
-            grad_mag = np.sqrt(gx**2 + gy**2).max()
+            grad_mag = min(float(np.sqrt(gx**2 + gy**2).max()), 1.0)
 
             features.append([
                 m,
-                patch.max(),
+                float(patch.max()),
                 s,
                 cv,
                 grad_mag,
-                (patch > m).sum() / (patch.size + 1e-7),
+                float((patch > m).sum() / (patch.size + 1e-7)),
                 i / (grid - 1),
                 j / (grid - 1),
             ])
 
-    return np.array(features)
+    return np.nan_to_num(
+        np.asarray(features, dtype=np.float32),
+        nan=0.0, posinf=1e3, neginf=0.0,
+    )
 
 
 def load_density_maps(density_dir):
@@ -185,6 +211,10 @@ if __name__ == "__main__":
     all_feats_flat = np.vstack(all_features)
     scaler = StandardScaler()
     feats_scaled = scaler.fit_transform(all_feats_flat)
+    feats_scaled = np.ascontiguousarray(
+        np.nan_to_num(feats_scaled, nan=0.0, posinf=1e3, neginf=-1e3),
+        dtype=np.float64,
+    )
 
     print(f"Total patches : {feats_scaled.shape[0]}  |  Features/patch : {feats_scaled.shape[1]}\n")
 

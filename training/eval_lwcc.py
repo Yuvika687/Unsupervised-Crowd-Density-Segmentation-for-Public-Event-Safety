@@ -10,6 +10,7 @@ Usage:
 
 import os
 import sys
+import tempfile
 import numpy as np
 import scipy.io as sio
 import cv2
@@ -49,6 +50,11 @@ try:
 except ImportError:
     print("ERROR: lwcc not installed. Run: pip3 install lwcc")
     sys.exit(1)
+
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    os.path.join(tempfile.gettempdir(), "safecrowd-mpl"),
+)
 
 import matplotlib
 matplotlib.use("Agg")
@@ -350,6 +356,5 @@ def evaluate():
 
 if __name__ == "__main__":
     evaluate()
-
 
 

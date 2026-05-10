@@ -29,9 +29,7 @@ import json
 import hashlib
 import tempfile
 import random
-import shutil
 import urllib.parse
-import uuid
 from textwrap import dedent
 from collections import deque
 from datetime import datetime
@@ -77,9 +75,21 @@ except ImportError:
 # PAGE CONFIG
 # ═══════════════════════════════════════════════════════════════
 
+os.makedirs("assets", exist_ok=True)
+
+_favicon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo.png")
+_favicon_path_alt = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "icon.png")
+
+if os.path.exists(_favicon_path):
+    _favicon = Image.open(_favicon_path)
+elif os.path.exists(_favicon_path_alt):
+    _favicon = Image.open(_favicon_path_alt)
+else:
+    _favicon = "🔵"
+
 st.set_page_config(
     page_title="SafeCrowd Vision",
-    page_icon="🛡️",
+    page_icon=_favicon,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -93,12 +103,12 @@ st.markdown("""<style>
 
 /* ══════════ CSS VARIABLES — Premium Slate ══════════ */
 :root {
-    --bg:         #0F172A;
-    --surface:    #1E293B;
-    --surface-2:  #263445;
-    --card:       #1E293B;
-    --border:     #334155;
-    --border-h:   #475569;
+    --bg:         #2D3748;
+    --surface:    #3B4A5E;
+    --surface-2:  #485A6E;
+    --card:       #3B4A5E;
+    --border:     #5A6B7E;
+    --border-h:   #7A8B9E;
     --accent:     #6366F1;
     --accent-g:   #8B5CF6;
     --cyan:       #22D3EE;
@@ -107,10 +117,10 @@ st.markdown("""<style>
     --amber:      #F59E0B;
     --red:        #EF4444;
     --critical:   #FF1744;
-    --text:       #F1F5F9;
-    --text-2:     #94A3B8;
-    --muted:      #64748B;
-    --dimmed:     #475569;
+    --text:       #FFFFFF;
+    --text-2:     #CBD5E1;
+    --muted:      #9AA8B8;
+    --dimmed:     #7A8B9E;
 }
 
 /* ══════════ BASE ══════════ */
@@ -135,8 +145,14 @@ st.markdown("""<style>
     z-index: 0;
 }
 section[data-testid="stMain"] { background-color: transparent !important; }
-div[data-testid="stMainBlockContainer"] { background-color: transparent !important; }
-.main .block-container { background-color: transparent !important; }
+div[data-testid="stMainBlockContainer"] {
+    background-color: transparent !important;
+    padding-top: 1rem !important;
+}
+.main .block-container {
+    background-color: transparent !important;
+    padding-top: 1rem !important;
+}
 
 /* ══════════ SIDEBAR — COLLAPSE FIX ══════════ */
 [data-testid="collapsedControl"] { display: none !important; }
@@ -147,21 +163,30 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
 }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #1A2744 0%, #0F172A 100%) !important;
+    background: linear-gradient(180deg, #344B60 0%, #2D3748 100%) !important;
     border-right: 1px solid var(--border) !important;
     min-width: 310px !important;
     z-index: 10;
 }
 section[data-testid="stSidebar"] > div {
     background: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
     background: transparent !important;
+    padding-top: 0 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+    background: transparent !important;
+}
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+    gap: 1rem !important;
 }
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stRadio label,
 section[data-testid="stSidebar"] .stSlider label {
-    color: #94A3B8 !important;
+    color: #CBD5E1 !important;
     font-weight: 500 !important;
     font-size: 13px !important;
 }
@@ -169,7 +194,7 @@ section[data-testid="stSidebar"] p {
     color: var(--muted) !important;
 }
 section[data-testid="stSidebar"] span {
-    color: #94A3B8 !important;
+    color: #CBD5E1 !important;
 }
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
     color: var(--muted) !important;
@@ -312,6 +337,37 @@ div[data-testid="stFileUploader"] button {
     color: var(--text) !important;
 }
 
+/* ══════════ MOBILE CAPTURE MODE ══════════ */
+@media (max-width: 768px) {
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+    }
+    div[data-testid="stFileUploader"] {
+        min-height: 140px !important;
+    }
+    div[data-testid="stFileUploader"] > div {
+        padding: 32px 20px !important;
+    }
+    div[data-testid="stFileUploader"] label {
+        font-size: 16px !important;
+    }
+    button[kind="primary"],
+    button[data-testid="stBaseButton-secondary"] {
+        min-height: 52px !important;
+        font-size: 16px !important;
+    }
+    .main .block-container {
+        padding: 12px !important;
+    }
+}
+
 /* ══════════ DOWNLOAD BUTTON ══════════ */
 [data-testid="stDownloadButton"] button {
     background: linear-gradient(135deg, #6366F1, #4F46E5) !important;
@@ -389,7 +445,7 @@ div[data-testid="stTextInput"] input {
 /* ══════════ HIDE STREAMLIT DEFAULTS ══════════ */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
-[data-testid="stHeader"] { visibility: hidden; }
+[data-testid="stHeader"] { display: none !important; }
 
 /* ══════════ ANIMATIONS ══════════ */
 @keyframes pulse {
@@ -475,6 +531,16 @@ footer { visibility: hidden; }
     border-radius: 12px !important;
     overflow: hidden !important;
 }
+.js-plotly-plot .plotly .modebar {
+    background: rgba(59,74,94,0.85) !important;
+    border-radius: 8px !important;
+}
+.js-plotly-plot .plotly .modebar-btn path {
+    fill: #CBD5E1 !important;
+}
+.js-plotly-plot .plotly .modebar-btn:hover path {
+    fill: #FFFFFF !important;
+}
 
 /* ══════════ RADIO / TOGGLE ══════════ */
 div[data-testid="stRadio"] > label {
@@ -498,6 +564,73 @@ div[data-testid="stRadio"] > label {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-h); }
+
+/* ══════════ ENHANCED CARD HOVER ══════════ */
+[data-testid="stMetric"]:hover {
+    border-color: var(--accent) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 12px 40px rgba(99,102,241,0.25) !important;
+}
+
+/* ══════════ GLASSMORPHISM CONTAINERS ══════════ */
+div[data-testid="stExpander"] {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* ══════════ PRIMARY BUTTON ENHANCEMENT ══════════ */
+button[kind="primary"],
+.stButton button[kind="primary"] {
+    background: linear-gradient(135deg, #6366F1, #4F46E5) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.35) !important;
+    font-weight: 700 !important;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1) !important;
+}
+button[kind="primary"]:hover,
+.stButton button[kind="primary"]:hover {
+    filter: brightness(1.12) !important;
+    box-shadow: 0 8px 28px rgba(99,102,241,0.5) !important;
+    transform: translateY(-1px) scale(1.02) !important;
+}
+button[kind="primary"]:active,
+.stButton button[kind="primary"]:active {
+    transform: translateY(0) scale(0.98) !important;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important;
+}
+
+/* ══════════ PROGRESS BAR ══════════ */
+.stProgress > div > div {
+    background: var(--surface-2) !important;
+    border-radius: 6px !important;
+}
+.stProgress > div > div > div {
+    background: linear-gradient(90deg, #6366F1, #22D3EE) !important;
+    border-radius: 6px !important;
+}
+
+/* ══════════ IMAGE CAPTIONS ══════════ */
+[data-testid="stImage"] > div > div > p {
+    color: var(--muted) !important;
+    font-size: 12px !important;
+}
+
+/* ══════════ SELECTBOX / MULTISELECT ══════════ */
+div[data-baseweb="select"] > div {
+    background: var(--surface-2) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+div[data-baseweb="select"] > div:hover {
+    border-color: var(--accent) !important;
+}
+
+/* ══════════ TEXT SELECTION ══════════ */
+::selection {
+    background: rgba(99,102,241,0.35);
+    color: #FFFFFF;
+}
 </style>""", unsafe_allow_html=True)
 
 
@@ -507,18 +640,33 @@ div[data-testid="stRadio"] > label {
 # ═══════════════════════════════════════════════════════════════
 
 st.markdown("""
-<div style="background:linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-padding:28px 34px;border-radius:14px;border:1px solid #334155;
-border-left:4px solid #6366F1;margin-bottom:28px;
+<div style="background:linear-gradient(135deg, #3B4A5E 0%, #2D3748 100%);
+padding:20px 30px;border-radius:14px;border:1px solid #5A6B7E;
+border-left:4px solid #6366F1;margin-bottom:24px;
 box-shadow:-4px 0 30px rgba(99,102,241,0.5), 0 4px 24px rgba(0,0,0,0.3);
 animation:floatUp 0.5s ease;
 display:flex;align-items:center;justify-content:space-between;
 position:relative;z-index:2">
+<div style="display:flex;align-items:center;gap:14px">
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:36px;height:36px;flex-shrink:0;filter:drop-shadow(0 2px 12px rgba(99,102,241,0.5))">
+<defs><linearGradient id="hdrShield" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#6366F1"/><stop offset="50%" stop-color="#4F46E5"/><stop offset="100%" stop-color="#22D3EE"/>
+</linearGradient></defs>
+<path d="M32 4 L56 14 L56 30 C56 46 44 56 32 60 C20 56 8 46 8 30 L8 14 Z" fill="url(#hdrShield)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+<circle cx="32" cy="30" r="10" fill="none" stroke="white" stroke-width="1.5" opacity="0.8"/>
+<circle cx="32" cy="30" r="4" fill="white" opacity="0.9"/>
+<line x1="32" y1="18" x2="32" y2="22" stroke="white" stroke-width="1.5" opacity="0.6"/>
+<line x1="32" y1="38" x2="32" y2="42" stroke="white" stroke-width="1.5" opacity="0.6"/>
+<line x1="20" y1="30" x2="24" y2="30" stroke="white" stroke-width="1.5" opacity="0.6"/>
+<line x1="40" y1="30" x2="44" y2="30" stroke="white" stroke-width="1.5" opacity="0.6"/>
+<path d="M26 44 L30 48 L38 40" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
 <div>
-<h1 style="color:#F1F5F9;margin:0;font-size:30px;font-weight:900;
-letter-spacing:-0.03em">🛡️ SafeCrowd Vision</h1>
-<p style="color:#94A3B8;margin:8px 0 0;font-size:13px;font-weight:400;
-letter-spacing:0.02em">Unsupervised Crowd Density Segmentation · Public Event Safety</p>
+<h1 style="color:#FFFFFF;margin:0;font-size:26px;font-weight:900;
+letter-spacing:-0.03em;line-height:1.1">SafeCrowd Vision</h1>
+<span style="color:#9AA8B8;font-size:11px;font-weight:500;
+letter-spacing:0.5px">Real-time Crowd Safety Analytics</span>
+</div>
 </div>
 <div style="display:flex;align-items:center;gap:10px">
 <span style="display:inline-flex;align-items:center;gap:6px;
@@ -670,6 +818,137 @@ def _detect_faces_multi_pass(img_bgr):
 
     # Fallback to Haar cascades if YUNET model not available
     return _detect_faces_haar_fallback(img_bgr)
+
+
+def _summarize_face_detections(faces, img_shape):
+    """Summarize face detections for portrait/group-photo gating."""
+    img_h, img_w = img_shape[:2]
+    if not faces or img_h <= 0 or img_w <= 0:
+        return {
+            "count": 0,
+            "avg_height_ratio": 0.0,
+            "median_height_ratio": 0.0,
+            "max_height_ratio": 0.0,
+            "area_ratio": 0.0,
+        }
+
+    heights = np.array(
+        [fh for (_fx, _fy, _fw, fh) in faces],
+        dtype=np.float32,
+    ) / float(img_h)
+    areas = np.array(
+        [fw * fh for (_fx, _fy, fw, fh) in faces],
+        dtype=np.float32,
+    )
+
+    return {
+        "count": int(len(faces)),
+        "avg_height_ratio": float(np.mean(heights)),
+        "median_height_ratio": float(np.median(heights)),
+        "max_height_ratio": float(np.max(heights)),
+        "area_ratio": float(areas.sum() / max(img_h * img_w, 1)),
+    }
+
+
+def _resolve_portrait_count(img_rgb, img_bgr, density_full,
+                            crowd_count, marker_count, marker_note=""):
+    """
+    Correct low-count group photos where DM-Count often overcounts.
+
+    DM-Count stays primary for real crowd scenes. For portrait-like group
+    photos with large visible faces, the face detector becomes the stronger
+    cue and can override the density estimate.
+    """
+    density_max = float(density_full.max()) if density_full.size else 0.0
+    density_coverage = (
+        (density_full > density_max * 0.1).sum() / density_full.size
+        if density_max > 1e-6 else 0.0
+    )
+
+    should_check_faces = (
+        crowd_count <= 35 or
+        (crowd_count <= 50 and density_coverage < 0.18)
+    )
+    faces = _detect_faces_multi_pass(img_bgr) if should_check_faces else []
+    face_stats = _summarize_face_detections(faces, img_rgb.shape)
+    face_count = face_stats["count"]
+
+    close_up_scene = crowd_count <= 10 and density_coverage < 0.15
+    group_portrait_scene = (
+        crowd_count <= 35 and
+        density_coverage < 0.28 and
+        face_count >= 3 and
+        (
+            face_stats["avg_height_ratio"] >= 0.055 or
+            face_stats["median_height_ratio"] >= 0.05 or
+            face_stats["max_height_ratio"] >= 0.085 or
+            face_stats["area_ratio"] >= 0.025
+        )
+    )
+    portrait_detected = close_up_scene or group_portrait_scene
+
+    result = {
+        "count": int(round(crowd_count)),
+        "marker_count": int(marker_count),
+        "marker_note": marker_note or "",
+        "used_face_detector": False,
+        "portrait_hybrid_mode": False,
+        "portrait_detected": portrait_detected,
+        "faces": faces,
+        "density_coverage": float(density_coverage),
+    }
+
+    if not portrait_detected:
+        return result
+
+    if face_count > 0:
+        support_count = max(int(round(crowd_count)), int(marker_count))
+        support_ratio = face_count / max(support_count, 1)
+        strong_face_signal = (
+            face_count >= 3 and
+            (
+                face_stats["avg_height_ratio"] >= 0.075 or
+                face_stats["median_height_ratio"] >= 0.07 or
+                face_stats["max_height_ratio"] >= 0.11 or
+                face_stats["area_ratio"] >= 0.04
+            )
+        )
+
+        if (support_ratio >= 0.82 or
+                (strong_face_signal and support_ratio >= 0.72) or
+                support_count - face_count <= 1):
+            result["count"] = int(face_count)
+            result["marker_count"] = int(face_count)
+            result["used_face_detector"] = True
+            result["marker_note"] = (
+                f"Face-aware portrait correction active - using "
+                f"{face_count} detected faces"
+            )
+        elif support_ratio >= 0.60:
+            corrected_count = max(
+                face_count,
+                int(round(face_count * 0.65 + support_count * 0.35)),
+            )
+            result["count"] = int(corrected_count)
+            result["marker_count"] = int(face_count)
+            result["portrait_hybrid_mode"] = True
+            result["marker_note"] = (
+                f"Portrait hybrid correction active - face detector "
+                f"found {face_count}, adjusted count {corrected_count}"
+            )
+        return result
+
+    if marker_count > 0:
+        corrected_count = min(int(round(crowd_count)), int(marker_count))
+        result["count"] = corrected_count
+        result["marker_count"] = int(marker_count)
+        result["portrait_hybrid_mode"] = True
+        result["marker_note"] = (
+            f"Portrait marker recovery active - using "
+            f"{corrected_count} visible markers"
+        )
+
+    return result
 
 
 def _draw_faces_on_image(base_img, faces, label="Face"):
@@ -1031,76 +1310,53 @@ class EvacuationAgent:
 
 
 # ═══════════════════════════════════════════════════════════════
-# LIVE CAPTURE RELAY — phone to laptop inbox
+# LIVE CAPTURE ACCESS + SHARED LAST RESULT
 # ═══════════════════════════════════════════════════════════════
 
 LIVE_CAPTURE_ROOT = os.path.join(
     tempfile.gettempdir(), "safecrowd_live_capture")
+LIVE_CAPTURE_META = os.path.join(
+    LIVE_CAPTURE_ROOT, "latest_capture.json")
 
 
 def _get_local_ip():
     """Auto-detect the laptop's local WiFi/LAN IP address."""
     import socket
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.5)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(("8.8.8.8", 80))
+        local_ip = sock.getsockname()[0]
+        sock.close()
+        return local_ip
     except Exception:
         return "localhost"
 
 
-def get_ngrok_url():
-    """Auto-detect ngrok tunnel URL by querying the local ngrok API.
-
-    Returns the HTTPS public URL if ngrok is running, else None.
-    """
+def get_access_url():
+    """Return the best phone-access URL for this Streamlit app."""
     import urllib.request
+    import socket
+
     try:
         with urllib.request.urlopen(
             "http://localhost:4040/api/tunnels",
-            timeout=2) as r:
-            data = json.loads(r.read())
-            tunnels = data.get("tunnels", [])
-            for t in tunnels:
-                url = t.get("public_url", "")
+            timeout=2) as response:
+            data = json.loads(response.read())
+            for tunnel in data.get("tunnels", []):
+                url = tunnel.get("public_url", "")
                 if url.startswith("https://"):
-                    return url
-            # Try http if no https
-            for t in tunnels:
-                url = t.get("public_url", "")
-                if url.startswith("http://"):
-                    return url.replace("http://", "https://")
+                    return url, "ngrok"
     except Exception:
-        return None
+        pass
 
-
-def _build_local_capture_url(session_id, port=8501):
-    """Build phone capture portal URL using local IP — no ngrok needed."""
-    ip = _get_local_ip()
-    base = f"http://{ip}:{port}"
-    query = urllib.parse.urlencode({
-        "mobile_capture": "1",
-        "capture_session": _normalize_capture_session_id(session_id),
-    })
-    return f"{base}?{query}"
-
-
-def _new_capture_session_id():
-    return f"scv-{uuid.uuid4().hex[:8]}"
-
-
-def _normalize_capture_session_id(raw):
-    cleaned = "".join(
-        ch.lower() if ch.isalnum() else "-"
-        for ch in str(raw or "").strip()
-    )
-    while "--" in cleaned:
-        cleaned = cleaned.replace("--", "-")
-    cleaned = cleaned.strip("-")
-    return cleaned[:32] or _new_capture_session_id()
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(("8.8.8.8", 80))
+        local_ip = sock.getsockname()[0]
+        sock.close()
+        return f"http://{local_ip}:8501", "local"
+    except Exception:
+        return "http://localhost:8501", "local"
 
 
 def _get_query_param(name, default=""):
@@ -1114,26 +1370,27 @@ def _get_query_param(name, default=""):
     return value
 
 
-def _build_mobile_capture_url(base_url, session_id):
+def _build_capture_url(base_url):
+    """Append capture-mode query params to the shared access URL."""
     base = str(base_url or "").strip().rstrip("/")
     if not base:
         return ""
     joiner = "&" if "?" in base else "?"
-    query = urllib.parse.urlencode({
-        "mobile_capture": "1",
-        "capture_session": _normalize_capture_session_id(session_id),
-    })
-    return f"{base}{joiner}{query}"
+    return f"{base}{joiner}tab=capture"
 
 
-def _capture_session_dir(session_id):
-    safe_session = _normalize_capture_session_id(session_id)
-    target_dir = os.path.join(LIVE_CAPTURE_ROOT, safe_session)
-    os.makedirs(target_dir, exist_ok=True)
-    return target_dir, safe_session
+def _is_mobile_client():
+    try:
+        headers = getattr(st.context, "headers", {}) or {}
+        user_agent = str(headers.get("user-agent", "")).lower()
+    except Exception:
+        user_agent = ""
+    mobile_tokens = ("iphone", "ipad", "android", "mobile", "webos")
+    return any(token in user_agent for token in mobile_tokens)
 
 
 def _write_json_atomic(path, payload):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp_path = f"{path}.tmp"
     with open(tmp_path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
@@ -1148,349 +1405,26 @@ def _load_json_file(path, default=None):
         return default
 
 
-def _save_capture_record(record):
-    session_dir, safe_session = _capture_session_dir(record["session_id"])
-    record["session_id"] = safe_session
-    meta_path = os.path.join(session_dir, f"{record['id']}.json")
-    _write_json_atomic(meta_path, record)
-    return meta_path
+def _save_latest_capture_payload(payload):
+    _write_json_atomic(LIVE_CAPTURE_META, payload)
 
 
-def _list_live_capture_records(session_id, limit=None):
-    session_dir, safe_session = _capture_session_dir(session_id)
-    records = []
-
-    for name in sorted(os.listdir(session_dir), reverse=True):
-        if not name.endswith(".json"):
-            continue
-        record = _load_json_file(os.path.join(session_dir, name), default=None)
-        if not isinstance(record, dict):
-            continue
-        record["session_id"] = safe_session
-        image_path = record.get("image_path")
-        if not image_path or not os.path.exists(image_path):
-            continue
-        records.append(record)
-        if limit and len(records) >= limit:
-            break
-
-    return records
-
-
-def _queue_live_capture_bytes(image_bytes, session_id, source,
-                              mime_type="image/jpeg", label=""):
-    session_dir, safe_session = _capture_session_dir(session_id)
-    img_hash = hashlib.sha1(image_bytes).hexdigest()
-
-    for existing in _list_live_capture_records(safe_session, limit=12):
-        if existing.get("sha1") == img_hash:
-            return existing, False
-
-    capture_id = (
-        f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}-"
-        f"{uuid.uuid4().hex[:6]}"
-    )
-    suffix = ".png" if "png" in str(mime_type).lower() else ".jpg"
-    image_path = os.path.join(session_dir, f"{capture_id}{suffix}")
-
-    with open(image_path, "wb") as handle:
-        handle.write(image_bytes)
-
-    record = {
-        "id": capture_id,
-        "session_id": safe_session,
-        "created_at": datetime.now().isoformat(timespec="seconds"),
-        "source": source,
-        "label": str(label or "").strip(),
-        "mime_type": mime_type,
-        "sha1": img_hash,
-        "image_path": image_path,
-        "status": "pending",
-        "analysis": None,
-        "updated_at": None,
-    }
-    _save_capture_record(record)
-    return record, True
+def _load_latest_capture_payload():
+    payload = _load_json_file(LIVE_CAPTURE_META, default=None)
+    return payload if isinstance(payload, dict) else None
 
 
 def _format_capture_time(ts):
     try:
-        return datetime.fromisoformat(ts).strftime("%H:%M:%S")
+        return datetime.fromisoformat(str(ts)).strftime("%H:%M:%S")
     except Exception:
         return str(ts or "unknown")
 
 
-def _read_capture_bytes(record):
-    with open(record["image_path"], "rb") as handle:
-        return handle.read()
-
-
-def _decode_capture_record(record):
-    raw_bytes = _read_capture_bytes(record)
-    img_arr = np.frombuffer(raw_bytes, dtype=np.uint8)
-    img_bgr = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
-    if img_bgr is None:
-        raise ValueError("Failed to decode live capture")
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    return raw_bytes, img_rgb, img_bgr
-
-
-def _analyze_live_capture_record(record, method, opacity):
-    raw_bytes, img_rgb, img_bgr = _decode_capture_record(record)
-    started = time.time()
-    analysis = _analyze_scene_frame(img_rgb, img_bgr, method, opacity)
-
-    record["status"] = "analyzed"
-    record["updated_at"] = datetime.now().isoformat(timespec="seconds")
-    record["analysis"] = {
-        "count": analysis["count"],
-        "threat": analysis["threat"],
-        "threat_score": analysis["threat_score"],
-        "confidence": analysis["confidence"],
-        "zone_stats": analysis["zone_stats"],
-        "model": analysis["model"],
-        "marker_count": analysis["marker_count"],
-        "marker_note": analysis["marker_note"],
-        "used_face_detector": analysis["used_face_detector"],
-        "portrait_hybrid_mode": analysis["portrait_hybrid_mode"],
-        "method": method,
-        "opacity": round(float(opacity), 2),
-        "time_s": round(time.time() - started, 2),
-        "original_b64": base64.b64encode(raw_bytes).decode(),
-        "head_overlay_b64": _compress_img_b64(analysis["head_overlay"]),
-        "density_overlay_b64": _compress_img_b64(analysis["density_overlay"]),
-        "safety_img_b64": _compress_img_b64(analysis["safety_img"]),
-    }
-    _save_capture_record(record)
-    return record
-
-
-def _clear_live_capture_session(session_id):
-    session_dir, _safe_session = _capture_session_dir(session_id)
-    shutil.rmtree(session_dir, ignore_errors=True)
-
-
-def _render_mobile_capture_portal():
-    _capture_session_param = str(_get_query_param("capture_session", "")).strip()
-    _capture_session_default = (
-        _normalize_capture_session_id(_capture_session_param)
-        if _capture_session_param else ""
-    )
-
-    # ── Mobile-optimized CSS ──
-    st.markdown("""<style>
-    /* Mobile portal overrides */
-    .stApp { background: linear-gradient(180deg, #0F172A 0%, #1A1A2E 100%) !important; }
-    section[data-testid="stSidebar"] { display: none !important; }
-    [data-testid="collapsedControl"] { display: none !important; }
-    [data-testid="stHeader"] { display: none !important; }
-    @keyframes successPulse {
-        0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
-        70%  { box-shadow: 0 0 0 16px rgba(16,185,129,0); }
-        100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
-    }
-    @keyframes slideInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    </style>""", unsafe_allow_html=True)
-
-    # ── Header ──
-    st.markdown(f"""
-    <div style="text-align:center;padding:24px 16px 12px">
-    <div style="display:inline-flex;align-items:center;gap:8px;
-    padding:6px 16px;border-radius:999px;border:1px solid rgba(34,211,238,0.3);
-    background:rgba(34,211,238,0.08);color:#22D3EE;font-size:11px;
-    font-weight:700;letter-spacing:2px;text-transform:uppercase;
-    animation:slideInUp 0.4s ease">
-    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
-    background:#22D3EE;animation:dotPulse 1.5s ease-in-out infinite"></span>
-    Phone Capture Relay</div>
-    <h1 style="color:#F1F5F9;margin:18px 0 8px;font-size:26px;
-    letter-spacing:-0.03em;font-weight:800;animation:slideInUp 0.5s ease">
-    📸 Capture & Send</h1>
-    <p style="color:#94A3B8;font-size:14px;line-height:1.7;
-    max-width:480px;margin:0 auto 8px;animation:slideInUp 0.6s ease">
-    Take a crowd photo below. It will be sent instantly to the
-    laptop for DM-Count analysis.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Channel code input ──
-    capture_session = st.text_input(
-        "Laptop channel code",
-        value=_capture_session_default,
-        key="mobile_capture_channel_code",
-        placeholder="scv-1234abcd",
-        help="Use the same code shown on the laptop Live Capture tab.",
-    ).strip()
-    capture_session = (
-        _normalize_capture_session_id(capture_session)
-        if capture_session else ""
-    )
-
-    if not capture_session:
-        st.markdown("""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-        padding:24px 18px;text-align:center;margin-top:12px;animation:slideInUp 0.7s ease">
-        <div style="font-size:40px;margin-bottom:12px;opacity:0.7">🔗</div>
-        <div style="color:#F59E0B;font-size:15px;font-weight:600;margin-bottom:8px">
-        Enter Channel Code</div>
-        <div style="color:#94A3B8;font-size:13px;line-height:1.7">
-        Scan the QR code from the laptop <b>Live Capture</b> tab,
-        or type the channel code shown there into the field above.</div>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-
-    # ── Connected status ──
-    st.markdown(f"""
-    <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);
-    border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;
-    align-items:center;gap:10px;animation:slideInUp 0.5s ease">
-    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
-    background:#10B981;animation:successPulse 2s infinite"></span>
-    <span style="color:#10B981;font-size:13px;font-weight:600">
-    Connected to channel: <span style="font-family:'JetBrains Mono',monospace;
-    letter-spacing:0.5px">{capture_session.upper()}</span></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Optional label ──
-    _mobile_label = st.text_input(
-        "Optional label",
-        placeholder="Classroom A / Back row / Exit gate",
-        key=f"mobile_capture_label_{capture_session}",
-    )
-
-    # ── Option 1: Camera (native iOS camera via file input with capture) ──
-    st.markdown("""
-    <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-    padding:12px 14px;margin-bottom:8px">
-    <div style="color:#22D3EE;font-size:10px;font-weight:700;letter-spacing:2px;
-    text-transform:uppercase;margin-bottom:4px">📷 Take Photo With Camera</div>
-    <div style="color:#64748B;font-size:12px">
-    Opens your phone camera directly.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    _mobile_cam_upload = st.file_uploader(
-        "📷 Open Camera",
-        type=["jpg", "jpeg", "png"],
-        key=f"mobile_camera_{capture_session}",
-    )
-
-    # ── Option 2: Gallery ──
-    st.markdown("""
-    <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-    padding:12px 14px;margin-bottom:8px;margin-top:12px">
-    <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-    text-transform:uppercase;margin-bottom:4px">📁 Upload From Gallery</div>
-    <div style="color:#64748B;font-size:12px">
-    Pick an existing photo from your phone gallery.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    _mobile_gallery_upload = st.file_uploader(
-        "📁 Choose from Gallery",
-        type=["jpg", "jpeg", "png"],
-        key=f"mobile_gallery_{capture_session}",
-    )
-
-    # ── Process capture ──
-    _capture_file = _mobile_cam_upload if _mobile_cam_upload is not None else _mobile_gallery_upload
-    if _capture_file is not None:
-        _record, _is_new = _queue_live_capture_bytes(
-            _capture_file.getvalue(),
-            capture_session,
-            source="phone-camera" if _mobile_cam_upload is not None else "phone-gallery",
-            mime_type=getattr(_capture_file, "type", "image/jpeg"),
-            label=_mobile_label,
-        )
-        if _is_new:
-            st.markdown(f"""
-            <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);
-            border-radius:12px;padding:18px;text-align:center;margin:12px 0;
-            animation:successPulse 1s ease">
-            <div style="font-size:36px;margin-bottom:8px">✅</div>
-            <div style="color:#10B981;font-size:16px;font-weight:700;margin-bottom:4px">
-            Photo Delivered!</div>
-            <div style="color:#94A3B8;font-size:12px">
-            Sent to laptop at {_format_capture_time(_record['created_at'])}.
-            The laptop will analyze it automatically.</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);
-            border-radius:10px;padding:12px 14px;text-align:center;margin:8px 0;color:#94A3B8;
-            font-size:13px">
-            ℹ️ This photo is already in the laptop inbox.</div>
-            """, unsafe_allow_html=True)
-
-        st.image(_capture_file.getvalue(), caption="Captured image", use_container_width=True)
-
-    # ── Recent relays ──
-    _recent = _list_live_capture_records(capture_session, limit=6)
-
-    st.markdown("""
-    <div style="margin-top:20px;margin-bottom:8px;color:#94A3B8;
-    font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase">
-    Recent Captures</div>
-    """, unsafe_allow_html=True)
-
-    if not _recent:
-        st.markdown("""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
-        padding:20px 16px;color:#64748B;font-size:13px;text-align:center">
-        📷 No photos sent yet. Take one above!</div>
-        """, unsafe_allow_html=True)
-    else:
-        for _rec in _recent:
-            _status = _rec.get("status", "pending")
-            if _status == "analyzed":
-                _st_color = "#10B981"
-                _st_icon = "✅"
-                _st_text = "ANALYZED"
-                _count_text = f" · Count: {_rec.get('analysis', {}).get('count', '—')}"
-            else:
-                _st_color = "#22D3EE"
-                _st_icon = "⏳"
-                _st_text = "PENDING"
-                _count_text = ""
-            st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
-            padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;
-            align-items:center">
-            <div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:600">
-            {_st_icon} {_rec.get('label') or 'Crowd capture'}</div>
-            <div style="color:#64748B;font-size:11px;margin-top:3px">
-            {_rec.get('source', 'phone')} · {_format_capture_time(_rec.get('created_at'))}{_count_text}</div>
-            </div>
-            <div style="color:{_st_color};font-size:10px;font-weight:700;
-            letter-spacing:1px">{_st_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # ── Workflow reminder ──
-    st.markdown("""
-    <div style="background:#1E293B;border:1px solid #334155;border-radius:14px;
-    padding:14px 16px;margin-top:14px">
-    <div style="color:#6366F1;font-size:10px;font-weight:700;letter-spacing:2px;
-    text-transform:uppercase;margin-bottom:6px">How It Works</div>
-    <div style="color:#94A3B8;font-size:13px;line-height:1.8">
-    <b style="color:#22D3EE">1.</b> Take a photo above with your phone camera.<br>
-    <b style="color:#22D3EE">2.</b> Photo is instantly sent to the laptop inbox.<br>
-    <b style="color:#22D3EE">3.</b> Laptop auto-analyzes and shows crowd results.<br>
-    <b style="color:#22D3EE">4.</b> Take more photos — each is analyzed automatically!</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-if str(_get_query_param("mobile_capture", "")).lower() in {"1", "true", "yes"}:
-    _render_mobile_capture_portal()
-    st.stop()
+_capture_mode_requested = (
+    str(_get_query_param("tab", "")).strip().lower() == "capture"
+)
+_capture_mode_mobile = _capture_mode_requested and _is_mobile_client()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1785,30 +1719,37 @@ def extract_features(density_map, grid=GRID):
     for i in range(grid):
         for j in range(grid):
             patch = density_map[i * ph : (i + 1) * ph, j * pw : (j + 1) * pw]
+            patch = np.nan_to_num(
+                patch.astype(np.float32, copy=False),
+                nan=0.0, posinf=0.0, neginf=0.0,
+            )
 
             # Basic stats
-            m = patch.mean()
-            s = patch.std()
+            m = float(patch.mean())
+            s = float(patch.std())
 
             # Advanced markers: Clumpiness (CV) and Structure (Gradient)
-            cv = s / (m + 1e-7)
+            cv = min(s / max(m, 1e-6), 10.0)
 
             gx = cv2.Sobel(patch, cv2.CV_32F, 1, 0, ksize=3)
             gy = cv2.Sobel(patch, cv2.CV_32F, 0, 1, ksize=3)
-            grad_mag = np.sqrt(gx**2 + gy**2).max()
+            grad_mag = min(float(np.sqrt(gx**2 + gy**2).max()), 1.0)
 
             features.append([
                 m,
-                patch.max(),
+                float(patch.max()),
                 s,
                 cv,
                 grad_mag,
-                (patch > m).sum() / (patch.size + 1e-7),
+                float((patch > m).sum() / (patch.size + 1e-7)),
                 i / (grid - 1),
                 j / (grid - 1),
             ])
 
-    return np.array(features)
+    return np.nan_to_num(
+        np.asarray(features, dtype=np.float32),
+        nan=0.0, posinf=1e3, neginf=0.0,
+    )
 
 
 def get_label(mean_val):
@@ -2520,47 +2461,20 @@ def _analyze_scene_frame(img_rgb, img_bgr, method, opacity):
         expected_count=crowd_count,
         marker_points=head_markers)
 
-    density_max = float(density_full.max()) if density_full.size else 0.0
-    density_coverage = (
-        (density_full > density_max * 0.1).sum() / density_full.size
-        if density_max > 1e-6 else 0.0
+    portrait_result = _resolve_portrait_count(
+        img_rgb, img_bgr, density_full, crowd_count,
+        marker_count, marker_note=marker_meta.get("note", ""),
     )
-    is_portrait = crowd_count < 10 and density_coverage < 0.15
+    crowd_count = portrait_result["count"]
+    marker_count = portrait_result["marker_count"]
+    marker_note = portrait_result["marker_note"]
+    used_face_detector = portrait_result["used_face_detector"]
+    portrait_hybrid_mode = portrait_result["portrait_hybrid_mode"]
 
-    used_face_detector = False
-    portrait_hybrid_mode = False
-    marker_note = marker_meta.get("note", "")
-
-    if is_portrait:
-        faces = _detect_faces_multi_pass(img_bgr)
-        face_count = len(faces)
-
-        if face_count > 0:
-            portrait_estimate = max(marker_count, face_count)
-            if face_count >= marker_count:
-                crowd_count = portrait_estimate
-                head_overlay = _draw_faces_on_image(img_rgb, faces)
-                marker_count = face_count
-                used_face_detector = True
-                marker_note = "Face-detector fallback active for portrait scene"
-            else:
-                # Hybrid mode: draw faces on CLEAN image (not density-dot overlay)
-                # to avoid random density dots that don't match actual people
-                head_overlay = _draw_faces_on_image(img_rgb, faces)
-                crowd_count = portrait_estimate
-                marker_count = face_count
-                portrait_hybrid_mode = True
-                marker_note = (
-                    f"Portrait hybrid fallback active — face detector found "
-                    f"{face_count}, estimate retained {portrait_estimate}"
-                )
-        elif marker_count > 0:
-            crowd_count = marker_count
-            portrait_hybrid_mode = True
-            marker_note = (
-                f"Portrait marker recovery active — using {marker_count} "
-                f"visible markers"
-            )
+    if portrait_result["faces"] and (
+            used_face_detector or portrait_hybrid_mode):
+        # Keep portrait overlays tied to actual detected faces.
+        head_overlay = _draw_faces_on_image(img_rgb, portrait_result["faces"])
 
     threat_score, threat_label = _compute_threat_band(zone_stats, crowd_count)
     confidence = compute_dynamic_confidence(
@@ -2619,14 +2533,6 @@ for _k, _v in [
     ("batch_results",     []),
     ("batch_results_signature", None),
     ("batch_summary",     None),
-    ("share_ngrok_url",   ""),
-    ("ngrok_url_input",   ""),
-    ("live_capture_session_id", None),
-    ("live_capture_selected_id", None),
-    ("live_capture_auto_refresh", True),
-    ("live_capture_auto_analyze", True),
-    ("live_capture_known_count", 0),
-    ("live_capture_last_received", None),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -2634,8 +2540,8 @@ for _k, _v in [
 if st.session_state["rl_agent"] is None:
     st.session_state["rl_agent"] = EvacuationAgent()
 
-if not st.session_state["live_capture_session_id"]:
-    st.session_state["live_capture_session_id"] = _new_capture_session_id()
+_access_url, _access_url_type = get_access_url()
+_capture_access_url = _build_capture_url(_access_url)
 
 # ═══════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -2644,34 +2550,50 @@ if not st.session_state["live_capture_session_id"]:
 with st.sidebar:
 
     # ── Logo + App Name ──
+    # ══════════════════════════════════════════════════
+    # SIDEBAR HEADER — Brand Bar
+    # ══════════════════════════════════════════════════
     st.markdown("""
-<div style="padding:20px 4px 16px 4px">
-<div style="display:flex;align-items:center;gap:14px">
-<div style="font-size:32px;flex-shrink:0;
-filter:drop-shadow(0 2px 12px rgba(99,102,241,0.35))">🛡️</div>
+<div style="position:sticky;top:0;z-index:100;
+background:linear-gradient(180deg,#344B60,#344B60);
+padding:18px 16px 8px 16px;margin:-1rem -1rem 12px -1rem">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="flex-shrink:0;width:40px;height:40px;border-radius:12px;
+background:linear-gradient(135deg,#6366F1,#4F46E5);
+display:flex;align-items:center;justify-content:center;
+box-shadow:0 4px 20px rgba(99,102,241,0.4)">
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px">
+<path d="M32 4 L56 14 L56 30 C56 46 44 56 32 60 C20 56 8 46 8 30 L8 14 Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+<circle cx="32" cy="30" r="8" fill="none" stroke="white" stroke-width="1.5" opacity="0.9"/>
+<circle cx="32" cy="30" r="3" fill="white"/>
+</svg>
+</div>
 <div>
-<div style="font-size:18px;font-weight:800;color:#F1F5F9;letter-spacing:-0.03em;
-line-height:1.2">SafeCrowd Vision</div>
-<div style="font-size:10px;color:#6366F1;letter-spacing:0.5px;font-weight:500;
-margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
+<div style="font-size:17px;font-weight:800;color:#FFFFFF;letter-spacing:-0.02em;
+line-height:1.15">SafeCrowd Vision</div>
+<div style="font-size:10px;color:rgba(99,102,241,0.9);letter-spacing:0.5px;font-weight:600;
+margin-top:2px">v2.0 · Safety Analytics</div>
 </div>
 </div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #334155;margin:8px 0 16px 0"></div>',
-                unsafe_allow_html=True)
-
-    # ── Controls Section ──
-    st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
-                'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
-                'padding-left:2px">◈ CONTROLS</div>', unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════
+    # CONTROLS
+    # ══════════════════════════════════════════════════
+    st.markdown("""
+<div style="color:#6366F1;font-weight:700;font-size:10px;
+letter-spacing:1.8px;text-transform:uppercase;
+margin-top:8px;margin-bottom:16px;
+padding-left:2px;
+display:flex;align-items:center;gap:6px">
+<span style="display:inline-block;width:3px;height:12px;
+background:#6366F1;border-radius:2px"></span>
+CONTROLS</div>
+""", unsafe_allow_html=True)
 
     demo_mode = st.toggle("🎓 Demo Mode", value=False)
-
     opacity = st.slider("Overlay opacity", 0.1, 0.9, 0.5, 0.05)
-
     method = st.radio(
         "Primary zone method",
         ["KMeans", "XGBoost", "GMM"],
@@ -2687,14 +2609,20 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
 | 🔴 Critical | mean ≥ 0.60 |
         """)
 
-    # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
-                unsafe_allow_html=True)
-
-    # ── VENUE SETTINGS Section ──
-    st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
-                'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
-                'padding-left:2px">◈ VENUE SETTINGS</div>', unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════
+    # VENUE SETTINGS
+    # ══════════════════════════════════════════════════
+    st.markdown("""
+<div style="border-top:1px solid #5A6B7E;margin:20px 0"></div>
+<div style="color:#6366F1;font-weight:700;font-size:10px;
+letter-spacing:1.8px;text-transform:uppercase;
+margin-top:4px;margin-bottom:14px;
+padding-left:2px;
+display:flex;align-items:center;gap:6px">
+<span style="display:inline-block;width:3px;height:12px;
+background:#6366F1;border-radius:2px"></span>
+VENUE SETTINGS</div>
+""", unsafe_allow_html=True)
 
     venue_capacity = st.number_input(
         "Venue Capacity",
@@ -2704,129 +2632,145 @@ margin-top:3px;opacity:0.85">v2.0 · Safety Analytics</div>
         step=10,
         help="Set maximum safe capacity for this venue"
     )
-
     num_exits = st.slider("Number of exits", 1, 10, 2)
     st.session_state["num_exits_val"] = num_exits
 
-    # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
-                unsafe_allow_html=True)
-
-    # ── Model Info Section ──
+    # ══════════════════════════════════════════════════
+    # MODEL INFO — compact card
+    # ══════════════════════════════════════════════════
     st.markdown("""
+<div style="border-top:1px solid #5A6B7E;margin:20px 0"></div>
 <div style="color:#6366F1;font-weight:700;font-size:10px;
-letter-spacing:1.8px;text-transform:uppercase;margin-bottom:12px;
-padding-left:2px">◈ MODEL INFO</div>
+letter-spacing:1.8px;text-transform:uppercase;
+margin-top:4px;margin-bottom:14px;
+padding-left:2px;
+display:flex;align-items:center;gap:6px">
+<span style="display:inline-block;width:3px;height:12px;
+background:#22D3EE;border-radius:2px"></span>
+MODEL INFO</div>
 
-<div style="background:#1E293B;border:1px solid #334155;border-left:3px solid #22D3EE;
-border-radius:10px;padding:0;margin-bottom:0;overflow:hidden;
-box-shadow:0 2px 16px rgba(34,211,238,0.06)">
+<div style="background:rgba(59,74,94,0.6);border:1px solid rgba(90,107,126,0.5);
+border-left:3px solid #22D3EE;border-radius:10px;overflow:hidden">
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#263445">
-<span style="color:#94A3B8;font-size:12px;font-weight:500">Model</span>
-<span style="color:#6366F1;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:600">DM-Count (LWCC)</span>
+padding:9px 14px;border-bottom:1px solid rgba(90,107,126,0.3)">
+<span style="color:#9AA8B8;font-size:11px;font-weight:500">Model</span>
+<span style="color:#FFFFFF;font-size:11px;font-family:'JetBrains Mono',monospace;
+font-weight:600">DM-Count</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#1E293B">
-<span style="color:#94A3B8;font-size:12px;font-weight:500">Dataset</span>
-<span style="color:#6366F1;font-size:12px;font-family:'JetBrains Mono',monospace;
+padding:9px 14px;border-bottom:1px solid rgba(90,107,126,0.3)">
+<span style="color:#9AA8B8;font-size:11px;font-weight:500">Dataset</span>
+<span style="color:#FFFFFF;font-size:11px;font-family:'JetBrains Mono',monospace;
 font-weight:600">ShanghaiTech B</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#263445">
-<span style="color:#94A3B8;font-size:12px;font-weight:500">MAE</span>
-<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">5.80 <span style="color:#94A3B8;font-weight:400;font-size:10px">(sparse 1–100)</span></span>
+padding:9px 14px;border-bottom:1px solid rgba(90,107,126,0.3)">
+<span style="color:#9AA8B8;font-size:11px;font-weight:500">MAE</span>
+<span style="color:#10B981;font-size:11px;font-family:'JetBrains Mono',monospace;
+font-weight:700">5.80</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#1E293B">
-<span style="color:#94A3B8;font-size:12px;font-weight:500">Overall</span>
-<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">~81% <span style="color:#94A3B8;font-weight:400;font-size:10px">accuracy · eval set (498 imgs)</span></span>
+padding:9px 14px;border-bottom:1px solid rgba(90,107,126,0.3)">
+<span style="color:#9AA8B8;font-size:11px;font-weight:500">Accuracy</span>
+<span style="color:#10B981;font-size:11px;font-family:'JetBrains Mono',monospace;
+font-weight:700">~81%</span>
 </div>
 
 <div style="display:flex;justify-content:space-between;align-items:center;
-padding:10px 16px;background:#263445">
-<span style="color:#94A3B8;font-size:12px;font-weight:500">XGB</span>
-<span style="color:#10B981;font-size:12px;font-family:'JetBrains Mono',monospace;
-font-weight:700">99.30% <span style="color:#94A3B8;font-weight:400;font-size:10px">zone classification</span></span>
+padding:9px 14px">
+<span style="color:#9AA8B8;font-size:11px;font-weight:500">XGB Zone</span>
+<span style="color:#10B981;font-size:11px;font-family:'JetBrains Mono',monospace;
+font-weight:700">99.30%</span>
 </div>
 
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
-                unsafe_allow_html=True)
+    # ══════════════════════════════════════════════════
+    # PHONE CAPTURE — compact status pill
+    # ══════════════════════════════════════════════════
+    st.markdown("""
+<div style="border-top:1px solid #5A6B7E;margin:20px 0"></div>
+<div style="color:#6366F1;font-weight:700;font-size:10px;
+letter-spacing:1.8px;text-transform:uppercase;
+margin-top:4px;margin-bottom:14px;
+padding-left:2px;
+display:flex;align-items:center;gap:6px">
+<span style="display:inline-block;width:3px;height:12px;
+background:#6366F1;border-radius:2px"></span>
+MOBILE CAPTURE</div>
+""", unsafe_allow_html=True)
 
-    # ── SHARE ACCESS — QR Code (with auto ngrok detection) ──
-    st.markdown('<div style="color:#6366F1;font-weight:700;font-size:10px;'
-                'letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px;'
-                'padding-left:2px">◈ PHONE CAPTURE</div>', unsafe_allow_html=True)
-
-    _sidebar_ngrok_url = get_ngrok_url()
-    if _sidebar_ngrok_url:
-        _sidebar_capture_url = _build_mobile_capture_url(
-            _sidebar_ngrok_url, st.session_state["live_capture_session_id"])
+    if _access_url_type == "ngrok":
         st.markdown(f"""
-        <div style="background:#0D2818;
+        <div style="background:#1A3D2A;
         border:1px solid #10B981;
-        border-radius:8px;padding:10px 14px;margin-bottom:10px">
-        <div style="color:#10B981;font-size:10px;
+        border-radius:10px;padding:16px 18px;
+        margin-top:4px">
+        <div style="display:flex;align-items:center;
+        gap:8px;margin-bottom:10px">
+        <div style="width:8px;height:8px;
+        border-radius:50%;background:#10B981;
+        animation:dotPulse 1.5s infinite;
+        flex-shrink:0"></div>
+        <div style="color:#10B981;font-size:11px;
         font-weight:700;letter-spacing:1px">
-        ● NGROK ACTIVE</div>
+        NGROK ACTIVE</div>
+        </div>
         <div style="color:#6EE7B7;font-size:11px;
-        font-family:monospace;margin-top:4px;
-        word-break:break-all">{_sidebar_ngrok_url}</div>
+        font-family:monospace;
+        word-break:break-all;
+        line-height:1.6;margin-bottom:8px">
+        {_access_url}</div>
+        <div style="color:#064E3B;font-size:10px">
+        ✓ Works on any network</div>
         </div>
         """, unsafe_allow_html=True)
     else:
-        _sidebar_capture_url = _build_local_capture_url(
-            st.session_state["live_capture_session_id"])
-        st.caption("Run: `ngrok http 8501`")
-        _sidebar_manual = st.text_input(
-            "Manual URL",
-            placeholder="https://abc.ngrok-free.app",
-            label_visibility="collapsed",
-            key="sidebar_manual_ngrok")
-        if _sidebar_manual:
-            st.session_state["ngrok_url_input"] = _sidebar_manual.strip()
-            _sidebar_capture_url = _build_mobile_capture_url(
-                _sidebar_manual.strip(), st.session_state["live_capture_session_id"])
+        st.markdown(f"""
+        <div style="background:#3D3010;
+        border:1px solid #F59E0B;
+        border-radius:10px;padding:16px 18px;
+        margin-top:4px">
+        <div style="display:flex;align-items:center;
+        gap:8px;margin-bottom:10px">
+        <div style="width:8px;height:8px;
+        border-radius:50%;background:#F59E0B;
+        flex-shrink:0"></div>
+        <div style="color:#F59E0B;font-size:11px;
+        font-weight:700;letter-spacing:1px">
+        LOCAL NETWORK</div>
+        </div>
+        <div style="color:#FCD34D;font-size:11px;
+        font-family:monospace;
+        word-break:break-all;
+        line-height:1.6;margin-bottom:10px">
+        {_access_url}</div>
+        <div style="color:#B4742E;font-size:11px;
+        line-height:1.6">
+        📶 Phone must be on same WiFi</div>
+        <div style="color:#B4742E;font-size:11px;
+        margin-top:4px;line-height:1.6">
+        ⚡ Run <span style="font-family:monospace;
+        background:#2A1F00;padding:1px 6px;
+        border-radius:4px;color:#FCD34D">
+        ngrok http 8501</span> for public access
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    _sidebar_qr_data = urllib.parse.quote(_sidebar_capture_url)
-    _sidebar_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={_sidebar_qr_data}&bgcolor=0C1220&color=06B6D4&qzone=2"
-
-    st.markdown(f"""
-    <div style="background:#1E293B;border:1px solid #334155;
-    border-radius:12px;padding:16px;text-align:center">
-    <img src="{_sidebar_qr_url}" style="width:160px;height:160px;
-    border-radius:8px">
-    <div style="color:#10B981;font-size:10px;font-weight:600;
-    margin-top:10px">📱 Scan with phone{' (ngrok)' if _sidebar_ngrok_url else ' (same WiFi)'}</div>
-    <div style="color:#64748B;font-size:9px;font-family:monospace;
-    margin-top:6px;word-break:break-all">{_sidebar_capture_url}</div>
-    <div style="color:#64748B;font-size:10px;margin-top:4px">
-    Channel: {st.session_state["live_capture_session_id"]}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Divider ──
-    st.markdown('<div style="border-top:1px solid #334155;margin:18px 0 18px 0"></div>',
-                unsafe_allow_html=True)
-
-    # ── Footer ──
+    # ══════════════════════════════════════════════════
+    # FOOTER
+    # ══════════════════════════════════════════════════
     st.markdown("""
-<div style="text-align:center;padding:4px 0 8px 0">
-<div style="color:#C7D2FE;font-size:11px;font-weight:500;letter-spacing:0.3px;
-line-height:1.6">
-Powered by LWCC · PyTorch
-</div>
+<div style="text-align:center;padding:16px 0 6px 0;
+margin-top:16px;border-top:1px solid rgba(90,107,126,0.25)">
+<div style="color:#5A6B7E;font-size:9px;font-weight:500;
+letter-spacing:0.5px">LWCC · PyTorch · Streamlit</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -2842,34 +2786,34 @@ if _last_count_ticker is not None:
     _ticker_content = (
         f'<span style="color:#B91C1C;font-size:8px;animation:dotPulse 1s infinite">●</span>'
         f'&nbsp;&nbsp;<span style="color:#6366F1">SYSTEM ONLINE</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">MODEL:</span> '
-        f'<span style="color:#64748B">DM-Count SHB</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">ZONES MONITORED:</span> '
-        f'<span style="color:#64748B">64</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">LAST COUNT:</span> '
-        f'<span style="color:#F1F5F9">{_last_count_ticker} PERSONS</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">STATUS:</span> '
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">MODEL:</span> '
+        f'<span style="color:#9AA8B8">DM-Count SHB</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">ZONES MONITORED:</span> '
+        f'<span style="color:#9AA8B8">64</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">LAST COUNT:</span> '
+        f'<span style="color:#FFFFFF">{_last_count_ticker} PERSONS</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">STATUS:</span> '
         f'<span style="color:#10B981">{_status_txt}</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">MAE:</span> '
-        f'<span style="color:#64748B">5.80</span>'
-        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">ACCURACY:</span> '
-        f'<span style="color:#64748B">~81% (eval)</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">MAE:</span> '
+        f'<span style="color:#9AA8B8">5.80</span>'
+        f'&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">ACCURACY:</span> '
+        f'<span style="color:#9AA8B8">~81% (eval)</span>'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 else:
     _ticker_content = (
         '<span style="color:#6366F1;font-size:8px;animation:dotPulse 1.5s infinite">●</span>'
         '&nbsp;&nbsp;<span style="color:#6366F1">AWAITING INPUT</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">SYSTEM READY</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">DM-Count</span>&nbsp;'
-        '<span style="color:#64748B">LOADED</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#94A3B8">64 ZONES ACTIVE</span>'
-        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#64748B">UPLOAD IMAGE TO BEGIN</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">SYSTEM READY</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">DM-Count</span>&nbsp;'
+        '<span style="color:#9AA8B8">LOADED</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#CBD5E1">64 ZONES ACTIVE</span>'
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#9AA8B8">UPLOAD IMAGE TO BEGIN</span>'
         '&nbsp;&nbsp;·&nbsp;&nbsp;'
     )
 
 st.markdown(f"""
-<div style="background:#1E293B;border-bottom:1px solid #334155;
+<div style="background:#3B4A5E;border-bottom:1px solid #5A6B7E;
 height:36px;overflow:hidden;display:flex;align-items:center;
 margin-bottom:8px;border-radius:8px">
 <div style="display:flex;white-space:nowrap;animation:tickerScroll 25s linear infinite;
@@ -2917,8 +2861,8 @@ with tab1:
         <span style="color:#10B981;font-size:10px;font-weight:700;
         letter-spacing:2px;font-family:'JetBrains Mono',monospace">LIVE</span>
         </div>
-        <span style="color:#334155">│</span>
-        <span style="color:#94A3B8;font-size:12px;font-weight:600;
+        <span style="color:#5A6B7E">│</span>
+        <span style="color:#CBD5E1;font-size:12px;font-weight:600;
         letter-spacing:0.5px">Upload an image to begin crowd density analysis</span>
         </div>
         """, unsafe_allow_html=True)
@@ -2932,15 +2876,263 @@ with tab1:
                 st.session_state["present_mode"] = True
                 st.rerun()
 
+    if _capture_mode_mobile:
+        st.components.v1.html("""
+        <style>
+        body {
+            margin: 0;
+            background: transparent;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .capture-mobile-shell {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .capture-mobile-shell {
+                display: block;
+                padding: 6px 2px 18px;
+            }
+            .capture-mobile-topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                color: #CBD5E1;
+                font-size: 12px;
+                font-weight: 700;
+                margin-bottom: 12px;
+                letter-spacing: 0.04em;
+            }
+            .capture-mobile-status {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .capture-mobile-status span {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #10B981;
+                box-shadow: 0 0 12px rgba(16,185,129,0.6);
+            }
+            .capture-mobile-card {
+                background: linear-gradient(180deg, #3B4A5E 0%, #5A6B7E 100%);
+                border: 1px solid #5A6B7E;
+                border-radius: 20px;
+                padding: 24px 18px 18px;
+                box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+            }
+            .capture-mobile-approw {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin: 18px 0 10px;
+            }
+            .capture-mobile-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #6366F1, #22D3EE);
+                color: #FFFFFF;
+                font-size: 24px;
+                box-shadow: 0 12px 24px rgba(79,70,229,0.28);
+            }
+            .capture-mobile-brand {
+                color: #F8FAFC;
+                font-size: 17px;
+                font-weight: 800;
+                line-height: 1.25;
+            }
+            .capture-mobile-subbrand {
+                color: #CBD5E1;
+                font-size: 12px;
+                margin-top: 3px;
+            }
+            .capture-mobile-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 7px 14px;
+                border-radius: 999px;
+                background: rgba(99,102,241,0.12);
+                border: 1px solid rgba(99,102,241,0.25);
+                color: #8896AA;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }
+            .capture-mobile-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #6366F1;
+                box-shadow: 0 0 14px rgba(99,102,241,0.6);
+            }
+            .capture-mobile-title {
+                color: #F8FAFC;
+                font-size: 24px;
+                font-weight: 800;
+                line-height: 1.2;
+                letter-spacing: -0.03em;
+                margin: 18px 0 8px;
+            }
+            .capture-mobile-copy {
+                color: #CBD5E1;
+                font-size: 14px;
+                line-height: 1.65;
+                margin: 0 0 18px;
+            }
+            .capture-mobile-permission {
+                background: #F8FAFC;
+                border-radius: 18px;
+                padding: 20px 16px 14px;
+                box-shadow: 0 14px 30px rgba(15, 23, 42, 0.22);
+            }
+            .capture-mobile-sheetbar {
+                width: 42px;
+                height: 5px;
+                border-radius: 999px;
+                background: #CBD5E1;
+                margin: 0 auto 16px;
+            }
+            .capture-mobile-app {
+                color: #2D3748;
+                font-size: 18px;
+                font-weight: 800;
+                margin: 0 0 4px;
+                text-align: center;
+            }
+            .capture-mobile-desc {
+                color: #7A8B9E;
+                font-size: 14px;
+                line-height: 1.6;
+                text-align: center;
+                margin: 0 0 16px;
+            }
+            .capture-mobile-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .capture-mobile-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                min-height: 52px;
+                border: 0;
+                border-radius: 14px;
+                text-decoration: none;
+                font-size: 16px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+            .capture-mobile-btn-primary {
+                background: linear-gradient(135deg, #6366F1, #4F46E5);
+                color: #FFFFFF;
+                box-shadow: 0 10px 24px rgba(79,70,229,0.3);
+            }
+            .capture-mobile-btn-secondary {
+                background: #E2E8F0;
+                color: #2D3748;
+            }
+            .capture-mobile-note {
+                color: #9AA8B8;
+                font-size: 12px;
+                line-height: 1.5;
+                margin-top: 12px;
+                text-align: center;
+            }
+            .capture-mobile-privacy {
+                color: #CBD5E1;
+                font-size: 11px;
+                line-height: 1.5;
+                margin-top: 14px;
+                text-align: center;
+            }
+        }
+        </style>
+        <div class="capture-mobile-shell">
+          <div class="capture-mobile-card">
+            <div class="capture-mobile-topbar">
+              <div>SafeCrowd Vision</div>
+              <div class="capture-mobile-status"><span></span> Live</div>
+            </div>
+            <div class="capture-mobile-pill">
+              <span class="capture-mobile-dot"></span>
+              Mobile Capture Mode
+            </div>
+            <div class="capture-mobile-approw">
+              <div class="capture-mobile-icon"><svg viewBox="0 0 64 64" fill="none" style="width:24px;height:24px"><defs><linearGradient id="mobShield" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#E0E7FF"/></linearGradient></defs><path d="M32 4 L56 14 L56 30 C56 46 44 56 32 60 C20 56 8 46 8 30 L8 14 Z" fill="url(#mobShield)"/><circle cx="32" cy="30" r="8" fill="none" stroke="#6366F1" stroke-width="2"/><circle cx="32" cy="30" r="3" fill="#6366F1"/></svg></div>
+              <div>
+                <div class="capture-mobile-brand">SafeCrowd Vision</div>
+                <div class="capture-mobile-subbrand">Real-time public event safety analysis</div>
+              </div>
+            </div>
+            <div class="capture-mobile-title">SafeCrowd Vision wants to access your camera</div>
+            <p class="capture-mobile-copy">
+              Tap an option below, then use the native picker to take a crowd photo or choose one from your gallery.
+            </p>
+            <div class="capture-mobile-permission">
+              <div class="capture-mobile-sheetbar"></div>
+              <div class="capture-mobile-app">SafeCrowd Vision</div>
+              <p class="capture-mobile-desc">Allow camera access to capture a crowd image for live safety analysis.</p>
+              <div class="capture-mobile-actions">
+                <button class="capture-mobile-btn capture-mobile-btn-primary" onclick="focusUploader('camera')">Allow Camera</button>
+                <button class="capture-mobile-btn capture-mobile-btn-secondary" onclick="focusUploader('gallery')">Choose from Gallery</button>
+              </div>
+              <div class="capture-mobile-note" id="capture-mobile-note">
+                The upload area below opens your phone camera or gallery using the native iOS/Android picker.
+              </div>
+            </div>
+            <div class="capture-mobile-privacy">
+              Your photo stays in this Streamlit session and the synced laptop result only updates after you tap Analyze.
+            </div>
+          </div>
+        </div>
+        <script>
+        function focusUploader(mode) {
+          const note = document.getElementById('capture-mobile-note');
+          if (note) {
+            note.textContent = mode === 'camera'
+              ? 'Tap the capture box below to open your camera.'
+              : 'Tap the capture box below to open your gallery.';
+          }
+          try {
+            const parentDoc = window.parent.document;
+            const anchor = parentDoc.getElementById('mobile-capture-anchor');
+            if (anchor) {
+              anchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            const fileInput = parentDoc.querySelector('input[type="file"]');
+            if (fileInput) {
+              setTimeout(() => fileInput.click(), 120);
+            }
+          } catch (e) {}
+        }
+        </script>
+        """, height=430)
+
+    st.markdown('<div id="mobile-capture-anchor"></div>', unsafe_allow_html=True)
+
+    _main_upload_label = (
+        "📸 Tap here to open camera or gallery"
+        if _capture_mode_mobile
+        else "Drop a crowd image here or click to browse"
+    )
+
     # ── File uploader ─────────────────────────────────────────
     uploaded = st.file_uploader(
-        "Drop a crowd image here or click to browse",
+        _main_upload_label,
         type=["jpg", "jpeg", "png"],
         key="main_upload")
 
     if uploaded:
-        raw       = np.asarray(bytearray(uploaded.read()), dtype=np.uint8)
-        img_hash  = hash(raw.tobytes())
+        raw       = np.frombuffer(uploaded.getvalue(), dtype=np.uint8)
+        img_hash  = hashlib.sha1(raw.tobytes()).hexdigest()
         try:
             img_bgr   = cv2.imdecode(raw, cv2.IMREAD_COLOR)
             if img_bgr is None:
@@ -2951,28 +3143,96 @@ with tab1:
             st.error(f"⚠️ Could not read this image — the file may be corrupted or unsupported. ({_decode_err})")
             st.stop()
 
+        if _capture_mode_mobile:
+            _approved_hash = st.session_state.get("mobile_capture_confirmed_hash")
+            if _approved_hash != img_hash:
+                st.markdown("""
+                <div style="background:linear-gradient(180deg,#3B4A5E 0%,#5A6B7E 100%);
+                border:1px solid #5A6B7E;border-radius:18px;padding:18px 18px 16px;
+                margin:14px 0 12px;box-shadow:0 16px 36px rgba(15,23,42,0.28)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+                <div style="color:#6366F1;font-size:10px;font-weight:700;
+                letter-spacing:2px;text-transform:uppercase">
+                ◈ Preview Capture
+                </div>
+                <div style="padding:5px 10px;border-radius:999px;background:rgba(99,102,241,0.12);
+                border:1px solid rgba(99,102,241,0.25);color:#CBD5E1;font-size:11px;font-weight:700">
+                Ready to analyze
+                </div>
+                </div>
+                <div style="color:#CBD5E1;font-size:13px;line-height:1.7">
+                Check the photo below, then tap <b>Analyze</b> to send it through crowd analysis and sync the result to the laptop view.
+                </div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.image(_img_rgb, caption="Preview", use_container_width=True)
+                _analyze_cols = st.columns(2)
+                with _analyze_cols[0]:
+                    if st.button("Analyze", key=f"mobile_capture_analyze_{img_hash}",
+                                 use_container_width=True, type="primary"):
+                        st.session_state["mobile_capture_confirmed_hash"] = img_hash
+                        st.rerun()
+                with _analyze_cols[1]:
+                    st.markdown("""
+                    <div style="height:52px;display:flex;align-items:center;justify-content:center;
+                    color:#9AA8B8;font-size:12px;text-align:center">
+                    Use the uploader above to replace this photo
+                    </div>
+                    """, unsafe_allow_html=True)
+                st.stop()
+
         # Only run inference if new image
         if st.session_state.get("last_img_hash") != img_hash:
             # ── Scan animation — shows BEFORE inference ──
             status_box = st.empty()
-            status_box.markdown("""
-            <div style="background:#1E293B;border:1px solid #6366F1;
-            border-radius:12px;padding:24px;margin:12px 0;
-            border-left:4px solid #6366F1">
-            <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:12px;height:12px;border-radius:50%;
-            background:#4F46E5;animation:pulse 0.8s infinite">
-            </div>
-            <div style="color:#F1F5F9;font-family:monospace;
-            font-size:13px;letter-spacing:1px">
-            ⬡ INITIALIZING DM-COUNT ENGINE...</div>
-            </div>
-            <style>
-            @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}
-            50%{opacity:0.4;transform:scale(0.8)}}
-            </style>
-            </div>
-            """, unsafe_allow_html=True)
+            if _capture_mode_mobile:
+                status_box.markdown("""
+                <div style="background:linear-gradient(180deg,#3B4A5E 0%,#5A6B7E 100%);
+                border:1px solid #5A6B7E;border-radius:18px;padding:18px 18px 16px;margin:14px 0 12px;
+                box-shadow:0 18px 38px rgba(15,23,42,0.26)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+                <div style="color:#FFFFFF;font-size:16px;font-weight:800;letter-spacing:-0.02em">
+                Analyzing...</div>
+                <div style="padding:5px 10px;border-radius:999px;background:rgba(34,211,238,0.12);
+                border:1px solid rgba(34,211,238,0.22);color:#67E8F9;font-size:11px;font-weight:700">
+                Live Sync
+                </div>
+                </div>
+                <div style="color:#CBD5E1;font-size:13px;line-height:1.65">
+                Running DM-Count, building density zones, and syncing the result back to the laptop view.
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:16px">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#6366F1;animation:mobilePulse 1s ease-in-out infinite"></span>
+                  <span style="width:10px;height:10px;border-radius:50%;background:#22D3EE;animation:mobilePulse 1s ease-in-out infinite 0.15s"></span>
+                  <span style="width:10px;height:10px;border-radius:50%;background:#10B981;animation:mobilePulse 1s ease-in-out infinite 0.3s"></span>
+                </div>
+                <style>
+                @keyframes mobilePulse {
+                    0%, 100% { transform: translateY(0); opacity: 0.45; }
+                    50% { transform: translateY(-4px); opacity: 1; }
+                }
+                </style>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                status_box.markdown("""
+                <div style="background:#3B4A5E;border:1px solid #6366F1;
+                border-radius:12px;padding:24px;margin:12px 0;
+                border-left:4px solid #6366F1">
+                <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:12px;height:12px;border-radius:50%;
+                background:#4F46E5;animation:pulse 0.8s infinite">
+                </div>
+                <div style="color:#FFFFFF;font-family:monospace;
+                font-size:13px;letter-spacing:1px">
+                ⬡ INITIALIZING DM-COUNT ENGINE...</div>
+                </div>
+                <style>
+                @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}
+                50%{opacity:0.4;transform:scale(0.8)}}
+                </style>
+                </div>
+                """, unsafe_allow_html=True)
 
             if LWCC_AVAILABLE and lwcc_shb is not None:
                 _crowd_count, _density_full = predict_density_lwcc(_img_rgb)
@@ -2986,14 +3246,36 @@ with tab1:
             status_box.empty()
 
             st.session_state["last_density_raw"] = _density_full
-            st.session_state["last_count"]       = _crowd_count
             st.session_state["last_img_hash"]    = img_hash
             st.session_state["last_image"]       = Image.fromarray(_img_rgb)
         else:
             _density_full = st.session_state["last_density_raw"]
             _crowd_count  = st.session_state["last_count"]
 
+        _head_markers, _marker_meta = _resolve_head_markers(
+            _img_rgb, _density_full, _crowd_count)
+        _portrait_result = _resolve_portrait_count(
+            _img_rgb, img_bgr, _density_full, _crowd_count,
+            _marker_meta.get("count", len(_head_markers)),
+            marker_note=_marker_meta.get("note", ""),
+        )
+        _crowd_count = _portrait_result["count"]
+        _dot_count = _portrait_result["marker_count"]
+        _marker_note = _portrait_result["marker_note"]
+        _used_face_detector = _portrait_result["used_face_detector"]
+        _portrait_hybrid_mode = _portrait_result["portrait_hybrid_mode"]
+        _portrait_detected = _portrait_result["portrait_detected"]
+        _portrait_faces = _portrait_result["faces"]
+
         st.session_state["last_count"] = _crowd_count
+
+        thumb = cv2.resize(_img_rgb, (80, 80))
+        if (len(st.session_state["history"]) == 0 or
+                hash(st.session_state["history"][-1]["thumb"].tobytes()) != hash(thumb.tobytes())):
+            st.session_state["history"].append(
+                {"thumb": thumb, "count": _crowd_count})
+        if len(st.session_state["history"]) > 5:
+            st.session_state["history"] = st.session_state["history"][-5:]
 
 
         # ═════════════════════════════════════════════════════
@@ -3067,13 +3349,13 @@ with tab1:
 
             # ── TOP BAR ──
             st.markdown(f"""
-            <div style="background:linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-            border:1px solid #334155;border-radius:12px;padding:14px 24px;
+            <div style="background:linear-gradient(135deg, #3B4A5E 0%, #2D3748 100%);
+            border:1px solid #5A6B7E;border-radius:12px;padding:14px 24px;
             display:flex;align-items:center;justify-content:space-between;
             margin-bottom:20px;box-shadow:0 4px 24px rgba(0,0,0,0.5)">
             <div style="display:flex;align-items:center;gap:12px">
-            <span style="font-size:24px;filter:drop-shadow(0 2px 12px rgba(99,102,241,0.4))">🛡️</span>
-            <span style="color:#F1F5F9;font-size:20px;font-weight:800;letter-spacing:-0.03em">SafeCrowd Vision</span>
+            <span style="filter:drop-shadow(0 2px 12px rgba(99,102,241,0.4));display:inline-flex"><svg viewBox="0 0 64 64" fill="none" style="width:28px;height:28px"><defs><linearGradient id="presShield" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366F1"/><stop offset="100%" stop-color="#22D3EE"/></linearGradient></defs><path d="M32 4 L56 14 L56 30 C56 46 44 56 32 60 C20 56 8 46 8 30 L8 14 Z" fill="url(#presShield)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/><circle cx="32" cy="30" r="10" fill="none" stroke="white" stroke-width="1.5" opacity="0.8"/><circle cx="32" cy="30" r="4" fill="white" opacity="0.9"/></svg></span>
+            <span style="color:#FFFFFF;font-size:20px;font-weight:800;letter-spacing:-0.03em">SafeCrowd Vision</span>
             <span style="display:inline-flex;align-items:center;gap:5px;
             padding:4px 12px;border-radius:16px;font-size:10px;font-weight:600;
             background:rgba(99,102,241,0.15);color:#3B82F6;
@@ -3096,10 +3378,10 @@ with tab1:
 
             with _pc1:
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:12px;
                 padding:8px;border-top:3px solid #6366F1;
                 box-shadow:0 6px 32px rgba(99,102,241,0.2)">
-                <div style="color:#94A3B8;font-size:10px;font-weight:700;
+                <div style="color:#CBD5E1;font-size:10px;font-weight:700;
                 letter-spacing:2px;text-transform:uppercase;padding:8px 10px 6px">
                 SAFETY ZONE MAP — {method.upper()}</div>
                 </div>
@@ -3109,13 +3391,13 @@ with tab1:
             with _pc2:
                 # Giant crowd count
                 st.components.v1.html(f"""
-                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:12px;
                 border-top:3px solid #6366F1;padding:28px 20px;text-align:center;
                 box-shadow:0 6px 32px rgba(99,102,241,0.2)">
-                <div style="color:#94A3B8;font-size:10px;font-weight:700;
+                <div style="color:#CBD5E1;font-size:10px;font-weight:700;
                 letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px">
                 ESTIMATED CROWD</div>
-                <div id="present-count" style="font-size:80px;font-weight:900;color:#F1F5F9;
+                <div id="present-count" style="font-size:80px;font-weight:900;color:#FFFFFF;
                 font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;
                 line-height:1;text-shadow:0 0 40px rgba(99,102,241,0.3)">0</div>
                 </div>
@@ -3146,10 +3428,10 @@ with tab1:
                                font=dict(size=13, color=_p_tc,
                                          family="Inter, sans-serif")),
                     gauge=dict(
-                        axis=dict(range=[0, 100], tickcolor="#64748B",
-                                  tickfont=dict(color="#6B7280", size=9)),
+                        axis=dict(range=[0, 100], tickcolor="#9AA8B8",
+                                  tickfont=dict(color="#CBD5E1", size=9)),
                         bar=dict(color=_p_tc, thickness=0.35),
-                        bgcolor="#C7D2FE", borderwidth=0,
+                        bgcolor="#8896AA", borderwidth=0,
                         steps=[
                             dict(range=[0, 25], color="rgba(16,185,129,0.15)"),
                             dict(range=[25, 50], color="rgba(245,158,11,0.15)"),
@@ -3172,38 +3454,38 @@ with tab1:
                 # 4 zone stats — glowing numbers
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
-                <div style="background:#1E293B;border:1px solid rgba(16,185,129,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(16,185,129,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(16,185,129,0.08)">
-                <div style="font-size:10px;color:#94A3B8;font-weight:700;
+                <div style="font-size:10px;color:#CBD5E1;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟢 LOW</div>
                 <div style="font-size:32px;font-weight:900;color:#10B981;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(16,185,129,0.4)">{_p_zone_stats['Low']}</div>
                 </div>
-                <div style="background:#1E293B;border:1px solid rgba(245,158,11,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(245,158,11,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(245,158,11,0.08)">
-                <div style="font-size:10px;color:#94A3B8;font-weight:700;
+                <div style="font-size:10px;color:#CBD5E1;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟡 MEDIUM</div>
                 <div style="font-size:32px;font-weight:900;color:#D97706;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(245,158,11,0.4)">{_p_zone_stats['Medium']}</div>
                 </div>
-                <div style="background:#1E293B;border:1px solid rgba(239,68,68,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(239,68,68,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(239,68,68,0.08)">
-                <div style="font-size:10px;color:#94A3B8;font-weight:700;
+                <div style="font-size:10px;color:#CBD5E1;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🟠 HIGH</div>
                 <div style="font-size:32px;font-weight:900;color:#DC2626;
                 font-family:'JetBrains Mono',monospace;
                 text-shadow:0 0 20px rgba(239,68,68,0.4)">{_p_zone_stats['High']}</div>
                 </div>
-                <div style="background:#1E293B;border:1px solid rgba(255,23,68,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(255,23,68,0.25);
                 border-radius:10px;padding:14px;text-align:center;
                 box-shadow:0 0 20px rgba(255,23,68,0.1);
                 {'animation:criticalGlow 2s ease-in-out infinite;' if _p_zone_stats['Critical'] > 0 else ''}">
-                <div style="font-size:10px;color:#94A3B8;font-weight:700;
+                <div style="font-size:10px;color:#CBD5E1;font-weight:700;
                 letter-spacing:1.5px;margin-bottom:4px">🔴 CRITICAL</div>
                 <div style="font-size:32px;font-weight:900;color:#B91C1C;
                 font-family:'JetBrains Mono',monospace;
@@ -3225,21 +3507,20 @@ with tab1:
 
             # ── BOTTOM BAR ──
             _p_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            if _crowd_count < 80:
-                _p_wts = "SHB"
-            elif _crowd_count < 200:
-                _p_wts = "SHA"
-            else:
-                _p_wts = "Ensemble (SHA+SHB)"
+            _p_model = _model_label_for_scene(
+                _crowd_count,
+                used_face_detector=_used_face_detector,
+                portrait_hybrid_mode=_portrait_hybrid_mode,
+            )
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:8px;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:8px;
             padding:10px 20px;display:flex;align-items:center;
             justify-content:space-between;margin-top:8px">
             <span style="color:#3B4A63;font-family:'JetBrains Mono',monospace;
             font-size:10px;letter-spacing:1px">{_p_now}</span>
             <span style="color:#3B4A63;font-family:'JetBrains Mono',monospace;
             font-size:10px;letter-spacing:1px">
-            DM-Count · {_p_wts} · {w}×{h} · {method} · 8×8 grid</span>
+            {_p_model} · {w}×{h} · {method} · 8×8 grid</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -3248,15 +3529,15 @@ with tab1:
         elif demo_mode:
             count = _crowd_count
             if count < 30:
-                bg = "linear-gradient(135deg, #003D19, #00501F)"
+                bg = "linear-gradient(135deg, #105030, #1A6038)"
                 glow = "0 0 40px rgba(16,185,129,0.15)"
                 label = "✅ SAFE"
             elif count < 60:
-                bg = "linear-gradient(135deg, #4D2800, #663500)"
+                bg = "linear-gradient(135deg, #5A3D18, #704020)"
                 glow = "0 0 40px rgba(245,158,11,0.15)"
                 label = "⚠️ FULL"
             else:
-                bg = "linear-gradient(135deg, #4D0011, #660017)"
+                bg = "linear-gradient(135deg, #5A1828, #701D30)"
                 glow = "0 0 40px rgba(255,23,68,0.2)"
                 label = "🚨 OVERCROWDED"
 
@@ -3278,13 +3559,13 @@ with tab1:
 
             # ── Post-Analysis Section Header ──
             st.markdown("""
-            <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
-            border:1px solid #334155;border-radius:12px;padding:14px 24px;
+            <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3748 100%);
+            border:1px solid #5A6B7E;border-radius:12px;padding:14px 24px;
             margin:8px 0 20px 0;display:flex;align-items:center;
             justify-content:space-between;overflow:hidden;position:relative;
             box-shadow:0 4px 24px rgba(0,0,0,0.4)">
             <div style="position:absolute;top:0;left:0;height:2px;width:100%;
-            background:#334155">
+            background:#5A6B7E">
             <div style="height:2px;
             background:linear-gradient(90deg,#6366F1,#22D3EE,#8B5CF6,#6366F1);
             background-size:200% 100%;animation:scanLine 2s linear infinite;
@@ -3295,7 +3576,7 @@ with tab1:
             border-radius:50%;background:#059669;
             box-shadow:0 0 12px rgba(5,150,105,0.5);
             animation:liveDot 1.5s ease-in-out infinite"></span>
-            <span style="color:#F1F5F9;font-size:14px;font-weight:700;
+            <span style="color:#FFFFFF;font-size:14px;font-weight:700;
             font-family:'JetBrains Mono',monospace;letter-spacing:1.5px">
             ANALYSIS RESULTS</span>
             </div>
@@ -3332,78 +3613,22 @@ with tab1:
 
             # (threat score is calculated at the gauge render site below)
 
-            _head_markers, _marker_meta = _resolve_head_markers(
-                _img_rgb, _density_full, _crowd_count)
-
             density_overlay = build_density_overlay(
                 _img_rgb, _density_full, opacity,
                 expected_count=_crowd_count,
                 marker_points=_head_markers)
 
-            # Head-marker overlay: approximate visible head locations
-            headdot_overlay, _dot_count = build_headdot_overlay(
-                _img_rgb, _density_full,
-                expected_count=_crowd_count,
-                marker_points=_head_markers)
+            if _portrait_faces and (
+                    _used_face_detector or _portrait_hybrid_mode):
+                headdot_overlay = _draw_faces_on_image(
+                    _img_rgb, _portrait_faces)
+            else:
+                headdot_overlay, _dot_count = build_headdot_overlay(
+                    _img_rgb, _density_full,
+                    expected_count=_crowd_count,
+                    marker_points=_head_markers)
 
-            # save to history
-            thumb = cv2.resize(_img_rgb, (80, 80))
-            if (len(st.session_state["history"]) == 0 or
-                    hash(st.session_state["history"][-1]["thumb"].tobytes()) != hash(thumb.tobytes())):
-                st.session_state["history"].append(
-                    {"thumb": thumb, "count": _crowd_count})
-            if len(st.session_state["history"]) > 5:
-                st.session_state["history"] = st.session_state["history"][-5:]
-
-            # ── Portrait / close-up detection ─────────────────
-            h, w = _img_rgb.shape[:2]
-            _aspect_ratio = w / h
-            _density_coverage = (_density_full > _density_full.max() * 0.1).sum() / _density_full.size
-
-            # If density is concentrated in small area
-            # AND count is very low relative to image size
-            # it's likely a close-up not a crowd
-            _is_portrait = (
-                _crowd_count < 10 and
-                _density_coverage < 0.15
-            )
-
-            _used_face_detector = False
-            _portrait_hybrid_mode = False
-            _marker_note = _marker_meta.get("note", "")
-
-            if _is_portrait:
-                _faces = _detect_faces_multi_pass(img_bgr)
-                _face_count = len(_faces)
-
-                if _face_count > 0:
-                    _portrait_estimate = max(_dot_count, _face_count)
-                    if _face_count >= _dot_count:
-                        _crowd_count = _portrait_estimate
-                        headdot_overlay = _draw_faces_on_image(_img_rgb, _faces)
-                        _dot_count = _face_count
-                        _used_face_detector = True
-                        _marker_note = "Face-detector fallback active for portrait scene"
-                    else:
-                        # Hybrid: draw on clean image, not density-dot overlay
-                        headdot_overlay = _draw_faces_on_image(
-                            _img_rgb, _faces)
-                        _crowd_count = _portrait_estimate
-                        _dot_count = _face_count
-                        _portrait_hybrid_mode = True
-                        _marker_note = (
-                            f"Portrait hybrid fallback active — face detector "
-                            f"found {_face_count}, estimate retained "
-                            f"{_portrait_estimate}"
-                        )
-                elif _dot_count > 0:
-                    _crowd_count = _dot_count
-                    _portrait_hybrid_mode = True
-                    _marker_note = (
-                        f"Portrait marker recovery active — using "
-                        f"{_dot_count} visible markers"
-                    )
-
+            if _portrait_detected:
                 st.markdown("""
 <div style="background:rgba(245,158,11,0.1);
 border:1px solid #F59E0B;border-left:4px solid #F59E0B;
@@ -3419,16 +3644,11 @@ DM-Count is optimized for crowd scenes
             # ── Analysis Complete banner ───────────────────────
             _banner_conf = compute_dynamic_confidence(
                 _features_sc, method, km, xgb, gmm, _crowd_count)
-            if _portrait_hybrid_mode:
-                _banner_model = "Portrait Hybrid (Face + Density)"
-            elif _used_face_detector:
-                _banner_model = "YUNET Face Detector"
-            elif _crowd_count < 80:
-                _banner_model = "DM-Count SHB"
-            elif _crowd_count < 200:
-                _banner_model = "DM-Count SHA"
-            else:
-                _banner_model = "DM-Count Ensemble (SHA+SHB)"
+            _banner_model = _model_label_for_scene(
+                _crowd_count,
+                used_face_detector=_used_face_detector,
+                portrait_hybrid_mode=_portrait_hybrid_mode,
+            )
 
             if _portrait_hybrid_mode:
                 _banner_label = "ESTIMATED GROUP"
@@ -3438,7 +3658,7 @@ DM-Count is optimized for crowd scenes
                 )
                 _banner_note_block = (
                     '<div style="margin-top:14px;padding-top:12px;'
-                    'border-top:1px solid #334155;color:#F59E0B;'
+                    'border-top:1px solid #5A6B7E;color:#F59E0B;'
                     'font-size:10px;font-family:monospace;line-height:1.45">'
                     f'{_marker_note}</div>'
                     if _marker_note else ""
@@ -3454,7 +3674,7 @@ DM-Count is optimized for crowd scenes
                 _banner_secondary = f"Visible head markers: {_dot_count}"
                 _banner_note_block = (
                     '<div style="margin-top:14px;padding-top:12px;'
-                    'border-top:1px solid #334155;color:#F59E0B;'
+                    'border-top:1px solid #5A6B7E;color:#F59E0B;'
                     'font-size:10px;font-family:monospace;line-height:1.45">'
                     f'{_marker_note}</div>'
                     if _marker_note else ""
@@ -3462,12 +3682,12 @@ DM-Count is optimized for crowd scenes
             _banner_height = 154 if _banner_note_block else 128
 
             st.components.v1.html(f"""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:20px 24px;margin-bottom:24px;
             overflow:hidden;position:relative;min-height:102px;">
 
             <div style="position:absolute;top:0;left:0;height:3px;
-            width:100%;background:#334155;">
+            width:100%;background:#5A6B7E;">
             <div style="height:3px;background:linear-gradient(90deg,
             #6366F1,#22D3EE,#8B5CF6);animation:fill 0.8s ease-out forwards;
             width:0%"></div>
@@ -3478,36 +3698,36 @@ DM-Count is optimized for crowd scenes
             <div style="width:10px;height:10px;border-radius:50%;
             background:#059669;box-shadow:0 0 8px #059669;
             animation:blink 1s ease-in-out 3"></div>
-            <div style="color:#F1F5F9;font-size:14px;font-weight:700;
+            <div style="color:#FFFFFF;font-size:14px;font-weight:700;
             font-family:monospace;letter-spacing:1px">ANALYSIS COMPLETE</div>
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
             align-items:start">
 
-            <div style="text-align:center;border-right:1px solid #334155;
+            <div style="text-align:center;border-right:1px solid #5A6B7E;
             padding:0 20px;min-height:58px">
-            <div style="color:#94A3B8;font-size:9px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             {_banner_label}</div>
             <div style="color:#6366F1;font-size:32px;font-weight:900;
             font-family:monospace;text-shadow:0 0 20px rgba(99,102,241,0.2)">
             {_banner_primary}</div>
-            <div style="color:#64748B;font-size:10px;font-family:monospace;
+            <div style="color:#9AA8B8;font-size:10px;font-family:monospace;
             margin-top:2px">{_banner_secondary}</div>
             </div>
 
-            <div style="text-align:center;border-right:1px solid #334155;
+            <div style="text-align:center;border-right:1px solid #5A6B7E;
             padding:0 20px;min-height:58px">
-            <div style="color:#94A3B8;font-size:9px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             MODEL</div>
-            <div style="color:#F1F5F9;font-size:14px;font-weight:700;
+            <div style="color:#FFFFFF;font-size:14px;font-weight:700;
             font-family:monospace">{_banner_model}</div>
             </div>
 
             <div style="text-align:center;padding:0 20px;min-height:58px">
-            <div style="color:#94A3B8;font-size:9px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:9px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">
             CONFIDENCE</div>
             <div style="color:#10B981;font-size:14px;font-weight:700;
@@ -3539,6 +3759,63 @@ DM-Count is optimized for crowd scenes
             _density_b64 = _to_panel_b64(density_overlay)
             _safety_b64  = _to_panel_b64(safety_img)
 
+            if _capture_mode_requested:
+                _save_latest_capture_payload({
+                    "created_at": datetime.now().isoformat(timespec="seconds"),
+                    "source": "mobile-capture",
+                    "filename": getattr(uploaded, "name", "mobile_capture"),
+                    "count": int(_crowd_count),
+                    "threat": str(_compute_threat_band(_zone_stats, _crowd_count)[1]),
+                    "threat_score": int(_compute_threat_band(_zone_stats, _crowd_count)[0]),
+                    "confidence": int(_banner_conf),
+                    "method": str(method),
+                    "model": str(_banner_model),
+                    "zone_stats": _zone_stats,
+                    "marker_count": int(_dot_count),
+                    "marker_note": str(_marker_note or ""),
+                    "used_face_detector": bool(_used_face_detector),
+                    "portrait_hybrid_mode": bool(_portrait_hybrid_mode),
+                    "original_b64": _orig_b64,
+                    "head_overlay_b64": _headdot_b64,
+                    "density_overlay_b64": _density_b64,
+                    "safety_img_b64": _safety_b64,
+                })
+                if _capture_mode_mobile:
+                    st.markdown("""
+                    <div style="background:linear-gradient(180deg,#1F4A2E 0%,#224A32 100%);
+                    border:1px solid rgba(16,185,129,0.28);border-radius:18px;padding:18px 18px 16px;
+                    margin:0 0 18px 0;box-shadow:0 18px 34px rgba(5,150,105,0.14)">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                    <div style="width:34px;height:34px;border-radius:12px;background:#10B981;
+                    display:flex;align-items:center;justify-content:center;color:white;font-size:18px;font-weight:800">✓</div>
+                    <div>
+                    <div style="color:#ECFDF5;font-size:16px;font-weight:800;letter-spacing:-0.02em">
+                    Analysis complete</div>
+                    <div style="color:#A7F3D0;font-size:12px">
+                    Result synced to the laptop Live Capture screen</div>
+                    </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px">
+                    <div style="padding:8px 12px;border-radius:12px;background:rgba(255,255,255,0.05)">
+                    <div style="color:#6EE7B7;font-size:10px;font-weight:700;letter-spacing:1px">COUNT</div>
+                    <div style="color:#F0FDF4;font-size:20px;font-weight:900;font-family:'JetBrains Mono',monospace">{}</div>
+                    </div>
+                    <div style="padding:8px 12px;border-radius:12px;background:rgba(255,255,255,0.05)">
+                    <div style="color:#6EE7B7;font-size:10px;font-weight:700;letter-spacing:1px">THREAT</div>
+                    <div style="color:#F0FDF4;font-size:20px;font-weight:900;font-family:'JetBrains Mono',monospace">{}%</div>
+                    </div>
+                    </div>
+                    </div>
+                    """.format(int(_crowd_count), int(_compute_threat_band(_zone_stats, _crowd_count)[0])), unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);
+                    border-radius:10px;padding:12px 14px;margin:0 0 18px 0;color:#6EE7B7;
+                    font-size:12px;font-weight:600">
+                    ● Mobile capture synced to laptop view. Open the Live Capture tab on the laptop to see the latest result.
+                    </div>
+                    """, unsafe_allow_html=True)
+
             # Dynamic panel labels for portrait vs crowd mode
             _panel1_title = (
                 f"FACE DETECTION — {_dot_count} FACES"
@@ -3564,7 +3841,7 @@ DM-Count is optimized for crowd scenes
                 ""
                 if _used_face_detector or not _marker_note
                 else (
-                    '<div style="padding:0 16px 10px;background:#0F172A;'
+                    '<div style="padding:0 16px 10px;background:#2D3748;'
                     'color:#F59E0B;font-size:11px">'
                     + (
                         'Portrait markers are approximate and may combine face '
@@ -3580,48 +3857,48 @@ DM-Count is optimized for crowd scenes
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid #334155;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;
                 border-radius:12px;overflow:hidden;
                 box-shadow:0 4px 24px rgba(99,102,241,0.15)">
-                <div style="background:#263445;padding:10px 16px;
+                <div style="background:#485A6E;padding:10px 16px;
                 border-top:3px solid #6366F1">
                 <span style="color:#6366F1;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">{_panel1_title}</span></div>
                 <img src="data:image/jpeg;base64,{_headdot_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#0F172A;
-                color:#64748B;font-size:11px">{_panel1_sub}</div>
+                <div style="padding:8px 16px;background:#2D3748;
+                color:#9AA8B8;font-size:11px">{_panel1_sub}</div>
                 {_panel1_note}
                 </div>
                 """, unsafe_allow_html=True)
             with c2:
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid #334155;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;
                 border-radius:12px;overflow:hidden;
                 box-shadow:0 4px 24px rgba(99,102,241,0.15)">
-                <div style="background:#263445;padding:10px 16px;
+                <div style="background:#485A6E;padding:10px 16px;
                 border-top:3px solid #6366F1">
                 <span style="color:#6366F1;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">DENSITY HEATMAP</span></div>
                 <img src="data:image/jpeg;base64,{_density_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#0F172A;
-                color:#64748B;font-size:11px">Gaussian σ=8 · JET colormap · opacity {opacity}</div>
+                <div style="padding:8px 16px;background:#2D3748;
+                color:#9AA8B8;font-size:11px">Gaussian σ=8 · JET colormap · opacity {opacity}</div>
                 </div>
                 """, unsafe_allow_html=True)
             with c3:
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid #334155;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;
                 border-radius:12px;overflow:hidden;
                 box-shadow:0 4px 24px rgba(99,102,241,0.15)">
-                <div style="background:#263445;padding:10px 16px;
+                <div style="background:#485A6E;padding:10px 16px;
                 border-top:3px solid #10B981">
                 <span style="color:#10B981;font-size:10px;text-transform:uppercase;
                 letter-spacing:2px;font-weight:600">SAFETY ZONE MAP — {method.upper()}</span></div>
                 <img src="data:image/jpeg;base64,{_safety_b64}"
                 style="width:100%;display:block">
-                <div style="padding:8px 16px;background:#0F172A;
-                color:#64748B;font-size:11px">8×8 grid · {method} classification</div>
+                <div style="padding:8px 16px;background:#2D3748;
+                color:#9AA8B8;font-size:11px">8×8 grid · {method} classification</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -3641,22 +3918,22 @@ DM-Count is optimized for crowd scenes
                 _model_badge = "DM-Count · Ensemble"
 
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:10px;
             padding:14px 20px;margin:8px 0 16px 0;display:flex;align-items:center;
             justify-content:space-between;gap:20px">
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span style="font-size:14px">🎯</span>
-            <span style="color:#94A3B8;font-size:10px;font-weight:700;
+            <span style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:1.5px;text-transform:uppercase">ANALYSIS CONFIDENCE</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;gap:12px">
-            <div style="flex:1;height:6px;background:#C7D2FE;border-radius:4px;overflow:hidden">
+            <div style="flex:1;height:6px;background:#8896AA;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:{_confidence_pct}%;
             background:linear-gradient(90deg,#2563EB,#06B6D4);border-radius:4px;
             animation:barFill 1s ease-out forwards;
             --fill-pct:{_confidence_pct}%"></div>
             </div>
-            <span style="color:#F1F5F9;font-family:'JetBrains Mono',monospace;
+            <span style="color:#FFFFFF;font-family:'JetBrains Mono',monospace;
             font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
             flex-shrink:0">{_confidence_pct}%</span>
             </div>
@@ -3686,18 +3963,18 @@ DM-Count is optimized for crowd scenes
             m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
                 st.components.v1.html(f"""
-                <div style="background:#1E293B;border:1px solid #334155;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;
                 border-radius:12px;padding:22px 18px;
                 border-top:3px solid #6366F1;
                 box-shadow:0 4px 24px rgba(99,102,241,0.2)">
-                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                <div style="color:#CBD5E1;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 👥 ESTIMATED CROWD</div>
-                <div style="color:#F1F5F9;font-family:'JetBrains Mono',monospace;
+                <div style="color:#FFFFFF;font-family:'JetBrains Mono',monospace;
                 font-size:36px;font-weight:700;letter-spacing:-0.03em;
                 font-variant-numeric:tabular-nums;line-height:1">{_crowd_count:,}</div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-                <span style="color:#94A3B8;font-size:11px">Range: {_count_low} – {_count_high}</span>
+                <span style="color:#CBD5E1;font-size:11px">Range: {_count_low} – {_count_high}</span>
                 <span style="padding:2px 8px;border-radius:12px;font-size:10px;
                 font-weight:600;background:rgba(34,211,238,0.1);color:#6366F1;
                 border:1px solid rgba(34,211,238,0.2);
@@ -3709,12 +3986,12 @@ DM-Count is optimized for crowd scenes
                 _crit_val = _zone_stats["Critical"]
                 _crit_glow = 'animation:criticalGlow 2s ease-in-out infinite;' if _crit_val > 0 else ''
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid rgba(255,23,68,0.3);
+                <div style="background:#3B4A5E;border:1px solid rgba(255,23,68,0.3);
                 border-radius:12px;padding:22px 18px;text-align:center;
                 border-top:3px solid #FF1744;
                 box-shadow:0 4px 24px rgba(255,23,68,0.15);
                 transition:all 0.3s ease;{_crit_glow}">
-                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                <div style="color:#CBD5E1;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 🔴 CRITICAL ZONES</div>
                 <div style="color:#FF1744;font-family:'JetBrains Mono',monospace;
@@ -3726,12 +4003,12 @@ DM-Count is optimized for crowd scenes
             with m3:
                 _high_val = _zone_stats["High"]
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid rgba(239,68,68,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(239,68,68,0.25);
                 border-radius:12px;padding:22px 18px;text-align:center;
                 border-top:3px solid #EF4444;
                 box-shadow:0 4px 24px rgba(239,68,68,0.15);
                 transition:all 0.3s ease">
-                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                <div style="color:#CBD5E1;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 🟠 HIGH ZONES</div>
                 <div style="color:#EF4444;font-family:'JetBrains Mono',monospace;
@@ -3743,12 +4020,12 @@ DM-Count is optimized for crowd scenes
             with m4:
                 _med_val = _zone_stats["Medium"]
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid rgba(245,158,11,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(245,158,11,0.25);
                 border-radius:12px;padding:22px 18px;text-align:center;
                 border-top:3px solid #F59E0B;
                 box-shadow:0 4px 24px rgba(245,158,11,0.15);
                 transition:all 0.3s ease">
-                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                <div style="color:#CBD5E1;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 🟡 MEDIUM ZONES</div>
                 <div style="color:#F59E0B;font-family:'JetBrains Mono',monospace;
@@ -3760,12 +4037,12 @@ DM-Count is optimized for crowd scenes
             with m5:
                 _safe_val = _zone_stats["Low"]
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid rgba(16,185,129,0.25);
+                <div style="background:#3B4A5E;border:1px solid rgba(16,185,129,0.25);
                 border-radius:12px;padding:22px 18px;text-align:center;
                 border-top:3px solid #10B981;
                 box-shadow:0 4px 24px rgba(16,185,129,0.15);
                 transition:all 0.3s ease">
-                <div style="color:#94A3B8;font-size:11px;text-transform:uppercase;
+                <div style="color:#CBD5E1;font-size:11px;text-transform:uppercase;
                 letter-spacing:1.2px;font-weight:600;margin-bottom:8px">
                 🟢 SAFE ZONES</div>
                 <div style="color:#10B981;font-family:'JetBrains Mono',monospace;
@@ -3833,16 +4110,16 @@ DM-Count is optimized for crowd scenes
                            font=dict(size=14, color=_g_color,
                                      family="Inter, sans-serif")),
                 gauge=dict(
-                    axis=dict(range=[0, 100], tickcolor="#64748B",
-                              tickfont=dict(color="#6B7280", size=10)),
+                    axis=dict(range=[0, 100], tickcolor="#9AA8B8",
+                              tickfont=dict(color="#CBD5E1", size=10)),
                     bar=dict(color=_g_color, thickness=0.3),
-                    bgcolor="#C7D2FE",
+                    bgcolor="#8896AA",
                     borderwidth=0,
                     steps=[
-                        dict(range=[0, 25],   color="#0C2A1A"),
-                        dict(range=[25, 50],  color="#2A1F00"),
-                        dict(range=[50, 75],  color="#2A0D00"),
-                        dict(range=[75, 100], color="#2A0007"),
+                        dict(range=[0, 25],   color="#1F4A2E"),
+                        dict(range=[25, 50],  color="#4A3D10"),
+                        dict(range=[50, 75],  color="#4A2D10"),
+                        dict(range=[75, 100], color="#4A1520"),
                     ],
                     threshold=dict(line=dict(color=_g_color, width=3),
                                    thickness=0.8, value=_gauge_value),
@@ -3866,7 +4143,7 @@ DM-Count is optimized for crowd scenes
 
             # ── Alert banner ──────────────────────────────────
             if _zone_stats["Critical"] > 0:
-                st.markdown(f"""<div style="background:#1A0A0A;
+                st.markdown(f"""<div style="background:#3D2020;
                 border:1px solid rgba(255,23,68,0.3);border-left:4px solid #FF1744;
                 border-radius:10px;padding:18px 24px;
                 color:#FF6B6B;font-weight:700;font-size:15px;margin:16px 0;
@@ -3889,7 +4166,7 @@ DM-Count is optimized for crowd scenes
                             unsafe_allow_html=True)
 
             # ── Zone breakdown chart ──────────────────────────
-            st.markdown('<div style="border-top:1px solid #334155;margin:24px 0"></div>',
+            st.markdown('<div style="border-top:1px solid #5A6B7E;margin:24px 0"></div>',
                         unsafe_allow_html=True)
 
             # ── Zone Breakdown — 4 stat columns ──────────────
@@ -3905,16 +4182,16 @@ DM-Count is optimized for crowd scenes
                 _zb_pct = (_zb_count / 64) * 100
                 with _zb_col:
                     st.markdown(f"""
-                    <div style="background:#1E293B;border:1px solid #334155;
+                    <div style="background:#3B4A5E;border:1px solid #5A6B7E;
                     border-radius:12px;padding:20px;text-align:center;
                     border-top:3px solid {_zb_color}">
                     <div style="font-size:2.5rem;font-weight:900;
                     color:{_zb_color};font-family:monospace">{_zb_count}</div>
-                    <div style="font-size:10px;color:#94A3B8;
+                    <div style="font-size:10px;color:#CBD5E1;
                     letter-spacing:2px;text-transform:uppercase;
                     margin-top:6px">{_zb_name} ZONES</div>
                     <div style="margin-top:12px;height:4px;
-                    background:#C7D2FE;border-radius:4px">
+                    background:#8896AA;border-radius:4px">
                     <div style="height:4px;width:{_zb_pct}%;
                     background:{_zb_color};border-radius:4px;
                     transition:width 1s ease"></div>
@@ -3941,16 +4218,16 @@ DM-Count is optimized for crowd scenes
                 cap_label="OVERCAPACITY"; bar_color="#FF1744"
 
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:20px 24px;margin:16px 0">
 
             <div style="display:flex;justify-content:space-between;
             align-items:center;margin-bottom:14px">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🏟️ VENUE CAPACITY MONITOR</div>
             <div style="display:flex;gap:8px;align-items:center">
-            <span style="color:#94A3B8;font-size:12px">
+            <span style="color:#CBD5E1;font-size:12px">
             {_crowd_count} / {venue_capacity}</span>
             <span style="padding:3px 12px;border-radius:20px;
             font-size:11px;font-weight:700;
@@ -3959,7 +4236,7 @@ DM-Count is optimized for crowd scenes
             </div>
             </div>
 
-            <div style="height:8px;background:#C7D2FE;
+            <div style="height:8px;background:#8896AA;
             border-radius:6px;overflow:hidden">
             <div style="height:100%;width:{_utilization}%;
             background:{bar_color};border-radius:6px;
@@ -3968,10 +4245,10 @@ DM-Count is optimized for crowd scenes
 
             <div style="display:flex;justify-content:space-between;
             margin-top:8px">
-            <span style="color:#94A3B8;font-size:10px">0%</span>
+            <span style="color:#CBD5E1;font-size:10px">0%</span>
             <span style="color:{cap_color};font-size:11px;
             font-weight:700">{_utilization}% utilized</span>
-            <span style="color:#94A3B8;font-size:10px">100%</span>
+            <span style="color:#CBD5E1;font-size:10px">100%</span>
             </div>
             </div>
             """, unsafe_allow_html=True)
@@ -3997,25 +4274,25 @@ DM-Count is optimized for crowd scenes
                 _evac_status = "⚠️ CRITICAL EVACUATION TIME"
 
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:20px 24px;margin:16px 0;
             border-left:4px solid {_evac_color}">
             <div style="display:flex;align-items:center;
             justify-content:space-between">
             <div>
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;
             margin-bottom:6px">🚪 EVACUATION TIME ESTIMATE</div>
             <div style="color:{_evac_color};font-size:36px;
             font-weight:900;font-family:monospace">
             {_evac_mins_display}m {_evac_secs_display}s</div>
-            <div style="color:#94A3B8;font-size:11px;margin-top:4px">
+            <div style="color:#CBD5E1;font-size:11px;margin-top:4px">
             {_evac_status}</div>
             </div>
             <div style="text-align:right">
-            <div style="color:#94A3B8;font-size:10px;margin-bottom:4px">
+            <div style="color:#CBD5E1;font-size:10px;margin-bottom:4px">
             {num_exits} exits · 40 ppl/min each</div>
-            <div style="color:#94A3B8;font-size:10px">
+            <div style="color:#CBD5E1;font-size:10px">
             Critical zone penalty: +{int((_slowdown-1)*100)}%</div>
             </div>
             </div>
@@ -4035,7 +4312,7 @@ DM-Count is optimized for crowd scenes
                     _rl_detail_t1 = _rl_agent.get_action_detail(
                         _rl_action_t1, _zone_stats, num_exits)
                     st.markdown(f"""
-                    <div style="background:#1E293B;border:1px solid #DDD6FE;
+                    <div style="background:#3B4A5E;border:1px solid #DDD6FE;
                     border-radius:12px;padding:18px 22px;margin:16px 0;
                     border-left:4px solid #7C3AED;
                     box-shadow:0 2px 12px rgba(124,58,237,0.08)">
@@ -4044,9 +4321,9 @@ DM-Count is optimized for crowd scenes
                     <span style="color:#7C3AED;font-size:10px;font-weight:700;
                     letter-spacing:2px;text-transform:uppercase">RL AGENT RECOMMENDATION</span>
                     </div>
-                    <div style="color:#F1F5F9;font-size:15px;font-weight:700;
+                    <div style="color:#FFFFFF;font-size:15px;font-weight:700;
                     margin-bottom:4px">{_rl_name_t1}</div>
-                    <div style="color:#64748B;font-size:12px;line-height:1.5">{_rl_detail_t1}</div>
+                    <div style="color:#9AA8B8;font-size:12px;line-height:1.5">{_rl_detail_t1}</div>
                     <div style="color:#A78BFA;font-size:10px;margin-top:8px;
                     font-weight:600">Switch to RL Agent tab to train the model →</div>
                     </div>
@@ -4062,8 +4339,8 @@ DM-Count is optimized for crowd scenes
 
                 # Custom colorscale: black→dark blue→cyan→yellow→red
                 _custom_cs = [
-                    [0.0, "#0F172A"],
-                    [0.2, "#0C2461"],
+                    [0.0, "#2D3748"],
+                    [0.2, "#1E3A8A"],
                     [0.4, "#06B6D4"],
                     [0.6, "#F59E0B"],
                     [1.0, "#EF4444"],
@@ -4082,25 +4359,25 @@ DM-Count is optimized for crowd scenes
                     colorscale=_custom_cs,
                     showscale=True,
                     colorbar=dict(
-                        tickfont=dict(color="#4B5563", size=10),
-                        title=dict(text="Density", font=dict(color="#4B5563", size=11)),
+                        tickfont=dict(color="#9AA8B8", size=10),
+                        title=dict(text="Density", font=dict(color="#9AA8B8", size=11)),
                         bgcolor="rgba(0,0,0,0)",
                         borderwidth=0,
                     ),
                 ))
                 fig_heat.update_layout(
                     title=dict(text="Density Distribution · 8×8 Zone Grid",
-                               font=dict(size=14, color="#4B5563",
+                               font=dict(size=14, color="#9AA8B8",
                                          family="Inter, sans-serif")),
-                    template="plotly_dark",
+                    template="none",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                     height=380,
                     margin=dict(l=20, r=20, t=50, b=20),
-                    xaxis=dict(title="Column", tickfont=dict(color="#6B7280"),
-                               title_font=dict(color="#6B7280")),
-                    yaxis=dict(title="Row", tickfont=dict(color="#6B7280"),
-                               title_font=dict(color="#6B7280"), autorange="reversed"),
+                    xaxis=dict(title="Column", tickfont=dict(color="#CBD5E1"),
+                               title_font=dict(color="#CBD5E1")),
+                    yaxis=dict(title="Row", tickfont=dict(color="#CBD5E1"),
+                               title_font=dict(color="#CBD5E1"), autorange="reversed"),
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
@@ -4158,15 +4435,15 @@ DM-Count is optimized for crowd scenes
         if demo_mode and st.session_state["last_count"] is not None:
             count = st.session_state["last_count"]
             if count < 30:
-                bg = "linear-gradient(135deg, #003D19, #00501F)"
+                bg = "linear-gradient(135deg, #105030, #1A6038)"
                 glow = "0 0 40px rgba(16,185,129,0.15)"
                 label = "✅ SAFE"
             elif count < 60:
-                bg = "linear-gradient(135deg, #4D2800, #663500)"
+                bg = "linear-gradient(135deg, #5A3D18, #704020)"
                 glow = "0 0 40px rgba(245,158,11,0.15)"
                 label = "⚠️ FULL"
             else:
-                bg = "linear-gradient(135deg, #4D0011, #660017)"
+                bg = "linear-gradient(135deg, #5A1828, #701D30)"
                 glow = "0 0 40px rgba(255,23,68,0.2)"
                 label = "🚨 OVERCROWDED"
             st.markdown(
@@ -4188,20 +4465,75 @@ DM-Count is optimized for crowd scenes
             background:radial-gradient(ellipse 700px 350px at center 100px,
             rgba(99,102,241,0.08), transparent)">
 
-            <!-- Animated radar ring -->
-            <div style="position:relative;width:140px;height:140px;margin:0 auto 28px;
+            <!-- Animated radar ring + SVG Shield -->
+            <div style="position:relative;width:220px;height:220px;margin:0 auto 28px;
             display:flex;align-items:center;justify-content:center">
+
+            <!-- Ring 1 — outermost -->
+            <div style="position:absolute;width:220px;height:220px;border-radius:50%;
+            border:2px solid rgba(99,102,241,0.12);
+            box-shadow:0 0 20px rgba(99,102,241,0.08);
+            animation:radarPulse 3.5s ease-out infinite"></div>
+
+            <!-- Ring 2 -->
+            <div style="position:absolute;width:180px;height:180px;border-radius:50%;
+            border:2px solid rgba(34,211,238,0.15);
+            box-shadow:0 0 16px rgba(34,211,238,0.1);
+            animation:radarPulse 3.5s ease-out 0.5s infinite"></div>
+
+            <!-- Ring 3 -->
             <div style="position:absolute;width:140px;height:140px;border-radius:50%;
-            border:1px solid rgba(99,102,241,0.15);
-            animation:radarPulse 3s ease-out infinite"></div>
+            border:2px solid rgba(99,102,241,0.2);
+            box-shadow:0 0 14px rgba(99,102,241,0.12);
+            animation:radarPulse 3.5s ease-out 1.0s infinite"></div>
+
+            <!-- Ring 4 -->
             <div style="position:absolute;width:100px;height:100px;border-radius:50%;
-            border:1px solid rgba(99,102,241,0.2);
-            animation:radarPulse 3s ease-out 0.7s infinite"></div>
-            <div style="position:absolute;width:60px;height:60px;border-radius:50%;
-            border:1px solid rgba(99,102,241,0.25);
-            animation:radarPulse 3s ease-out 1.4s infinite"></div>
-            <span style="font-size:48px;position:relative;z-index:1;
-            filter:drop-shadow(0 4px 24px rgba(99,102,241,0.4))">🛡️</span>
+            border:2px solid rgba(139,92,246,0.25);
+            box-shadow:0 0 12px rgba(139,92,246,0.15);
+            animation:radarPulse 3.5s ease-out 1.5s infinite"></div>
+
+            <!-- Ring 5 — innermost glow ring -->
+            <div style="position:absolute;width:72px;height:72px;border-radius:50%;
+            background:radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+            animation:radarPulse 3.5s ease-out 2.0s infinite"></div>
+
+            <!-- SVG Shield Logo -->
+            <div style="position:relative;z-index:2;width:64px;height:64px;
+            filter:drop-shadow(0 6px 28px rgba(99,102,241,0.5))
+                   drop-shadow(0 2px 8px rgba(34,211,238,0.3))">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
+            style="width:64px;height:64px">
+            <defs>
+              <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#6366F1"/>
+                <stop offset="50%" stop-color="#4F46E5"/>
+                <stop offset="100%" stop-color="#22D3EE"/>
+              </linearGradient>
+              <linearGradient id="shieldInner" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#818CF8"/>
+                <stop offset="100%" stop-color="#6366F1"/>
+              </linearGradient>
+            </defs>
+            <!-- Shield body -->
+            <path d="M32 4 L56 14 L56 30 C56 46 44 56 32 60 C20 56 8 46 8 30 L8 14 Z"
+            fill="url(#shieldGrad)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <!-- Inner shield highlight -->
+            <path d="M32 10 L50 18 L50 30 C50 42 40 50 32 54 C24 50 14 42 14 30 L14 18 Z"
+            fill="url(#shieldInner)" opacity="0.3"/>
+            <!-- Scan eye / crosshair -->
+            <circle cx="32" cy="30" r="10" fill="none" stroke="white" stroke-width="1.5" opacity="0.8"/>
+            <circle cx="32" cy="30" r="4" fill="white" opacity="0.9"/>
+            <line x1="32" y1="18" x2="32" y2="22" stroke="white" stroke-width="1.5" opacity="0.6"/>
+            <line x1="32" y1="38" x2="32" y2="42" stroke="white" stroke-width="1.5" opacity="0.6"/>
+            <line x1="20" y1="30" x2="24" y2="30" stroke="white" stroke-width="1.5" opacity="0.6"/>
+            <line x1="40" y1="30" x2="44" y2="30" stroke="white" stroke-width="1.5" opacity="0.6"/>
+            <!-- Check mark at bottom -->
+            <path d="M26 44 L30 48 L38 40" stroke="#10B981" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+            </div>
+
             </div>
 
             <!-- Status pill -->
@@ -4216,16 +4548,16 @@ DM-Count is optimized for crowd scenes
             AWAITING INPUT</span>
             </div>
 
-            <h2 style="color:#F1F5F9;font-size:34px;font-weight:800;margin:0 0 4px 0;
+            <h2 style="color:#FFFFFF;font-size:34px;font-weight:800;margin:0 0 4px 0;
             letter-spacing:-0.03em;line-height:1.2">Ready for Analysis</h2>
 
-            <p style="color:#94A3B8;font-size:15px;max-width:500px;
+            <p style="color:#CBD5E1;font-size:15px;max-width:500px;
             margin:12px auto 0;line-height:1.8">
             Upload any crowd image to begin real-time density estimation,
             threat scoring, and spatial safety mapping.</p>
 
             <!-- Divider -->
-            <div style="border-top:1px solid #334155;margin:32px auto 28px;
+            <div style="border-top:1px solid #5A6B7E;margin:32px auto 28px;
             max-width:360px"></div>
 
             <!-- How it works steps -->
@@ -4239,7 +4571,7 @@ DM-Count is optimized for crowd scenes
 
             <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
-            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            border:1px solid #5A6B7E;border-radius:14px;padding:24px 20px;
             flex:1;min-width:155px;max-width:210px;text-align:center;
             transition:all 0.3s ease;position:relative;overflow:hidden">
             <div style="position:absolute;top:0;left:0;width:100%;height:3px;
@@ -4248,16 +4580,16 @@ DM-Count is optimized for crowd scenes
             background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);
             display:flex;align-items:center;justify-content:center;
             margin:0 auto 12px;font-size:18px">📤</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            <div style="color:#FFFFFF;font-size:13px;font-weight:700;
             margin-bottom:6px">1. Upload</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#9AA8B8;font-size:11px;line-height:1.5">
             Drop a crowd image<br>
-            <span style="color:#475569;font-size:10px">JPG · PNG</span></div>
+            <span style="color:#7A8B9E;font-size:10px">JPG · PNG</span></div>
             </div>
 
             <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
-            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            border:1px solid #5A6B7E;border-radius:14px;padding:24px 20px;
             flex:1;min-width:155px;max-width:210px;text-align:center;
             transition:all 0.3s ease;position:relative;overflow:hidden">
             <div style="position:absolute;top:0;left:0;width:100%;height:3px;
@@ -4266,9 +4598,9 @@ DM-Count is optimized for crowd scenes
             background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.25);
             display:flex;align-items:center;justify-content:center;
             margin:0 auto 12px;font-size:18px">🎯</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            <div style="color:#FFFFFF;font-size:13px;font-weight:700;
             margin-bottom:6px">2. Analyze</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#9AA8B8;font-size:11px;line-height:1.5">
             DM-Count inference<br>
             <span style="color:#22D3EE;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">MAE: 4.92</span></div>
@@ -4276,7 +4608,7 @@ DM-Count is optimized for crowd scenes
 
             <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
-            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            border:1px solid #5A6B7E;border-radius:14px;padding:24px 20px;
             flex:1;min-width:155px;max-width:210px;text-align:center;
             transition:all 0.3s ease;position:relative;overflow:hidden">
             <div style="position:absolute;top:0;left:0;width:100%;height:3px;
@@ -4285,9 +4617,9 @@ DM-Count is optimized for crowd scenes
             background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);
             display:flex;align-items:center;justify-content:center;
             margin:0 auto 12px;font-size:18px">🗺️</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            <div style="color:#FFFFFF;font-size:13px;font-weight:700;
             margin-bottom:6px">3. Safety Map</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#9AA8B8;font-size:11px;line-height:1.5">
             4-zone classification<br>
             <span style="color:#10B981;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">8×8 Grid</span></div>
@@ -4295,7 +4627,7 @@ DM-Count is optimized for crowd scenes
 
             <div style="background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
-            border:1px solid #334155;border-radius:14px;padding:24px 20px;
+            border:1px solid #5A6B7E;border-radius:14px;padding:24px 20px;
             flex:1;min-width:155px;max-width:210px;text-align:center;
             transition:all 0.3s ease;position:relative;overflow:hidden">
             <div style="position:absolute;top:0;left:0;width:100%;height:3px;
@@ -4304,9 +4636,9 @@ DM-Count is optimized for crowd scenes
             background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);
             display:flex;align-items:center;justify-content:center;
             margin:0 auto 12px;font-size:18px">🤖</div>
-            <div style="color:#F1F5F9;font-size:13px;font-weight:700;
+            <div style="color:#FFFFFF;font-size:13px;font-weight:700;
             margin-bottom:6px">4. RL Agent</div>
-            <div style="color:#64748B;font-size:11px;line-height:1.5">
+            <div style="color:#9AA8B8;font-size:11px;line-height:1.5">
             Smart evacuation<br>
             <span style="color:#8B5CF6;font-family:'JetBrains Mono',monospace;
             font-size:10px;font-weight:600">Policy AI</span></div>
@@ -4319,19 +4651,19 @@ DM-Count is optimized for crowd scenes
             <div style="margin-top:32px;display:flex;justify-content:center;
             gap:8px;flex-wrap:wrap">
             <span style="padding:4px 12px;border-radius:12px;font-size:10px;
-            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            background:rgba(51,65,85,0.5);color:#9AA8B8;border:1px solid #5A6B7E;
             font-weight:500">🎵 Concerts</span>
             <span style="padding:4px 12px;border-radius:12px;font-size:10px;
-            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            background:rgba(51,65,85,0.5);color:#9AA8B8;border:1px solid #5A6B7E;
             font-weight:500">🎪 Festivals</span>
             <span style="padding:4px 12px;border-radius:12px;font-size:10px;
-            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            background:rgba(51,65,85,0.5);color:#9AA8B8;border:1px solid #5A6B7E;
             font-weight:500">🚉 Stations</span>
             <span style="padding:4px 12px;border-radius:12px;font-size:10px;
-            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            background:rgba(51,65,85,0.5);color:#9AA8B8;border:1px solid #5A6B7E;
             font-weight:500">🏟️ Stadiums</span>
             <span style="padding:4px 12px;border-radius:12px;font-size:10px;
-            background:rgba(51,65,85,0.5);color:#64748B;border:1px solid #334155;
+            background:rgba(51,65,85,0.5);color:#9AA8B8;border:1px solid #5A6B7E;
             font-weight:500">📢 Rallies</span>
             </div>
 
@@ -4352,13 +4684,13 @@ DM-Count is optimized for crowd scenes
 
 with tab2:
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #334155;
+    <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3748 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #5A6B7E;
     margin-bottom:22px;box-shadow:0 4px 20px rgba(0,0,0,0.4)">
-    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#FFFFFF;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">
     How different ML methods see the same crowd</h2>
-    <p style="color:#64748B;margin:8px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#9AA8B8;margin:8px 0 0;font-size:13px;line-height:1.5">
     Same image analysed by three different algorithms side by side.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -4397,13 +4729,13 @@ with tab2:
         _xgb_b64 = _img_to_b64(xgb_img)
 
         st.markdown("""
-        <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
-        padding:18px 22px;border-radius:12px;border:1px solid #334155;
+        <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3748 100%);
+        padding:18px 22px;border-radius:12px;border:1px solid #5A6B7E;
         margin-bottom:14px;border-left:3px solid #22D3EE;
         box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-        <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700;
+        <h3 style="color:#FFFFFF;margin:0;font-size:16px;font-weight:700;
         letter-spacing:-0.01em">⟺ Interactive Comparison</h3>
-        <p style="color:#94A3B8;font-size:12px;margin:6px 0 0;font-weight:400">
+        <p style="color:#CBD5E1;font-size:12px;margin:6px 0 0;font-weight:400">
         Drag the slider to compare KMeans vs XGBoost zone classification</p>
         </div>
         """, unsafe_allow_html=True)
@@ -4416,7 +4748,7 @@ with tab2:
             position: relative; width: 100%;
             border-radius: 12px; overflow: hidden;
             cursor: col-resize; user-select: none;
-            border: 1px solid #C7D2FE;
+            border: 1px solid #8896AA;
             box-shadow: 0 4px 24px rgba(0,0,0,0.5);
         }}
         .cmp-wrap img {{ width: 100%; display: block; }}
@@ -4543,18 +4875,18 @@ with tab2:
         c1, c2, c3 = st.columns(3)
 
         with c1:
-            st.markdown("""<div style="background:linear-gradient(160deg,#1E293B,#263445);
-            padding:18px;border-radius:12px;border:1px solid #334155;
+            st.markdown("""<div style="background:linear-gradient(160deg,#3B4A5E,#485A6E);
+            padding:18px;border-radius:12px;border:1px solid #5A6B7E;
             border-top:3px solid #6366F1;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700">KMeans</h3>
-            <p style="color:#94A3B8;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#FFFFFF;margin:0;font-size:16px;font-weight:700">KMeans</h3>
+            <p style="color:#CBD5E1;font-size:11px;margin:4px 0 0;font-weight:500">
             Unsupervised Clustering</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#1E293B;
-            border-radius:12px;border:1px solid #334155;padding:16px;margin-bottom:8px;
-            border-top:2px solid #64748B">
-            <p style="color:#94A3B8;font-size:10px;text-transform:uppercase;
+            st.markdown("""<div style="background:#3B4A5E;
+            border-radius:12px;border:1px solid #5A6B7E;padding:16px;margin-bottom:8px;
+            border-top:2px solid #9AA8B8">
+            <p style="color:#CBD5E1;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(km_img, use_container_width=True,
@@ -4571,26 +4903,26 @@ with tab2:
             st.caption("Hard clustering — assigns each patch to nearest centre")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#64748B">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#9AA8B8">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#F1F5F9;font-variant-numeric:tabular-nums">'
+                    f'color:#FFFFFF;font-variant-numeric:tabular-nums">'
                     f'{km_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
         with c2:
-            st.markdown("""<div style="background:linear-gradient(160deg,#1E293B,#263445);
-            padding:18px;border-radius:12px;border:1px solid #334155;
+            st.markdown("""<div style="background:linear-gradient(160deg,#3B4A5E,#485A6E);
+            padding:18px;border-radius:12px;border:1px solid #5A6B7E;
             border-top:3px solid #10B981;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700">XGBoost</h3>
-            <p style="color:#94A3B8;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#FFFFFF;margin:0;font-size:16px;font-weight:700">XGBoost</h3>
+            <p style="color:#CBD5E1;font-size:11px;margin:4px 0 0;font-weight:500">
             Supervised Classification</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#1E293B;
-            border-radius:12px;border:1px solid #334155;padding:16px;margin-bottom:8px;
-            border-top:2px solid #64748B">
-            <p style="color:#94A3B8;font-size:10px;text-transform:uppercase;
+            st.markdown("""<div style="background:#3B4A5E;
+            border-radius:12px;border:1px solid #5A6B7E;padding:16px;margin-bottom:8px;
+            border-top:2px solid #9AA8B8">
+            <p style="color:#CBD5E1;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(xgb_img, use_container_width=True,
@@ -4607,26 +4939,26 @@ with tab2:
             st.caption("Learned from KMeans labels — gradient boosted trees")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#64748B">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#9AA8B8">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#F1F5F9;font-variant-numeric:tabular-nums">'
+                    f'color:#FFFFFF;font-variant-numeric:tabular-nums">'
                     f'{xgb_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
         with c3:
-            st.markdown("""<div style="background:linear-gradient(160deg,#1E293B,#263445);
-            padding:18px;border-radius:12px;border:1px solid #334155;
+            st.markdown("""<div style="background:linear-gradient(160deg,#3B4A5E,#485A6E);
+            padding:18px;border-radius:12px;border:1px solid #5A6B7E;
             border-top:3px solid #7C3AED;margin-bottom:8px;
             box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-            <h3 style="color:#F1F5F9;margin:0;font-size:16px;font-weight:700">GMM</h3>
-            <p style="color:#94A3B8;font-size:11px;margin:4px 0 0;font-weight:500">
+            <h3 style="color:#FFFFFF;margin:0;font-size:16px;font-weight:700">GMM</h3>
+            <p style="color:#CBD5E1;font-size:11px;margin:4px 0 0;font-weight:500">
             Unsupervised Soft Clustering</p>
             </div>""", unsafe_allow_html=True)
-            st.markdown("""<div style="background:#1E293B;
-            border-radius:12px;border:1px solid #334155;padding:16px;margin-bottom:8px;
-            border-top:2px solid #64748B">
-            <p style="color:#94A3B8;font-size:10px;text-transform:uppercase;
+            st.markdown("""<div style="background:#3B4A5E;
+            border-radius:12px;border:1px solid #5A6B7E;padding:16px;margin-bottom:8px;
+            border-top:2px solid #9AA8B8">
+            <p style="color:#CBD5E1;font-size:10px;text-transform:uppercase;
             letter-spacing:2px;margin:0;font-weight:700">ZONE OVERLAY</p>
             </div>""", unsafe_allow_html=True)
             st.image(gmm_img, use_container_width=True,
@@ -4644,10 +4976,10 @@ with tab2:
             st.caption("Soft clustering — probability-based zone assignment")
             for z in ["Low", "Medium", "High", "Critical"]:
                 st.markdown(
-                    f'<p style="margin:3px 0;font-size:13px;color:#64748B">'
+                    f'<p style="margin:3px 0;font-size:13px;color:#9AA8B8">'
                     f'<span style="color:{ZONE_HEX[z]};font-size:10px">⬤</span> '
                     f'{z}: <b style="font-family:\'JetBrains Mono\',monospace;'
-                    f'color:#F1F5F9;font-variant-numeric:tabular-nums">'
+                    f'color:#FFFFFF;font-variant-numeric:tabular-nums">'
                     f'{gmm_stats[z]}</b></p>',
                     unsafe_allow_html=True)
 
@@ -4660,15 +4992,15 @@ with tab3:
 
     # ── Section header ──
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #334155;
+    <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3748 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #5A6B7E;
     border-left:4px solid #6366F1;margin-bottom:22px;
     box-shadow:inset 4px 0 30px rgba(99,102,241,0.15), 0 4px 20px rgba(0,0,0,0.4)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#FFFFFF;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">📡 Operations Timeline</h2>
-    <p style="color:#64748B;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#9AA8B8;margin:6px 0 0;font-size:13px;line-height:1.5">
     Security operations center · Scan history & threat analysis</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
@@ -4698,15 +5030,15 @@ with tab3:
 
         with _dc1:
             st.components.v1.html(f"""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;border-top:3px solid #6366F1;
             padding:24px 20px;text-align:center;
             box-shadow:0 4px 20px rgba(99,102,241,0.1)">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             📊 TOTAL SCANS</div>
             <div id="stat-total" style="font-size:42px;font-weight:900;
-            color:#F1F5F9;font-family:'JetBrains Mono',monospace;
+            color:#FFFFFF;font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums;line-height:1;
             text-shadow:0 0 30px rgba(99,102,241,0.2)">0</div>
             <div style="color:#3B4A63;font-size:10px;margin-top:8px;
@@ -4724,11 +5056,11 @@ with tab3:
 
         with _dc2:
             st.components.v1.html(f"""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;border-top:2px solid #0891B2;
             padding:24px 20px;text-align:center;
             box-shadow:0 4px 20px rgba(34,211,238,0.1)">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             👥 AVERAGE CROWD</div>
             <div id="stat-avg" style="font-size:42px;font-weight:900;
@@ -4759,12 +5091,12 @@ with tab3:
                 50% {{ box-shadow: 0 4px 32px rgba(255,23,68,0.35); }}
             }}
             </style>
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;border-top:2px solid {_peak_color};
             padding:24px 20px;text-align:center;
             box-shadow:0 4px 20px {'rgba(255,23,68,0.15)' if _hist_peak > 100 else 'rgba(16,185,129,0.1)'};
             {'animation:critGlow 2s ease-in-out infinite;' if _hist_peak > 100 else ''}">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">
             🔺 PEAK THREAT</div>
             <div id="stat-peak" style="font-size:42px;font-weight:900;
@@ -4789,10 +5121,10 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="background:#1E293B;border:1px solid #334155;
+        <div style="background:#3B4A5E;border:1px solid #5A6B7E;
         border-radius:12px;padding:14px 18px 6px;margin:8px 0 4px;
         border-top:3px solid #6366F1">
-        <div style="color:#94A3B8;font-size:10px;font-weight:700;
+        <div style="color:#CBD5E1;font-size:10px;font-weight:700;
         letter-spacing:2px;text-transform:uppercase">
         📈 CROWD DENSITY TIMELINE</div>
         </div>
@@ -4857,31 +5189,31 @@ with tab3:
             hovertext=_hover_text,
             hoverinfo='text',
             hoverlabel=dict(
-                bgcolor='#FFFFFF', bordercolor='#C7D2FE',
-                font=dict(family='Inter, sans-serif', size=12, color='#EFF6FF'),
+                bgcolor='#3B4A5E', bordercolor='#5A6B7E',
+                font=dict(family='Inter, sans-serif', size=12, color='#FFFFFF'),
             ),
             showlegend=False,
         ))
 
         _fig_timeline.update_layout(
-            template='plotly_dark',
+            template='none',
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             height=320,
             margin=dict(l=50, r=20, t=20, b=50),
             xaxis=dict(
-                title=dict(text='Scan #', font=dict(color='#64748B', size=11)),
-                tickfont=dict(color='#64748B', size=10,
+                title=dict(text='Scan #', font=dict(color='#9AA8B8', size=11)),
+                tickfont=dict(color='#9AA8B8', size=10,
                               family='JetBrains Mono, monospace'),
-                gridcolor='#E5E7EB', gridwidth=1,
+                gridcolor='#5A6B7E', gridwidth=1,
                 zeroline=False,
                 dtick=1,
             ),
             yaxis=dict(
-                title=dict(text='Crowd Count', font=dict(color='#64748B', size=11)),
-                tickfont=dict(color='#64748B', size=10,
+                title=dict(text='Crowd Count', font=dict(color='#9AA8B8', size=11)),
+                tickfont=dict(color='#9AA8B8', size=10,
                               family='JetBrains Mono, monospace'),
-                gridcolor='#E5E7EB', gridwidth=1,
+                gridcolor='#5A6B7E', gridwidth=1,
                 zeroline=False,
             ),
             font=dict(family='Inter, sans-serif'),
@@ -4894,10 +5226,10 @@ with tab3:
         # ══════════════════════════════════════════════════════
 
         st.markdown("""
-        <div style="background:#1E293B;border:1px solid #334155;
+        <div style="background:#3B4A5E;border:1px solid #5A6B7E;
         border-radius:12px;padding:14px 18px 6px;margin:16px 0 4px;
         border-top:2px solid #0891B2">
-        <div style="color:#94A3B8;font-size:10px;font-weight:700;
+        <div style="color:#CBD5E1;font-size:10px;font-weight:700;
         letter-spacing:2px;text-transform:uppercase">
         🗂️ THREAT HISTORY LOG</div>
         </div>
@@ -4905,22 +5237,22 @@ with tab3:
 
         # Build table header
         _table_html = """
-        <div style="border:1px solid #334155;border-radius:12px;
+        <div style="border:1px solid #5A6B7E;border-radius:12px;
         overflow:hidden;margin-top:8px">
         <table style="width:100%;border-collapse:collapse;
         font-family:'Inter',sans-serif">
         <thead>
-        <tr style="background:#0A0F1A;border-bottom:2px solid #C7D2FE">
-        <th style="padding:12px 16px;text-align:left;color:#94A3B8;
+        <tr style="background:#2D3748;border-bottom:2px solid #8896AA">
+        <th style="padding:12px 16px;text-align:left;color:#CBD5E1;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">SCAN #</th>
-        <th style="padding:12px 16px;text-align:center;color:#94A3B8;
+        <th style="padding:12px 16px;text-align:center;color:#CBD5E1;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">COUNT</th>
-        <th style="padding:12px 16px;text-align:center;color:#94A3B8;
+        <th style="padding:12px 16px;text-align:center;color:#CBD5E1;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">THREAT LEVEL</th>
-        <th style="padding:12px 16px;text-align:right;color:#94A3B8;
+        <th style="padding:12px 16px;text-align:right;color:#CBD5E1;
         font-size:10px;font-weight:700;letter-spacing:2px;
         text-transform:uppercase">ZONE STATUS</th>
         </tr>
@@ -4933,7 +5265,7 @@ with tab3:
         _display_hist.reverse()
 
         for _idx, (_scan_n, _cnt) in enumerate(_display_hist):
-            _row_bg = "#1E293B" if _idx % 2 == 0 else "#263445"
+            _row_bg = "#3B4A5E" if _idx % 2 == 0 else "#485A6E"
 
             if _cnt < 30:
                 _tl = "MINIMAL"
@@ -4961,13 +5293,13 @@ with tab3:
                 _zc = "#FF6B6B"
 
             _table_html += f"""
-            <tr style="background:{_row_bg};border-bottom:1px solid #334155;
+            <tr style="background:{_row_bg};border-bottom:1px solid #5A6B7E;
             transition:background 0.2s">
-            <td style="padding:12px 16px;color:#64748B;font-size:13px;
+            <td style="padding:12px 16px;color:#9AA8B8;font-size:13px;
             font-family:'JetBrains Mono',monospace;font-weight:500">
             #{_scan_n:02d}</td>
             <td style="padding:12px 16px;text-align:center;
-            color:#F1F5F9;font-size:15px;font-weight:700;
+            color:#FFFFFF;font-size:15px;font-weight:700;
             font-family:'JetBrains Mono',monospace;
             font-variant-numeric:tabular-nums">{_cnt}</td>
             <td style="padding:12px 16px;text-align:center">
@@ -5012,16 +5344,16 @@ filter:drop-shadow(0 4px 20px rgba(34,211,238,0.25))">📡</div>
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 OPERATIONS TIMELINE</div>
 
-<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#FFFFFF;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">No Scans Yet</h2>
 
-<p style="color:#94A3B8;font-size:14px;max-width:440px;
+<p style="color:#CBD5E1;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Analyse images in the <span style="color:#3B82F6;
 font-weight:600">Live Analysis</span> tab to populate
 the operations timeline with threat data.</p>
 
-<div style="border-top:1px solid #334155;margin:32px auto 28px;
+<div style="border-top:1px solid #5A6B7E;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:inline-flex;align-items:center;gap:8px;
@@ -5029,7 +5361,7 @@ padding:8px 20px;border-radius:20px;
 background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
 <span style="display:inline-block;width:6px;height:6px;
 border-radius:50%;background:#3B4A63"></span>
-<span style="color:#94A3B8;font-size:11px;font-weight:500;
+<span style="color:#CBD5E1;font-size:11px;font-weight:500;
 font-family:'JetBrains Mono',monospace;letter-spacing:1px">
 AWAITING FIRST SCAN</span>
 </div>
@@ -5043,272 +5375,288 @@ AWAITING FIRST SCAN</span>
 # ═══════════════════════════════════════════════════════════════
 
 with tab4:
+    url = _access_url
+    url_type = _access_url_type
+    capture_url = _capture_access_url
+    is_ngrok = url_type == "ngrok"
 
-    # Auto detect ngrok
-    auto_url = get_ngrok_url()
-    if auto_url:
-        st.session_state["ngrok_url_input"] = auto_url
-
-    ngrok_url = (
-        st.session_state.get("ngrok_url_input", "")
-        or "")
-
-    is_ready = bool(ngrok_url and
-                    ngrok_url.startswith("https://"))
-
-    # ── HEADER ──
-    st.markdown(f"""
-    <div style="background:#1E293B;border:1px solid
-    #334155;border-left:4px solid #6366F1;
+    st.markdown("""
+    <div style="background:#3B4A5E;
+    border-left:4px solid #6366F1;
     border-radius:12px;padding:24px 28px;
-    margin-bottom:24px;display:flex;
-    align-items:center;justify-content:space-between">
-    <div>
-    <h2 style="color:#F1F5F9;margin:0;font-size:22px;
-    font-weight:800">📱 Live Camera Capture</h2>
-    <p style="color:#64748B;margin:6px 0 0;
+    margin-bottom:24px">
+    <h2 style="color:#FFFFFF;margin:0;
+    font-size:22px;font-weight:800">
+    📱 Mobile Live Capture</h2>
+    <p style="color:#9AA8B8;margin:8px 0 0;
     font-size:13px">
-    Scan QR on phone → Take photo →
-    Instant crowd analysis on laptop</p>
-    </div>
-    <span style="padding:6px 16px;border-radius:20px;
-    font-size:12px;font-weight:700;
-    background:{'rgba(16,185,129,0.15)' if is_ready
-    else 'rgba(100,116,139,0.15)'};
-    color:{'#10B981' if is_ready else '#64748B'};
-    border:1px solid {'#10B981' if is_ready
-    else '#334155'}">
-    {'● READY' if is_ready else '○ Setup Required'}
-    </span>
+    Open on phone → Take photo →
+    Results appear here instantly</p>
     </div>
     """, unsafe_allow_html=True)
 
-    if is_ready:
-        # ── READY STATE — show QR prominently ──
-        qr_url = (
-            f"https://api.qrserver.com/v1/"
-            f"create-qr-code/?size=240x240"
-            f"&data={ngrok_url}"
-            f"&bgcolor=1E293B&color=22D3EE&qzone=2")
+    col_l, col_r = st.columns([3, 2])
 
-        col_left, col_right = st.columns([3, 2])
+    with col_l:
+        if is_ngrok:
+            status_color = "#10B981"
+            status_text = "● Public URL Active"
+            status_note = "Works on any network"
+            status_hint = "Use QR or copy the phone link below."
+        else:
+            status_color = "#22D3EE"
+            status_text = "● Same WiFi Mode"
+            status_note = "No ngrok needed. Phone must be on same WiFi."
+            status_hint = "Use this direct phone link first. QR is already ready."
 
-        with col_left:
-            st.markdown("""
-            <div style="background:#1E293B;
-            border:1px solid #334155;
-            border-radius:12px;padding:24px">
+        st.markdown(f"""
+        <div style="background:#3B4A5E;
+        border:1px solid #5A6B7E;
+        border-radius:12px;padding:20px 24px;
+        margin-bottom:16px">
 
-            <div style="color:#6366F1;font-size:10px;
-            font-weight:700;letter-spacing:2px;
-            margin-bottom:20px">◈ HOW TO USE</div>
-
-            <div style="display:flex;gap:14px;
-            align-items:flex-start;margin-bottom:16px">
-            <div style="background:#6366F1;color:white;
-            width:28px;height:28px;border-radius:50%;
-            display:flex;align-items:center;
-            justify-content:center;font-weight:800;
-            font-size:13px;flex-shrink:0">1</div>
-            <div>
-            <div style="color:#F1F5F9;font-weight:600;
-            font-size:14px">Scan the QR code</div>
-            <div style="color:#64748B;font-size:12px;
-            margin-top:2px">
-            Point phone camera at QR →</div>
-            </div></div>
-
-            <div style="display:flex;gap:14px;
-            align-items:flex-start;margin-bottom:16px">
-            <div style="background:#6366F1;color:white;
-            width:28px;height:28px;border-radius:50%;
-            display:flex;align-items:center;
-            justify-content:center;font-weight:800;
-            font-size:13px;flex-shrink:0">2</div>
-            <div>
-            <div style="color:#F1F5F9;font-weight:600;
-            font-size:14px">Tap Browse Files</div>
-            <div style="color:#64748B;font-size:12px;
-            margin-top:2px">
-            Select camera → take crowd photo</div>
-            </div></div>
-
-            <div style="display:flex;gap:14px;
-            align-items:flex-start">
-            <div style="background:#10B981;color:white;
-            width:28px;height:28px;border-radius:50%;
-            display:flex;align-items:center;
-            justify-content:center;font-weight:800;
-            font-size:13px;flex-shrink:0">3</div>
-            <div>
-            <div style="color:#F1F5F9;font-weight:600;
-            font-size:14px">Results appear instantly</div>
-            <div style="color:#64748B;font-size:12px;
-            margin-top:2px">
-            Analysis runs on laptop automatically</div>
-            </div></div>
-
-            </div>
-            """, unsafe_allow_html=True)
-
-        with col_right:
-            st.markdown(f"""
-            <div style="background:#1E293B;
-            border:1px solid #334155;
-            border-radius:16px;padding:24px;
-            text-align:center;
-            box-shadow:0 0 40px rgba(34,211,238,0.1)">
-
-            <img src="{qr_url}"
-            style="width:200px;height:200px;
-            border-radius:12px;
-            border:2px solid #334155">
-
-            <div style="color:#22D3EE;font-size:11px;
-            font-family:monospace;margin-top:12px;
-            word-break:break-all;padding:0 8px">
-            {ngrok_url.replace('https://','')}</div>
-
-            <div style="color:#64748B;font-size:11px;
-            margin-top:6px">
-            Scan with phone camera</div>
-
-            <div style="background:rgba(16,185,129,0.1);
-            border:1px solid rgba(16,185,129,0.3);
-            border-radius:20px;padding:4px 12px;
-            display:inline-block;margin-top:10px;
-            color:#10B981;font-size:11px;
-            font-weight:600">
-            ● Opens Live Analysis on phone</div>
-
-            </div>
-            """, unsafe_allow_html=True)
-
-    else:
-        # ── NOT READY STATE ──
-        st.markdown("""
-        <div style="background:#1E293B;
-        border:1px solid #334155;
-        border-radius:12px;padding:28px;
-        text-align:center;margin-bottom:20px">
-
-        <div style="font-size:48px;margin-bottom:16px">
-        📡</div>
-
-        <div style="color:#F1F5F9;font-size:18px;
-        font-weight:700;margin-bottom:8px">
-        Start ngrok to enable mobile access</div>
-
-        <div style="color:#64748B;font-size:13px;
-        margin-bottom:20px">
-        Run this command in a new terminal window:
+        <div style="display:flex;align-items:center;
+        justify-content:space-between;
+        margin-bottom:16px">
+        <div style="color:#9AA8B8;font-size:10px;
+        font-weight:700;letter-spacing:2px">
+        CONNECTION STATUS</div>
+        <span style="color:{status_color};
+        font-size:12px;font-weight:600">
+        {status_text}</span>
         </div>
 
-        <div style="background:#0F172A;
-        border:1px solid #334155;border-radius:8px;
-        padding:14px 20px;display:inline-block;
-        font-family:monospace;font-size:16px;
-        color:#22D3EE;letter-spacing:1px;
-        margin-bottom:20px">
-        ngrok http 8501</div>
+        <div style="color:#FFFFFF;font-size:13px;
+        font-family:monospace;background:#2D3748;
+        padding:10px 14px;border-radius:8px;
+        margin-bottom:8px;word-break:break-all">
+        {url}</div>
 
-        <div style="color:#64748B;font-size:12px">
-        Click Check Again after starting ngrok</div>
+        <div style="color:#9AA8B8;font-size:11px">
+        {status_note}</div>
+        <div style="color:#CBD5E1;font-size:11px;margin-top:6px">
+        {status_hint}</div>
+        </div>
 
+        <div style="background:#3B4A5E;
+        border:1px solid #5A6B7E;
+        border-radius:12px;padding:20px 24px">
+
+        <div style="color:#6366F1;font-size:10px;
+        font-weight:700;letter-spacing:2px;
+        margin-bottom:16px">◈ HOW IT WORKS</div>
+
+        <div style="display:flex;gap:12px;
+        align-items:center;margin-bottom:14px">
+        <div style="background:#6366F1;color:white;
+        width:26px;height:26px;border-radius:50%;
+        display:flex;align-items:center;
+        justify-content:center;font-size:12px;
+        font-weight:800;flex-shrink:0">1</div>
+        <div style="color:#CBD5E1;font-size:13px">
+        Scan QR code with phone camera</div>
+        </div>
+
+        <div style="display:flex;gap:12px;
+        align-items:center;margin-bottom:14px">
+        <div style="background:#6366F1;color:white;
+        width:26px;height:26px;border-radius:50%;
+        display:flex;align-items:center;
+        justify-content:center;font-size:12px;
+        font-weight:800;flex-shrink:0">2</div>
+        <div style="color:#CBD5E1;font-size:13px">
+        Allow camera access on phone</div>
+        </div>
+
+        <div style="display:flex;gap:12px;
+        align-items:center;margin-bottom:14px">
+        <div style="background:#6366F1;color:white;
+        width:26px;height:26px;border-radius:50%;
+        display:flex;align-items:center;
+        justify-content:center;font-size:12px;
+        font-weight:800;flex-shrink:0">3</div>
+        <div style="color:#CBD5E1;font-size:13px">
+        Take crowd photo → tap Analyze</div>
+        </div>
+
+        <div style="display:flex;gap:12px;
+        align-items:center">
+        <div style="background:#10B981;color:white;
+        width:26px;height:26px;border-radius:50%;
+        display:flex;align-items:center;
+        justify-content:center;font-size:12px;
+        font-weight:800;flex-shrink:0">4</div>
+        <div style="color:#CBD5E1;font-size:13px">
+        Results appear on this screen</div>
+        </div>
         </div>
         """, unsafe_allow_html=True)
 
-        _chk1, _chk2 = st.columns([1, 3])
-        with _chk1:
-            if st.button("🔄 Check Again", key="ngrok_recheck_tab4",
-                         use_container_width=True):
-                _re = get_ngrok_url()
-                if _re:
-                    st.session_state["ngrok_url_input"] = _re
-                    st.rerun()
-                else:
-                    st.warning("ngrok not detected yet.")
+        st.text_input(
+            "Direct phone capture link",
+            value=capture_url,
+            key="live_capture_direct_link",
+            help="Copy this into the phone browser if you do not want to scan the QR.",
+        )
 
-        # Manual fallback
-        with st.expander("Or paste URL manually"):
-            manual = st.text_input(
-                "ngrok URL",
-                placeholder="https://abc123.ngrok-free.app",
-                label_visibility="collapsed",
-                key="lc_manual_ngrok_v2")
-            if manual and manual.startswith("https://"):
-                st.session_state["ngrok_url_input"] = manual
-                st.rerun()
+        if not is_ngrok:
+            st.markdown("""
+            <div style="background:rgba(34,211,238,0.08);
+            border:1px solid rgba(34,211,238,0.24);
+            border-radius:10px;padding:14px 18px;
+            margin-top:14px">
+            <div style="color:#22D3EE;font-size:12px;
+            font-weight:600;margin-bottom:6px">
+            Same WiFi quick path:
+            </div>
+            <div style="color:#CBD5E1;font-size:12px;line-height:1.7">
+            Open the direct phone capture link above on the phone browser.
+            You only need ngrok if the phone is not on the same WiFi.</div>
+            <div style="color:#9AA8B8;font-size:11px;
+            margin-top:6px">
+            Optional remote access command: <span style="font-family:monospace;color:#F59E0B">ngrok http 8501</span>
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # ── DIRECT CAMERA (works on laptop too) ──
-    st.markdown("""
-    <div style="color:#64748B;font-size:11px;
-    font-weight:600;letter-spacing:2px;
-    text-transform:uppercase;
-    margin:24px 0 12px">
-    ◈ OR CAPTURE DIRECTLY
-    </div>
-    """, unsafe_allow_html=True)
+    with col_r:
+        qr_data = urllib.parse.quote(capture_url)
+        qr_img_url = (
+            f"https://api.qrserver.com/v1/"
+            f"create-qr-code/?size=260x260"
+            f"&data={qr_data}"
+            f"&bgcolor=0F172A"
+            f"&color=6366F1"
+            f"&qzone=2"
+            f"&format=svg")
 
-    cam_photo = st.camera_input(
-        "Take photo with laptop camera",
-        label_visibility="collapsed")
+        st.markdown(f"""
+        <div style="background:#3B4A5E;
+        border:1px solid #5A6B7E;
+        border-radius:16px;padding:28px 20px;
+        text-align:center;
+        box-shadow:0 0 40px rgba(99,102,241,0.15)">
 
-    if cam_photo:
-        raw_cam = np.asarray(
-            bytearray(cam_photo.read()),
-            dtype=np.uint8)
-        img_bgr_cam = cv2.imdecode(
-            raw_cam, cv2.IMREAD_COLOR)
-        cam_rgb = cv2.cvtColor(
-            img_bgr_cam, cv2.COLOR_BGR2RGB)
-
-        with st.spinner("◈ Analyzing..."):
-            if LWCC_AVAILABLE and lwcc_shb:
-                cam_count, cam_density = \
-                    predict_density_lwcc(cam_rgb)
-            else:
-                cam_den = predict_density_raw(
-                    cnn, img_bgr_cam)
-                h_c, w_c = img_bgr_cam.shape[:2]
-                cam_density = cv2.resize(
-                    cam_den, (w_c, h_c))
-                cam_count = apply_calibration(
-                    float(cam_den.sum()), "small")
-
-        # Show result
-        st.components.v1.html(f"""
-        <div style="background:#1E293B;
-        border:1px solid #334155;
-        border-left:4px solid #10B981;
-        border-radius:12px;padding:20px 24px;
-        margin:16px 0">
-        <div style="color:#10B981;font-size:10px;
+        <div style="color:#9AA8B8;font-size:10px;
         font-weight:700;letter-spacing:2px;
-        margin-bottom:8px">● CAPTURE ANALYZED</div>
-        <div style="display:flex;gap:32px;
-        align-items:center">
-        <div>
-        <div style="color:#64748B;font-size:10px;
-        letter-spacing:1px">PERSONS DETECTED</div>
-        <div style="color:#22D3EE;font-size:40px;
-        font-weight:900;font-family:monospace">
-        {cam_count}</div>
-        </div>
-        <div>
-        <div style="color:#64748B;font-size:10px;
-        letter-spacing:1px">MODEL</div>
-        <div style="color:#F1F5F9;font-size:14px;
-        font-weight:700;font-family:monospace">
-        DM-Count SHB</div>
-        </div>
-        </div>
-        </div>
-        """, height=120)
+        margin-bottom:16px">SCAN WITH PHONE</div>
 
-        if "cam_history" not in st.session_state:
-            st.session_state["cam_history"] = []
-        st.session_state["cam_history"].append(cam_count)
+        <div style="background:#2D3748;
+        border-radius:12px;padding:16px;
+        display:inline-block;
+        border:2px solid #5A6B7E">
+        <img src="{qr_img_url}"
+        style="width:200px;height:200px;
+        display:block">
+        </div>
+
+        <div style="color:#6366F1;font-size:11px;
+        font-family:monospace;margin-top:14px;
+        word-break:break-all;padding:0 8px;
+        line-height:1.5">
+        {capture_url.replace("https://","").replace("http://","")}
+        </div>
+
+        <div style="margin-top:12px;
+        display:flex;align-items:center;
+        justify-content:center;gap:6px">
+        <div style="width:6px;height:6px;
+        border-radius:50%;background:#10B981;
+        animation:pulse 1.5s infinite"></div>
+        <span style="color:#10B981;font-size:11px;
+        font-weight:600">Ready for capture</span>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🔄 Refresh", use_container_width=True, key="refresh_qr"):
+            st.rerun()
+
+    @st.fragment(run_every=5)
+    def _render_live_capture_status():
+        latest_capture = _load_latest_capture_payload()
+
+        st.markdown("""
+        <div style="color:#9AA8B8;font-size:10px;
+        font-weight:700;letter-spacing:2px;
+        text-transform:uppercase;margin:24px 0 12px">
+        ◈ CAPTURE STATUS
+        </div>
+        """, unsafe_allow_html=True)
+
+        if latest_capture:
+            st.markdown(f"""
+            <div style="background:#3B4A5E;
+            border:1px solid #5A6B7E;
+            border-left:4px solid #10B981;
+            border-radius:12px;padding:20px 24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+            <div>
+            <div style="color:#9AA8B8;font-size:10px;
+            letter-spacing:1px">PERSONS DETECTED</div>
+            <div style="color:#22D3EE;font-size:40px;
+            font-weight:900;font-family:monospace">
+            {latest_capture.get('count', '—')}</div>
+            </div>
+            <div>
+            <div style="color:#9AA8B8;font-size:10px;
+            letter-spacing:1px">THREAT</div>
+            <div style="color:#FFFFFF;font-size:16px;
+            font-weight:700">{latest_capture.get('threat', '—')} · {latest_capture.get('threat_score', '—')}%</div>
+            <div style="color:#9AA8B8;font-size:11px;margin-top:4px">
+            {latest_capture.get('model', 'DM-Count')} · {_format_capture_time(latest_capture.get('created_at'))}</div>
+            </div>
+            </div>
+            <div style="color:#10B981;font-size:13px;
+            font-weight:600">● Analysis Complete</div>
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            _result_cols = st.columns([1, 1])
+            with _result_cols[0]:
+                _orig_b64 = latest_capture.get("original_b64")
+                if _orig_b64:
+                    st.markdown("""
+                    <div style="color:#9AA8B8;font-size:10px;font-weight:700;
+                    letter-spacing:2px;text-transform:uppercase;margin:18px 0 10px">
+                    Original Capture
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.image(base64.b64decode(_orig_b64), use_container_width=True)
+            with _result_cols[1]:
+                _safety_b64 = latest_capture.get("safety_img_b64")
+                if _safety_b64:
+                    st.markdown("""
+                    <div style="color:#9AA8B8;font-size:10px;font-weight:700;
+                    letter-spacing:2px;text-transform:uppercase;margin:18px 0 10px">
+                    Safety Zone Result
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.image(base64.b64decode(_safety_b64), use_container_width=True)
+        else:
+            st.markdown("""
+            <div style="background:#3B4A5E;
+            border:1px solid #5A6B7E;
+            border-radius:12px;padding:24px 26px;
+            display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">
+            <div>
+            <div style="color:#FFFFFF;font-size:16px;font-weight:700;margin-bottom:6px">
+            Waiting for phone capture</div>
+            <div style="color:#9AA8B8;font-size:13px;line-height:1.7">
+            Scan the QR code, open the native camera/gallery picker on the phone,
+            then upload a crowd image to push the latest result here.</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;
+            border-radius:999px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.22)">
+            <div style="width:8px;height:8px;border-radius:50%;background:#6366F1"></div>
+            <span style="color:#CBD5E1;font-size:12px;font-weight:700">LISTENING</span>
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    _render_live_capture_status()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -5319,15 +5667,15 @@ with tab5:
 
     # ── Header card ──
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #334155;
+    <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3748 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #5A6B7E;
     border-left:4px solid #7C3AED;margin-bottom:22px;
     box-shadow:inset 4px 0 30px rgba(124,58,237,0.15), 0 4px 20px rgba(0,0,0,0.4)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#FFFFFF;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">🗂️ Batch Analysis</h2>
-    <p style="color:#64748B;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#9AA8B8;margin:6px 0 0;font-size:13px;line-height:1.5">
     Multi-frame crowd density analysis · Full zone classification per image</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
@@ -5362,10 +5710,10 @@ with tab5:
             st.session_state["batch_summary"] = None
 
         st.markdown(f"""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
+        <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:10px;
         padding:12px 20px;margin:8px 0 16px 0;display:flex;align-items:center;gap:10px">
         <span style="color:#A78BFA;font-size:14px">📁</span>
-        <span style="color:#64748B;font-size:13px">{len(batch_files)} images selected</span>
+        <span style="color:#9AA8B8;font-size:13px">{len(batch_files)} images selected</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -5473,7 +5821,7 @@ with tab5:
 
             if skipped_files:
                 _skip_lines = "".join(
-                    f"<li><span style='color:#F1F5F9'>{s['name']}</span> — {s['reason']}</li>"
+                    f"<li><span style='color:#FFFFFF'>{s['name']}</span> — {s['reason']}</li>"
                     for s in skipped_files
                 )
                 st.markdown(f"""
@@ -5482,7 +5830,7 @@ with tab5:
                 <div style="color:#F59E0B;font-size:10px;font-weight:700;
                 letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">
                 ⚠️ Skipped Files</div>
-                <ul style="margin:0;padding-left:18px;color:#94A3B8;font-size:12px;line-height:1.6">
+                <ul style="margin:0;padding-left:18px;color:#CBD5E1;font-size:12px;line-height:1.6">
                 {_skip_lines}
                 </ul>
                 </div>
@@ -5496,13 +5844,13 @@ with tab5:
 
             if _batch_summary:
                 st.markdown(f"""
-                <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+                <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:12px;
                 padding:12px 18px;margin:14px 0 8px;display:flex;flex-wrap:wrap;
                 gap:18px;align-items:center">
                 <span style="color:#A78BFA;font-size:10px;font-weight:700;
                 letter-spacing:2px;text-transform:uppercase">Batch Run Summary</span>
-                <span style="color:#94A3B8;font-size:12px">Uploaded: {_batch_summary['uploaded']}</span>
-                <span style="color:#F1F5F9;font-size:12px">Processed: {_batch_summary['processed']}</span>
+                <span style="color:#CBD5E1;font-size:12px">Uploaded: {_batch_summary['uploaded']}</span>
+                <span style="color:#FFFFFF;font-size:12px">Processed: {_batch_summary['processed']}</span>
                 <span style="color:#F59E0B;font-size:12px">Skipped: {len(_batch_summary['skipped'])}</span>
                 <span style="color:#22D3EE;font-size:12px">Elapsed: {_batch_summary['elapsed_s']:.2f}s</span>
                 </div>
@@ -5517,10 +5865,10 @@ with tab5:
             _avg_threat = int(np.mean([r["threat_score"] for r in batch_results]))
 
             st.markdown("""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:14px 18px 6px;margin:16px 0 12px;
             border-top:2px solid #7C3AED">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📊 AGGREGATE ANALYTICS</div>
             </div>
@@ -5558,15 +5906,15 @@ with tab5:
                 )])
                 _fig_zone_dist.update_layout(
                     title=dict(text="Zone Distribution (All Frames)",
-                               font=dict(color="#4B5563", size=13)),
-                    template="plotly_dark",
+                               font=dict(color="#9AA8B8", size=13)),
+                    template="none",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                     height=280,
                     margin=dict(l=40, r=20, t=40, b=40),
-                    xaxis=dict(tickfont=dict(color="#4B5563", size=11)),
-                    yaxis=dict(tickfont=dict(color="#6B7280", size=10),
-                               gridcolor="#E5E7EB"),
+                    xaxis=dict(tickfont=dict(color="#9AA8B8", size=11)),
+                    yaxis=dict(tickfont=dict(color="#CBD5E1", size=10),
+                               gridcolor="#5A6B7E"),
                     showlegend=False,
                 )
                 st.plotly_chart(
@@ -5593,8 +5941,8 @@ with tab5:
                 )])
                 _fig_threat_dist.update_layout(
                     title=dict(text="Threat Level Distribution",
-                               font=dict(color="#4B5563", size=13)),
-                    template="plotly_dark",
+                               font=dict(color="#9AA8B8", size=13)),
+                    template="none",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                     height=280,
@@ -5610,26 +5958,26 @@ with tab5:
             # 2. SUMMARY TABLE WITH ZONE COLUMNS
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:14px 18px 6px;margin:16px 0 4px;
             border-top:2px solid #7C3AED">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📋 DETAILED RESULTS TABLE</div>
             </div>
             """, unsafe_allow_html=True)
 
             _batch_table = dedent("""
-            <div style="border:1px solid #334155;border-radius:12px;
+            <div style="border:1px solid #5A6B7E;border-radius:12px;
             overflow:auto;margin-top:8px">
             <table style="width:100%;border-collapse:collapse;
             font-family:'Inter',sans-serif">
             <thead>
-            <tr style="background:#0A0F1A;border-bottom:2px solid #C7D2FE">
-            <th style="padding:12px 14px;text-align:left;color:#94A3B8;
+            <tr style="background:#2D3748;border-bottom:2px solid #8896AA">
+            <th style="padding:12px 14px;text-align:left;color:#CBD5E1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">IMAGE</th>
-            <th style="padding:12px 10px;text-align:center;color:#94A3B8;
+            <th style="padding:12px 10px;text-align:center;color:#CBD5E1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">EST.</th>
             <th style="padding:12px 10px;text-align:center;color:#10B981;
@@ -5640,16 +5988,16 @@ with tab5:
             font-size:10px;font-weight:700;letter-spacing:1.5px">HIGH</th>
             <th style="padding:12px 10px;text-align:center;color:#B91C1C;
             font-size:10px;font-weight:700;letter-spacing:1.5px">CRIT</th>
-            <th style="padding:12px 10px;text-align:center;color:#94A3B8;
+            <th style="padding:12px 10px;text-align:center;color:#CBD5E1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">THREAT</th>
-            <th style="padding:12px 10px;text-align:center;color:#94A3B8;
+            <th style="padding:12px 10px;text-align:center;color:#CBD5E1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">SCORE</th>
             <th style="padding:12px 10px;text-align:center;color:#6366F1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">CONF</th>
-            <th style="padding:12px 10px;text-align:right;color:#94A3B8;
+            <th style="padding:12px 10px;text-align:right;color:#CBD5E1;
             font-size:10px;font-weight:700;letter-spacing:1.5px;
             text-transform:uppercase">TIME</th>
             </tr>
@@ -5665,17 +6013,17 @@ with tab5:
             }
 
             for _bi, _br in enumerate(batch_results):
-                _row_bg = "#1E293B" if _bi % 2 == 0 else "#263445"
-                _btc, _btbg = _threat_colors.get(_br["threat"], ("#64748B", "rgba(100,116,139,0.12)"))
+                _row_bg = "#3B4A5E" if _bi % 2 == 0 else "#485A6E"
+                _btc, _btbg = _threat_colors.get(_br["threat"], ("#9AA8B8", "rgba(100,116,139,0.12)"))
                 _zs = _br["zone_stats"]
 
                 _batch_table += dedent(f"""
-                <tr style="background:{_row_bg};border-bottom:1px solid #334155">
-                <td style="padding:10px 14px;color:#64748B;font-size:12px;
+                <tr style="background:{_row_bg};border-bottom:1px solid #5A6B7E">
+                <td style="padding:10px 14px;color:#9AA8B8;font-size:12px;
                 font-family:'JetBrains Mono',monospace;font-weight:500">
                 {_br['name']}</td>
                 <td style="padding:10px;text-align:center;
-                color:#F1F5F9;font-size:14px;font-weight:700;
+                color:#FFFFFF;font-size:14px;font-weight:700;
                 font-family:'JetBrains Mono',monospace;
                 font-variant-numeric:tabular-nums">{_br['count']}</td>
                 <td style="padding:10px;text-align:center;
@@ -5702,7 +6050,7 @@ with tab5:
                 color:#A78BFA;font-size:12px;font-weight:600;
                 font-family:'JetBrains Mono',monospace">{_br['confidence']}%</td>
                 <td style="padding:10px;text-align:right;
-                color:#94A3B8;font-size:12px;font-weight:500;
+                color:#CBD5E1;font-size:12px;font-weight:500;
                 font-family:'JetBrains Mono',monospace">{_br.get('time_s', '—')}s</td>
                 </tr>
                 """)
@@ -5713,10 +6061,10 @@ with tab5:
             # 3. PER-IMAGE EXPANDABLE DETAIL CARDS
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
             border-top:2px solid #0891B2">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🔍 PER-IMAGE DETAILS</div>
             </div>
@@ -5725,7 +6073,7 @@ with tab5:
             for _di, _dr in enumerate(batch_results):
                 _d_zs = _dr["zone_stats"]
                 _d_ts = _dr["threat_score"]
-                _d_tc, _ = _threat_colors.get(_dr["threat"], ("#64748B", ""))
+                _d_tc, _ = _threat_colors.get(_dr["threat"], ("#9AA8B8", ""))
                 if _dr.get("portrait_hybrid_mode"):
                     _d_marker_mode = "portrait markers"
                     _d_marker_title = "PORTRAIT MARKERS"
@@ -5742,11 +6090,11 @@ with tab5:
                         f"{_dr['threat']}  ·  {_dr['confidence']}% conf  ·  "
                         f"{_dr.get('time_s', '—')}s"):
                     st.markdown(f"""
-                    <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;
+                    <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:10px;
                     padding:10px 14px;margin:4px 0 14px;display:flex;flex-wrap:wrap;gap:14px">
-                    <span style="color:#94A3B8;font-size:11px">Model: <span style="color:#F1F5F9">{_dr.get('model', '—')}</span></span>
-                    <span style="color:#94A3B8;font-size:11px">Visible markers: <span style="color:#F1F5F9">{_dr.get('marker_count', 0)}</span></span>
-                    <span style="color:#94A3B8;font-size:11px">Threat score: <span style="color:#F1F5F9">{_d_ts}%</span></span>
+                    <span style="color:#CBD5E1;font-size:11px">Model: <span style="color:#FFFFFF">{_dr.get('model', '—')}</span></span>
+                    <span style="color:#CBD5E1;font-size:11px">Visible markers: <span style="color:#FFFFFF">{_dr.get('marker_count', 0)}</span></span>
+                    <span style="color:#CBD5E1;font-size:11px">Threat score: <span style="color:#FFFFFF">{_d_ts}%</span></span>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -5795,10 +6143,10 @@ with tab5:
                             [_d_z1, _d_z2, _d_z3, _d_z4], _d_zone_data):
                         with _d_col:
                             st.markdown(f"""
-                            <div style="background:#1E293B;border:1px solid #334155;
+                            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
                             border-radius:10px;padding:14px;text-align:center;
                             border-top:2px solid {_d_clr}">
-                            <div style="font-size:10px;color:#94A3B8;font-weight:700;
+                            <div style="font-size:10px;color:#CBD5E1;font-weight:700;
                             letter-spacing:1.2px;margin-bottom:4px">{_d_lbl}</div>
                             <div style="font-size:28px;font-weight:900;color:{_d_clr};
                             font-family:'JetBrains Mono',monospace">{_d_val}</div>
@@ -5816,15 +6164,15 @@ with tab5:
                                    font=dict(size=12, color=_d_tc,
                                              family="Inter, sans-serif")),
                         gauge=dict(
-                            axis=dict(range=[0, 100], tickcolor="#64748B",
-                                      tickfont=dict(color="#6B7280", size=9)),
+                            axis=dict(range=[0, 100], tickcolor="#9AA8B8",
+                                      tickfont=dict(color="#CBD5E1", size=9)),
                             bar=dict(color=_d_tc, thickness=0.3),
-                            bgcolor="#C7D2FE", borderwidth=0,
+                            bgcolor="#8896AA", borderwidth=0,
                             steps=[
-                                dict(range=[0, 25], color="#0C2A1A"),
-                                dict(range=[25, 50], color="#2A1F00"),
-                                dict(range=[50, 75], color="#2A0D00"),
-                                dict(range=[75, 100], color="#2A0007"),
+                                dict(range=[0, 25], color="#1F4A2E"),
+                                dict(range=[25, 50], color="#4A3D10"),
+                                dict(range=[50, 75], color="#4A2D10"),
+                                dict(range=[75, 100], color="#4A1520"),
                             ],
                             threshold=dict(line=dict(color=_d_tc, width=2),
                                            thickness=0.75, value=_d_ts),
@@ -5848,11 +6196,11 @@ with tab5:
             _peak_result = max(batch_results, key=lambda x: x["count"])
 
             st.markdown(f"""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
             border-top:2px solid #FF1744">
             <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             🔺 PEAK DENSITY FRAME</div>
             <span style="color:#B91C1C;font-size:12px;font-weight:700;
@@ -5879,10 +6227,10 @@ with tab5:
             # 5. BATCH TIMELINE CHART
             # ══════════════════════════════════════════════════
             st.markdown("""
-            <div style="background:#1E293B;border:1px solid #334155;
+            <div style="background:#3B4A5E;border:1px solid #5A6B7E;
             border-radius:12px;padding:14px 18px 6px;margin:24px 0 4px;
             border-top:3px solid #6366F1">
-            <div style="color:#94A3B8;font-size:10px;font-weight:700;
+            <div style="color:#CBD5E1;font-size:10px;font-weight:700;
             letter-spacing:2px;text-transform:uppercase">
             📈 BATCH DENSITY TIMELINE</div>
             </div>
@@ -5933,7 +6281,7 @@ with tab5:
                             line=dict(color='rgba(255,255,255,0.3)', width=1.5)),
                 hovertext=_batch_hover,
                 hoverinfo='text',
-                hoverlabel=dict(bgcolor='#0F172A', bordercolor='#7C3AED',
+                hoverlabel=dict(bgcolor='#2D3748', bordercolor='#7C3AED',
                                 font=dict(family='Inter, sans-serif', size=12, color='#EFF6FF')),
                 showlegend=False,
             ))
@@ -5951,23 +6299,23 @@ with tab5:
             )
 
             _fig_batch.update_layout(
-                template='plotly_dark',
+                template='none',
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 height=320,
                 margin=dict(l=50, r=20, t=20, b=50),
                 xaxis=dict(
-                    title=dict(text='Frame #', font=dict(color='#64748B', size=11)),
-                    tickfont=dict(color='#64748B', size=10,
+                    title=dict(text='Frame #', font=dict(color='#9AA8B8', size=11)),
+                    tickfont=dict(color='#9AA8B8', size=10,
                                   family='JetBrains Mono, monospace'),
-                    gridcolor='#E5E7EB', gridwidth=1,
+                    gridcolor='#5A6B7E', gridwidth=1,
                     zeroline=False, dtick=1,
                 ),
                 yaxis=dict(
-                    title=dict(text='Crowd Count', font=dict(color='#64748B', size=11)),
-                    tickfont=dict(color='#64748B', size=10,
+                    title=dict(text='Crowd Count', font=dict(color='#9AA8B8', size=11)),
+                    tickfont=dict(color='#9AA8B8', size=10,
                                   family='JetBrains Mono, monospace'),
-                    gridcolor='#E5E7EB', gridwidth=1,
+                    gridcolor='#5A6B7E', gridwidth=1,
                     zeroline=False,
                 ),
                 font=dict(family='Inter, sans-serif'),
@@ -6039,50 +6387,50 @@ filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🗂️</div>
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 BATCH ANALYSIS</div>
 
-<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#FFFFFF;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">Upload Multiple Images</h2>
 
-<p style="color:#94A3B8;font-size:14px;max-width:440px;
+<p style="color:#CBD5E1;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Upload multiple crowd images for full zone classification per frame.
 Get aggregate statistics, per-image overlays, and a downloadable report.</p>
 
-<div style="border-top:1px solid #334155;margin:32px auto 28px;
+<div style="border-top:1px solid #5A6B7E;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:flex;justify-content:center;gap:16px;
 flex-wrap:wrap;max-width:600px;margin:0 auto">
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📊</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">Zone Stats</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Per-image classification</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">Zone Stats</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Per-image classification</div>
 </div>
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🗺️</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">Safety Maps</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">Safety Maps</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Overlays & heatmaps</div>
 </div>
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📈</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">Timeline</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Density across frames</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">Timeline</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Density across frames</div>
 </div>
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📥</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">JSON Report</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Full zone-level data</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">JSON Report</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Full zone-level data</div>
 </div>
 
 </div>
@@ -6122,15 +6470,15 @@ with tab6:
         _rl_status_border = "rgba(5,150,105,0.3)"
 
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#1E293B 0%,#0F172A 100%);
-    padding:22px 26px;border-radius:12px;border:1px solid #334155;
+    <div style="background:linear-gradient(135deg,#3B4A5E 0%,#2D3748 100%);
+    padding:22px 26px;border-radius:12px;border:1px solid #5A6B7E;
     border-left:4px solid #7C3AED;margin-bottom:22px;
     box-shadow:inset 4px 0 30px rgba(124,58,237,0.15), 0 4px 20px rgba(0,0,0,0.04)">
     <div style="display:flex;align-items:center;justify-content:space-between">
     <div>
-    <h2 style="color:#F1F5F9;margin:0;font-size:20px;font-weight:700;
+    <h2 style="color:#FFFFFF;margin:0;font-size:20px;font-weight:700;
     letter-spacing:-0.02em">🤖 DQN Evacuation Policy Agent</h2>
-    <p style="color:#64748B;margin:6px 0 0;font-size:13px;line-height:1.5">
+    <p style="color:#9AA8B8;margin:6px 0 0;font-size:13px;line-height:1.5">
     Deep Q-Network learning optimal evacuation strategy from crowd density states</p>
     </div>
     <span style="display:inline-flex;align-items:center;gap:6px;
@@ -6152,16 +6500,16 @@ with tab6:
 
     def _render_rl_stat_card(title, value, subtitle, accent):
         st.markdown(f"""
-        <div style="background:#1E293B;border:1px solid #334155;border-radius:12px;
+        <div style="background:#3B4A5E;border:1px solid #5A6B7E;border-radius:12px;
         padding:18px 20px;min-height:164px;display:flex;flex-direction:column;
         justify-content:space-between;box-shadow:0 8px 28px rgba(15,23,42,0.28);
         border-top:3px solid {accent}">
-        <div style="color:#94A3B8;font-size:11px;font-weight:700;
+        <div style="color:#CBD5E1;font-size:11px;font-weight:700;
         letter-spacing:1.6px;text-transform:uppercase">{title}</div>
         <div style="color:#F8FAFC;font-size:46px;font-weight:900;line-height:1;
         font-family:'JetBrains Mono',monospace;letter-spacing:-0.04em;
         margin:14px 0 10px;word-break:break-word">{value}</div>
-        <div style="color:#64748B;font-size:12px;line-height:1.45">{subtitle}</div>
+        <div style="color:#9AA8B8;font-size:12px;line-height:1.45">{subtitle}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -6309,8 +6657,8 @@ with tab6:
             _crit_pct_r = int((1 - _crit_a / max(_crit_b, 1)) * 100) if _crit_b > 0 else 0
 
             st.markdown(f"""
-            <div style="background:#1E293B;
-            border:1px solid #334155;
+            <div style="background:#3B4A5E;
+            border:1px solid #5A6B7E;
             border-left:4px solid #8B5CF6;
             border-radius:12px;padding:24px;
             margin:16px 0;
@@ -6321,11 +6669,11 @@ with tab6:
             text-transform:uppercase;margin-bottom:12px">
             🤖 AGENT DECISION — Episode {_rl.episode}</div>
 
-            <div style="color:#F1F5F9;font-size:22px;
+            <div style="color:#FFFFFF;font-size:22px;
             font-weight:800;margin-bottom:8px">
             {_rl_result["action_name"]}</div>
 
-            <div style="color:#94A3B8;font-size:13px;
+            <div style="color:#CBD5E1;font-size:13px;
             margin-bottom:20px">
             {_rl_result["action_detail"]}</div>
 
@@ -6333,10 +6681,10 @@ with tab6:
             grid-template-columns:1fr 1fr 1fr;
             gap:12px;margin-bottom:16px">
 
-            <div style="background:#263445;
+            <div style="background:#485A6E;
             border-radius:8px;padding:12px;
             text-align:center">
-            <div style="color:#64748B;font-size:10px;
+            <div style="color:#9AA8B8;font-size:10px;
             letter-spacing:1px">CRITICAL ZONES</div>
             <div style="color:#EF4444;font-size:20px;
             font-weight:800">{_crit_b} → {_crit_a}</div>
@@ -6344,19 +6692,19 @@ with tab6:
             ↓{_crit_pct_r}%</div>
             </div>
 
-            <div style="background:#263445;
+            <div style="background:#485A6E;
             border-radius:8px;padding:12px;
             text-align:center">
-            <div style="color:#64748B;font-size:10px;
+            <div style="color:#9AA8B8;font-size:10px;
             letter-spacing:1px">EVAC TIME</div>
             <div style="color:#22D3EE;font-size:20px;
             font-weight:800">{_rl_result["evac_before"]} → {_rl_result["evac_after"]} min</div>
             </div>
 
-            <div style="background:#263445;
+            <div style="background:#485A6E;
             border-radius:8px;padding:12px;
             text-align:center">
-            <div style="color:#64748B;font-size:10px;
+            <div style="color:#9AA8B8;font-size:10px;
             letter-spacing:1px">REWARD</div>
             <div style="color:#10B981;font-size:20px;
             font-weight:800">
@@ -6364,7 +6712,7 @@ with tab6:
             </div>
             </div>
 
-            <div style="color:#64748B;font-size:11px;
+            <div style="color:#9AA8B8;font-size:11px;
             font-family:monospace">
             Loss: {_rl_result["loss"]:.4f} ·
             Epsilon: {_rl.epsilon:.3f} ·
@@ -6375,12 +6723,12 @@ with tab6:
 
     else:
         st.markdown("""
-        <div style="background:#1E293B;border:1px solid #334155;
+        <div style="background:#3B4A5E;border:1px solid #5A6B7E;
         border-radius:12px;padding:32px;text-align:center;margin:16px 0">
         <div style="font-size:40px;margin-bottom:12px;opacity:0.5">🤖</div>
-        <div style="color:#F1F5F9;font-size:16px;font-weight:700;
+        <div style="color:#FFFFFF;font-size:16px;font-weight:700;
         margin-bottom:6px">Upload an Image First</div>
-        <div style="color:#64748B;font-size:13px">
+        <div style="color:#9AA8B8;font-size:13px">
         Analyze a crowd image in the Live Analysis tab to activate the RL agent.</div>
         </div>
         """, unsafe_allow_html=True)
@@ -6417,7 +6765,7 @@ with tab6:
         fig_learn.update_layout(
             title=dict(
                 text="Agent Learning Curve",
-                font=dict(size=14, color="#4B5563",
+                font=dict(size=14, color="#9AA8B8",
                           family="Inter, sans-serif"),
             ),
             paper_bgcolor="rgba(0,0,0,0)",
@@ -6427,17 +6775,17 @@ with tab6:
             xaxis=dict(
                 title="Episode",
                 gridcolor="rgba(199,210,254,0.3)",
-                tickfont=dict(color="#6B7280"),
-                title_font=dict(color="#6B7280"),
+                tickfont=dict(color="#CBD5E1"),
+                title_font=dict(color="#CBD5E1"),
             ),
             yaxis=dict(
                 title="Reward",
                 gridcolor="rgba(199,210,254,0.3)",
-                tickfont=dict(color="#6B7280"),
-                title_font=dict(color="#6B7280"),
+                tickfont=dict(color="#CBD5E1"),
+                title_font=dict(color="#CBD5E1"),
             ),
             legend=dict(
-                font=dict(color="#6B7280"),
+                font=dict(color="#CBD5E1"),
                 bgcolor="rgba(0,0,0,0)",
             ),
             showlegend=True,
@@ -6512,50 +6860,50 @@ filter:drop-shadow(0 4px 20px rgba(124,58,237,0.25))">🤖</div>
 letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">
 REINFORCEMENT LEARNING</div>
 
-<h2 style="color:#F1F5F9;font-size:26px;font-weight:800;margin:0;
+<h2 style="color:#FFFFFF;font-size:26px;font-weight:800;margin:0;
 letter-spacing:-0.02em">DQN Evacuation Agent</h2>
 
-<p style="color:#94A3B8;font-size:14px;max-width:440px;
+<p style="color:#CBD5E1;font-size:14px;max-width:440px;
 margin:14px auto 0;line-height:1.8">
 Upload a crowd image and run analysis first, then train the RL agent
 to learn optimal evacuation policies based on zone risk states.</p>
 
-<div style="border-top:1px solid #334155;margin:32px auto 28px;
+<div style="border-top:1px solid #5A6B7E;margin:32px auto 28px;
 max-width:300px"></div>
 
 <div style="display:flex;justify-content:center;gap:16px;
 flex-wrap:wrap;max-width:600px;margin:0 auto">
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🧠</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">DQN Network</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">128→128→64 architecture</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">DQN Network</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">128→128→64 architecture</div>
 </div>
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🎯</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">8 Actions</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Evacuation strategies</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">8 Actions</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Evacuation strategies</div>
 </div>
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">📊</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">69 Features</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Zone risks + context</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">69 Features</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Zone risks + context</div>
 </div>
 
-<div style="background:#1E293B;border:1px solid #334155;
+<div style="background:#3B4A5E;border:1px solid #5A6B7E;
 border-top:2px solid #7C3AED;border-radius:12px;padding:16px 20px;
 flex:1;min-width:120px;text-align:center">
 <div style="font-size:24px;margin-bottom:8px">🏆</div>
-<div style="color:#F1F5F9;font-size:12px;font-weight:600">Reward Shaping</div>
-<div style="color:#94A3B8;font-size:10px;margin-top:4px">Multi-objective optimization</div>
+<div style="color:#FFFFFF;font-size:12px;font-weight:600">Reward Shaping</div>
+<div style="color:#CBD5E1;font-size:10px;margin-top:4px">Multi-objective optimization</div>
 </div>
 
 </div>

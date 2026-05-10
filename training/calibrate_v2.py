@@ -13,7 +13,13 @@ import json
 import cv2
 import numpy as np
 import scipy.io as sio
-from inference_v2 import load_model_v2, tiled_inference
+import sys
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from training.inference_v2 import load_model_v2, tiled_inference
 
 # PATHS
 TEST_A_IMG = "data/part_A_final/test_data/images"
@@ -24,6 +30,14 @@ JHU_TEST   = "jhu_crowd_v2.0/test"
 
 CALIB_PATH = "models/calibration_v2.json"
 os.makedirs("models", exist_ok=True)
+
+INFERENCE_VERSION = 2
+RAW_SIGNAL = "overlap_weighted_regression"
+CALIBRATE_WITH_TTA = True
+
+
+def _log(msg=""):
+    print(msg, flush=True)
 
 
 # ─────────────────────────────────────────────
@@ -46,35 +60,37 @@ def collect_pairs(model, device="cpu"):
 
     # Part B
     if os.path.isdir(TEST_B_IMG):
-        print("  Processing Part B ...")
+        _log("  Processing Part B ...")
         files = sorted(f for f in os.listdir(TEST_B_IMG) if f.endswith(".jpg"))
         for i, fname in enumerate(files):
             gt = get_gt_shanghai(fname, TEST_B_GT)
             if gt is None or gt == 0:
                 continue
             img = cv2.imread(os.path.join(TEST_B_IMG, fname))
-            raw, _ = tiled_inference(model, img, device, tta=False)
+            raw, _ = tiled_inference(
+                model, img, device, tta=CALIBRATE_WITH_TTA)
             pairs.append((raw, gt))
             if (i + 1) % 50 == 0:
-                print(f"    {i+1}/{len(files)}")
+                _log(f"    {i+1}/{len(files)}")
 
     # Part A
     if os.path.isdir(TEST_A_IMG):
-        print("  Processing Part A ...")
+        _log("  Processing Part A ...")
         files = sorted(f for f in os.listdir(TEST_A_IMG) if f.endswith(".jpg"))
         for i, fname in enumerate(files):
             gt = get_gt_shanghai(fname, TEST_A_GT)
             if gt is None or gt == 0:
                 continue
             img = cv2.imread(os.path.join(TEST_A_IMG, fname))
-            raw, _ = tiled_inference(model, img, device, tta=False)
+            raw, _ = tiled_inference(
+                model, img, device, tta=CALIBRATE_WITH_TTA)
             pairs.append((raw, gt))
             if (i + 1) % 50 == 0:
-                print(f"    {i+1}/{len(files)}")
+                _log(f"    {i+1}/{len(files)}")
 
     # JHU
     if os.path.isdir(JHU_TEST):
-        print("  Processing JHU test ...")
+        _log("  Processing JHU test ...")
         labels_path = os.path.join(JHU_TEST, "image_labels.txt")
         count = 0
         with open(labels_path) as f:
@@ -86,11 +102,12 @@ def collect_pairs(model, device="cpu"):
                     if os.path.exists(img_path):
                         img = cv2.imread(img_path)
                         if img is not None:
-                            raw, _ = tiled_inference(model, img, device, tta=False)
+                            raw, _ = tiled_inference(
+                                model, img, device, tta=CALIBRATE_WITH_TTA)
                             pairs.append((raw, gt))
                             count += 1
                             if count % 50 == 0:
-                                print(f"    {count} JHU images")
+                                _log(f"    {count} JHU images")
                 if count >= 200:
                     break
 
@@ -105,7 +122,11 @@ def fit_calibration(pairs):
     sparse = [(r, g) for r, g in pairs if g <= 100 and r > 1e-3]
     dense  = [(r, g) for r, g in pairs if g > 100 and r > 1e-3]
 
-    calib = {}
+    calib = {
+        "inference_version": INFERENCE_VERSION,
+        "raw_signal": RAW_SIGNAL,
+        "tta": bool(CALIBRATE_WITH_TTA),
+    }
 
     # Sparse (NO bias)
     if len(sparse) >= 5:
@@ -120,7 +141,10 @@ def fit_calibration(pairs):
         preds = a * raws
         mae = np.mean(np.abs(preds - gts))
 
-        print(f"  Sparse (≤100): {len(sparse)} pts | count = {a:.6f} * raw | MAE={mae:.2f}")
+        _log(
+            f"  Sparse (≤100): {len(sparse)} pts | "
+            f"count = {a:.6f} * raw | MAE={mae:.2f}"
+        )
 
     else:
         calib["sparse_a"] = 1.0
@@ -142,7 +166,10 @@ def fit_calibration(pairs):
         preds = np.exp(a) * raws ** b
         mae = np.mean(np.abs(preds - gts))
 
-        print(f"  Dense (>100): {len(dense)} pts | count = {np.exp(a):.4f}*raw^{b:.4f} | MAE={mae:.2f}")
+        _log(
+            f"  Dense (>100): {len(dense)} pts | "
+            f"count = {np.exp(a):.4f}*raw^{b:.4f} | MAE={mae:.2f}"
+        )
 
     else:
         calib["dense_a"] = 0.0
@@ -159,10 +186,20 @@ def fit_calibration(pairs):
     return calib
 
 
+def is_calibration_compatible(calib):
+    return (
+        isinstance(calib, dict) and
+        calib.get("inference_version") == INFERENCE_VERSION and
+        calib.get("raw_signal") == RAW_SIGNAL
+    )
+
+
 # ─────────────────────────────────────────────
 # APPLY
 # ─────────────────────────────────────────────
 def apply_calibration_v2(raw, calib):
+    if not is_calibration_compatible(calib):
+        return max(0, int(round(raw)))
 
     if raw <= 1e-3:
         return 0
@@ -178,24 +215,24 @@ def apply_calibration_v2(raw, calib):
 # ─────────────────────────────────────────────
 def main():
 
-    print("=" * 60)
-    print(" SafeCrowd V2 — Calibration FIXED")
-    print("=" * 60)
+    _log("=" * 60)
+    _log(" SafeCrowd V2 — Calibration FIXED")
+    _log("=" * 60)
+    _log(f"  TTA during calibration: {CALIBRATE_WITH_TTA}")
 
     model = load_model_v2()
-    print("  ✓ Model loaded\n")
+    _log("  ✓ Model loaded\n")
 
     pairs = collect_pairs(model)
-    print(f"\n  Total calibration pairs: {len(pairs)}")
+    _log(f"\n  Total calibration pairs: {len(pairs)}")
 
     calib = fit_calibration(pairs)
 
     with open(CALIB_PATH, "w") as f:
         json.dump(calib, f, indent=2)
 
-    print(f"\n  ✓ Saved to {CALIB_PATH}")
-
-    print("\n  Next: python3 eval_v2.py")
+    _log(f"\n  ✓ Saved to {CALIB_PATH}")
+    _log("\n  Next: python3 eval_v2.py")
 
 
 if __name__ == "__main__":

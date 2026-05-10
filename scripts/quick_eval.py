@@ -1,10 +1,17 @@
-import torch
-import torch.nn.functional as F
+import os
+import sys
+
 import cv2
 import numpy as np
 import scipy.io as sio
-import os
-from train import CrowdDensityNet
+import torch
+import torch.nn.functional as F
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from training.train import CrowdDensityNet
 
 device = torch.device("cpu")
 model  = CrowdDensityNet()

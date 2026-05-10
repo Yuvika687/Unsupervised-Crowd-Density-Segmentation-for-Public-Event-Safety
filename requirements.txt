@@ -1,6 +1,7 @@
+streamlit
 torch
 torchvision
-opencv-python
+opencv-python-headless
 scipy
 numpy
 pandas
@@ -12,4 +13,8 @@ xgboost
 shap
 tqdm
 Pillow
-tabulate 
+tabulate
+plotly
+joblib
+lwcc
+gdown

@@ -13,12 +13,28 @@ Usage:
 
 import os
 import json
+import sys
+import tempfile
+
 import cv2
 import numpy as np
 import scipy.io as sio
 from tabulate import tabulate
-from inference_v2 import load_model_v2, tiled_inference
-from calibrate_v2 import apply_calibration_v2
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    os.path.join(tempfile.gettempdir(), "safecrowd-mpl"),
+)
+
+from training.inference_v2 import load_model_v2, tiled_inference
+from training.calibrate_v2 import (
+    apply_calibration_v2,
+    is_calibration_compatible,
+)
 
 import matplotlib
 matplotlib.use("Agg")
@@ -76,7 +92,11 @@ def evaluate():
     if os.path.exists(CALIB_PATH):
         with open(CALIB_PATH) as f:
             calib = json.load(f)
-        print("  ✓ Calibration loaded")
+        if is_calibration_compatible(calib):
+            print("  ✓ Calibration loaded")
+        else:
+            calib = None
+            print("  ⚠ Calibration file is from an older inference pipeline — using raw counts")
     else:
         print("  ⚠ No calibration found — using raw counts")
 
